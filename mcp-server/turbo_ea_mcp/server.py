@@ -782,6 +782,51 @@ async def _get_current_token() -> str | None:
 # ── ASGI application ───────────────────────────────────────────────────────
 
 
+class RequireBearerForMcp:
+    """Return 401 + WWW-Authenticate for unauthenticated /mcp requests.
+
+    Without this, anonymous POSTs are silently accepted, the streamable
+    session manager hands out a session id, and the MCP client (Claude
+    Desktop's custom connector, the MCP Inspector) never realises it is
+    expected to do OAuth — it just keeps making unauthenticated calls.
+    Per the MCP spec we respond to unauth'd protocol requests with 401 +
+    ``WWW-Authenticate: Bearer resource_metadata="…"`` so the client knows
+    where to discover the OAuth metadata and initiate the flow.
+
+    The OAuth and well-known routes themselves remain public — the gate
+    only fires for the protocol endpoint at ``/mcp``.
+    """
+
+    def __init__(self, app, resource_metadata_url: str):
+        self.app = app
+        self.resource_metadata_url = resource_metadata_url
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if path == "/mcp" or path.startswith("/mcp/"):
+                headers = dict(scope.get("headers", []))
+                auth = headers.get(b"authorization", b"").decode()
+                if not auth.lower().startswith("bearer "):
+                    from starlette.responses import JSONResponse
+
+                    response = JSONResponse(
+                        {
+                            "error": "unauthorized",
+                            "error_description": "Bearer token required",
+                        },
+                        status_code=401,
+                        headers={
+                            "WWW-Authenticate": (
+                                f'Bearer resource_metadata="{self.resource_metadata_url}"'
+                            ),
+                        },
+                    )
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
+
+
 def create_app() -> Starlette:
     """Create the full ASGI application with OAuth + MCP routes."""
     # OAuth routes (handled by Starlette, not MCP)
@@ -816,6 +861,10 @@ def create_app() -> Starlette:
     # redirect for clients hitting /mcp without a trailing slash).
     app = mcp.streamable_http_app()
     app.router.routes.extend(oauth_routes)
+    resource_metadata_url = (
+        f"{MCP_PUBLIC_URL.rstrip('/')}/.well-known/oauth-protected-resource"
+    )
+    app.add_middleware(RequireBearerForMcp, resource_metadata_url=resource_metadata_url)
 
     return app
 
