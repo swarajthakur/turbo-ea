@@ -5,6 +5,13 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.11.3] - 2026-05-14
+
+A first-time evaluator opening `SEED_DEMO=true` used to land on an empty **GRC → Compliance** tab — the only way to populate it was to configure an LLM provider and trigger a real scan. This release ships a hand-curated set of demo findings so the tab is usable out of the box.
+
+### Added
+- **Seeded demo CVE and Compliance findings.** A new `seed_demo_security.py` seeder runs on `SEED_DEMO=true` (or on demand via `SEED_SECURITY=true`) and inserts 8 example CVE findings (across critical / high / medium / low severities and the full `open → acknowledged → in_progress → mitigated → accepted` lifecycle) and 12 Compliance findings (covering all six built-in regulations — EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001 — with a mix of card-scoped and landscape entries spanning every compliance lifecycle state). CVE IDs are deliberately fictitious (`CVE-2025-9XXXX` block) so they cannot collide with real-world advisories; the seeded findings carry the same `(card_id, cve_id)` and `finding_key` natural keys as scanned findings, so a later real scan upserts cleanly without duplication. The seeder is idempotent (skips if any finding row already exists) and silently skips findings whose target card isn't present in the install. A new `test_seed_demo_security.py` validates that every referenced card name exists in `seed_demo.py`, every regulation key is a built-in, and every lifecycle state is valid.
+
 ## [1.11.2] - 2026-05-14
 
 Two follow-ups on the Compliance grid: a fix for duplicate findings the LLM was minting on every re-scan, and a new bulk-action toolbar so admins can edit or delete many findings at once.
