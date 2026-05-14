@@ -110,6 +110,8 @@ Lo scanner di sicurezza on-demand, con due metà indipendenti:
 - **Scansione CVE** — interroga NIST NVD per i fornitori / prodotti / versioni del paesaggio vivo, poi chiede all'LLM di prioritizzare i riscontri.
 - **Scansione di conformità** — analisi degli scostamenti per regolamento, basata su IA, contro i regolamenti abilitati. Sei framework sono abilitati per default (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); gli amministratori possono abilitarli o disabilitarli — e aggiungere regolamenti personalizzati come HIPAA o policy interne — da [**Amministrazione → Metamodello → Regolamenti**](../admin/metamodel.md#compliance-regulations).
 
+`SEED_DEMO=true` popola un insieme curato di riscontri CVE e di conformità di esempio (su tutti e sei i regolamenti integrati e con un mix di stati del ciclo di vita) sulle card demo NexaTech — la scheda è utilizzabile subito senza un provider AI configurato.
+
 I riscontri sono **durevoli tra re-scansioni** — decisioni utente, note di revisione, il verdetto AI dell'utente su una card e il rimando a un Rischio promosso sopravvivono alle scansioni successive. Un riscontro che la passata seguente non riporta più viene marcato `auto_resolved` e nascosto per default; il Rischio promosso in precedenza resta intatto per non rompere il percorso di audit.
 
 La griglia Conformità riflette quella dell'Inventario: barra laterale dei filtri con visibilità delle colonne, ordinamento persistito, ricerca a testo libero e un cassetto di dettaglio che mostra il ciclo di vita di conformità come una timeline orizzontale di fasi:

@@ -110,6 +110,8 @@ The on-demand security scanner, with two independent halves:
 - **CVE scan** — queries NIST NVD for the live landscape's vendors / products / versions, then asks the LLM to prioritise findings.
 - **Compliance scan** — per-regulation AI gap analysis against the enabled regulations. Six frameworks ship enabled by default (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); admins can enable or disable any of them — and add custom regulations like HIPAA or internal policies — under [**Administration → Metamodel → Regulations**](../admin/metamodel.md#compliance-regulations).
 
+`SEED_DEMO=true` populates a hand-curated set of example CVE and compliance findings (across all six built-in regulations and a mix of lifecycle states) against the NexaTech demo cards, so the tab is usable out of the box without an AI provider configured.
+
 Findings are **durable across re-scans** — user decisions, reviewer notes, the user's AI verdict on a card, and the back-link to a promoted Risk all survive subsequent scans. A finding the next pass no longer reports is flagged `auto_resolved` and hidden by default; the previously-promoted Risk is left intact so its audit trail isn't broken.
 
 The Compliance grid mirrors the Inventory grid: filter sidebar with column visibility toggles, persisted sort, full-text search, and a detail drawer that shows the finding's compliance lifecycle as a horizontal phase timeline:

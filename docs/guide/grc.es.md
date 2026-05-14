@@ -110,6 +110,8 @@ El escáner de seguridad bajo demanda, con dos mitades independientes:
 - **Escaneo CVE** — consulta NIST NVD para los proveedores / productos / versiones del paisaje vivo, y luego pide al LLM que priorice los hallazgos.
 - **Escaneo de cumplimiento** — análisis de brechas por regulación con IA frente a las regulaciones habilitadas. Seis marcos vienen habilitados por defecto (EU AI Act, RGPD, NIS2, DORA, SOC 2, ISO 27001); los administradores pueden habilitarlos o deshabilitarlos — y añadir regulaciones personalizadas como HIPAA o políticas internas — en [**Administración → Metamodelo → Regulaciones**](../admin/metamodel.md#compliance-regulations).
 
+`SEED_DEMO=true` carga un conjunto curado de hallazgos CVE y de cumplimiento de ejemplo (en las seis regulaciones integradas y con una mezcla de estados del ciclo de vida) contra las fichas de demostración NexaTech — así la pestaña es utilizable desde el primer momento sin necesidad de configurar un proveedor de IA.
+
 Los hallazgos son **duraderos entre re-escaneos** — las decisiones de la usuaria, las notas de revisión, el veredicto IA del usuario sobre una ficha y el enlace de vuelta a un Riesgo promovido sobreviven a los escaneos posteriores. Un hallazgo que la siguiente pasada ya no reporta se marca `auto_resolved` y se oculta por defecto; el Riesgo previamente promovido se conserva para no romper la pista de auditoría.
 
 La cuadrícula de Cumplimiento refleja la del Inventario: barra lateral de filtros con visibilidad de columnas, orden persistido, búsqueda de texto completo y un panel de detalle que muestra el ciclo de vida de cumplimiento como una línea de tiempo horizontal de fases:

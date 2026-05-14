@@ -144,7 +144,7 @@ Every change that introduces user-visible content must include translations. Bef
 - Use the factory helpers in `backend/tests/conftest.py` (`create_user`, `create_card`, `create_card_type`, etc.) rather than inserting raw models. Note: `create_card_type` defaults to `built_in=False`; pass `built_in=True` explicitly when testing built-in type behavior.
 - Frontend tests use Vitest + Testing Library. Mock the API client with `vi.mock("@/api/client")`, not the global fetch.
 - Pure logic (calculation engine, BPMN parser, encryption, JWT) should have unit tests that need no database.
-- **Seed demo data must stay compatible with the metamodel.** `test_seed_demo.py` validates that every card type, subtype, attribute key, select option, and relation type used in `seed_demo.py` and `seed_demo_bpm.py` matches the definitions in `seed.py`. When changing the metamodel, update the demo data or these tests will fail.
+- **Seed demo data must stay compatible with the metamodel.** `test_seed_demo.py` validates that every card type, subtype, attribute key, select option, and relation type used in `seed_demo.py` and `seed_demo_bpm.py` matches the definitions in `seed.py`. When changing the metamodel, update the demo data or these tests will fail. `test_seed_demo_security.py` does the equivalent for `seed_demo_security.py` — it asserts that every card name referenced by the demo CVE / Compliance findings exists in `seed_demo.py`'s Application + IT Component list, and that every regulation key / lifecycle state used by the seed is valid. Rename a NexaTech demo card and these tests will catch the dangling reference.
 
 **Running tests locally:**
 ```bash
