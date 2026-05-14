@@ -4,10 +4,6 @@ Das **GRC**-Modul vereint Governance, Risk und Compliance in einem gemeinsamen A
 
 GRC hat drei Reiter:
 
-- **Governance** — EA-Prinzipien und Architecture Decision Records (ADRs).
-- **Risk** — das [Risikoregister](risks.md) gemäß TOGAF Phase G.
-- **Compliance** — der On-Demand-Scanner (CVE + regulatorische Lückenanalyse), der zuvor in TurboLens lebte.
-
 Du kannst jeden Reiter direkt verlinken: `/grc?tab=governance`, `/grc?tab=risk` oder `/grc?tab=compliance`.
 
 ![GRC — Governance-Reiter](../assets/img/de/52_grc_governance.png)
@@ -97,20 +93,11 @@ Klick auf das Vorschau-Symbol für eine schreibgeschützte, formatierte Ansicht 
 
 Bindet das **Risikoregister** gemäß TOGAF Phase G ein. Lebenszyklus, Statusworkflow, Matrix-Umschalter und Eigentümer-Verhalten sind im [Risikoregister-Leitfaden](risks.md) dokumentiert. Die wichtigsten Punkte:
 
-- Das Register lebt unter `/grc?tab=risk` (vorher unter EA-Bereitstellung).
-- Risiken können manuell angelegt oder aus einem CVE- bzw. Compliance-Befund unter dem Compliance-Reiter **promotet** werden.
-- Die Promotion ist idempotent — sobald ein Befund promotet wurde, wechselt sein Button auf **Risiko R-000123 öffnen**.
-
 ## Compliance
 
 ![GRC — Compliance-Scanner](../assets/img/de/54_grc_compliance.png)
 
 Der On-Demand-Sicherheitsscanner mit zwei unabhängigen Hälften:
-
-- **CVE-Scan** — fragt die NIST NVD nach den Anbietern / Produkten / Versionen der lebenden Landschaft ab und lässt das LLM Funde priorisieren.
-- **Compliance-Scan** — KI-gestützte Lückenanalyse pro Regulierung gegen die aktivierten Regulierungen. Sechs Frameworks sind standardmäßig aktiviert (EU AI Act, DSGVO, NIS2, DORA, SOC 2, ISO 27001); Administratorinnen können sie unter [**Administration → Metamodell → Regulierungen**](../admin/metamodel.md#compliance-regulations) aktivieren / deaktivieren oder eigene Regulierungen (HIPAA, interne Richtlinien) ergänzen.
-
-`SEED_DEMO=true` befüllt einen sorgfältig kuratierten Beispielsatz aus CVE- und Compliance-Befunden (über alle sechs eingebauten Regulierungen hinweg, mit einer Auswahl an Lebenszyklus-Zuständen) gegen die NexaTech-Demo-Karten — so ist der Reiter ohne konfigurierten KI-Anbieter sofort nutzbar.
 
 Befunde sind **über Re-Scans hinweg dauerhaft** — Benutzerentscheidungen, Prüfnotizen, das KI-Verdikt des Nutzers auf einer Karte und der Rückverweis auf ein promotetes Risiko überleben spätere Scans. Ein Befund, den der nächste Lauf nicht mehr meldet, wird mit `auto_resolved` markiert und standardmäßig ausgeblendet; das zuvor promotete Risiko bleibt erhalten, damit der Audit-Pfad nicht abreißt.
 

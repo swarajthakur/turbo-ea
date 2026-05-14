@@ -19,10 +19,6 @@ O registo implementa o processo de Gestão de Riscos de Arquitetura da **TOGAF A
 
 Três caminhos convergem no mesmo diálogo **Criar risco** — cada variante pré-preenche campos diferentes para que possa editar e submeter:
 
-1. **Manual** — separador Riscos → **+ Novo risco**. Formulário em branco.
-2. **A partir de um achado CVE** — TurboLens → Segurança e Conformidade → painel CVE → **Criar risco**. Pré-preenche título (ID do CVE sobre o card), descrição (texto do NVD + impacto de negócio + CVSS), categoria `security`, probabilidade/impacto a partir do CVE, mitigação a partir da remediação do achado e liga o card afetado.
-3. **A partir de um achado de conformidade** — TurboLens → Segurança e Conformidade → separador Conformidade → **Criar risco** num achado não conforme. Pré-preenche categoria `compliance`, probabilidade/impacto a partir da severidade + estado da regulação, descrição a partir do requisito + lacuna.
-
 As três variantes incluem os campos **Proprietário**, **Categoria** e **Data-alvo de resolução** para atribuir responsabilidade logo na criação — sem necessidade de reabrir o risco.
 
 A promoção é **idempotente** — depois que um achado é promovido, o seu botão passa a **Abrir risco R-000123** e navega diretamente para a página de detalhe do risco.

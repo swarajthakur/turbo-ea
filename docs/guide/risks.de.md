@@ -19,10 +19,6 @@ Das Register setzt den Architektur-Risikomanagement-Prozess aus **TOGAF ADM Phas
 
 Drei Pfade münden in denselben Dialog **Risiko anlegen** — jede Variante füllt unterschiedliche Felder vor, sodass Sie bearbeiten und absenden können:
 
-1. **Manuell** — Tab Risiken → **+ Neues Risiko**. Leeres Formular.
-2. **Aus einem CVE-Befund** — TurboLens → Sicherheit & Compliance → CVE-Schublade → **Risiko anlegen**. Füllt Titel (CVE-ID auf Karte), Beschreibung (NVD-Text + Geschäftsauswirkung + CVSS), Kategorie `security`, Wahrscheinlichkeit/Auswirkung aus dem CVE, Minderung aus der Behebungsempfehlung des Befunds vor und verknüpft die betroffene Karte.
-3. **Aus einem Compliance-Befund** — TurboLens → Sicherheit & Compliance → Compliance-Tab → **Risiko anlegen** auf einem nicht konformen Befund. Füllt Kategorie `compliance`, Wahrscheinlichkeit/Auswirkung aus Schweregrad + Status der Regulierung, Beschreibung aus Anforderung + Lücke vor.
-
 Alle drei Varianten enthalten die Felder **Eigentümer**, **Kategorie** und **Ziel-Erledigungsdatum**, sodass Verantwortlichkeit bereits beim Anlegen zugewiesen werden kann — ohne das Risiko erneut zu öffnen.
 
 Die Überführung ist **idempotent** — sobald ein Befund überführt wurde, ändert sich seine Schaltfläche zu **Risiko R-000123 öffnen** und navigiert direkt zur Risikodetailseite.

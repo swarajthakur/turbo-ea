@@ -5763,24 +5763,6 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
 
     demo = [
         {
-            "title": "CVE-2024-45678 on legacy Apache HTTP Server",
-            "description": (
-                "Remote code execution in Apache HTTP Server 2.4.58. The "
-                "perimeter-facing deployment is reachable from the public "
-                "internet and fronts customer orders."
-            ),
-            "category": "security",
-            "source_type": "security_cve",
-            "source_ref": "CVE-2024-45678",
-            "initial_probability": "very_high",
-            "initial_impact": "critical",
-            "status": "identified",
-            "owner": admin_id,
-            "target": today + timedelta(days=14),
-            "mitigation": None,
-            "cards": ["app_nexacore_erp"],
-        },
-        {
             "title": "EU AI Act: high-risk AI registry missing",
             "description": (
                 "Multiple AI-bearing applications (credit scoring, fraud "

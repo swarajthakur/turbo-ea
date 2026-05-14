@@ -1308,17 +1308,7 @@ export interface TurboLensOverview {
   top_issues: Array<{ id: string; name: string; type: string; data_quality: number }>;
 }
 
-// ── Security & Compliance ──────────────────────────────────────────────
-
-export type CveSeverity = "critical" | "high" | "medium" | "low" | "unknown";
-export type CveProbability = "very_high" | "high" | "medium" | "low" | "unknown";
-export type CvePriority = "critical" | "high" | "medium" | "low";
-export type CveStatus =
-  | "open"
-  | "acknowledged"
-  | "in_progress"
-  | "mitigated"
-  | "accepted";
+// ── Compliance ─────────────────────────────────────────────────────────
 
 export type ComplianceStatus =
   | "compliant"
@@ -1358,43 +1348,6 @@ export interface ComplianceRegulation {
   translations: TranslationMap;
   created_at?: string | null;
   updated_at?: string | null;
-}
-
-export interface CveReference {
-  url: string;
-  tags?: string[];
-  source?: string;
-}
-
-export interface TurboLensCveFinding {
-  id: string;
-  run_id: string;
-  card_id: string;
-  card_name: string | null;
-  card_type: string;
-  cve_id: string;
-  vendor: string;
-  product: string;
-  version: string | null;
-  cvss_score: number | null;
-  cvss_vector: string | null;
-  severity: CveSeverity;
-  attack_vector: string | null;
-  exploitability_score: number | null;
-  impact_score: number | null;
-  patch_available: boolean;
-  published_date: string | null;
-  last_modified_date: string | null;
-  description: string;
-  nvd_references: CveReference[] | null;
-  priority: CvePriority;
-  probability: CveProbability;
-  business_impact: string | null;
-  remediation: string | null;
-  status: CveStatus;
-  risk_id: string | null;
-  risk_reference: string | null;
-  created_at: string | null;
 }
 
 /**
@@ -1461,10 +1414,7 @@ export type RiskCategory =
   | "reputational"
   | "strategic";
 
-export type RiskSourceType =
-  | "manual"
-  | "security_cve"
-  | "security_compliance";
+export type RiskSourceType = "manual" | "security_compliance";
 
 export type RiskLevel = "critical" | "high" | "medium" | "low";
 
@@ -1579,28 +1529,13 @@ export interface SecurityScanRun {
 }
 
 export interface TurboLensSecurityOverview {
-  cve_run: SecurityScanRun;
   compliance_run: SecurityScanRun;
-  total_findings: number;
-  by_severity: Record<string, number>;
-  by_status: Record<string, number>;
-  by_probability: Record<string, number>;
-  risk_matrix: number[][];
   compliance_scores: Record<string, number>;
   compliance_by_status: Record<string, Record<string, number>>;
-  top_critical: TurboLensCveFinding[];
 }
 
 export interface SecurityActiveRuns {
-  cve: TurboLensAnalysisRun | null;
   compliance: TurboLensAnalysisRun | null;
-}
-
-export interface CveFindingsPage {
-  items: TurboLensCveFinding[];
-  total: number;
-  page: number;
-  page_size: number;
 }
 
 // Architecture AI result types

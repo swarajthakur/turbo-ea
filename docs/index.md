@@ -33,7 +33,7 @@ This guide is for **everyone who uses Turbo EA** — enterprise architects, IT m
 | **Reports** | Pre-built visualizations: Portfolio, Capability Map, Lifecycle, Dependencies, Cost, Matrix, Data Quality, and End-of-Life |
 | **BPM** | Business Process Management — model business processes with a BPMN 2.0 editor, link diagram elements to cards, and assess maturity, risk, and automation |
 | **PPM** | Project Portfolio Management — manage Initiative cards as full projects with status reports, Work Breakdown Structures, kanban + Gantt task boards, budgets, costs, and a per-initiative risk register |
-| **TurboLens** | AI-powered EA intelligence — vendor analysis, duplicate detection, modernization assessment, the 5-step Architecture AI wizard, and Security & Compliance scans (CVE plus EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001) |
+| **TurboLens** | AI-powered EA intelligence — vendor analysis, duplicate detection, modernization assessment, the 5-step Architecture AI wizard, and compliance scans against EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001 |
 | **EA Delivery** | The TOGAF-aligned delivery surface — Statements of Architecture Work, Architecture Decision Records, and the landscape-level Risk Register |
 | **SoAW** | Statement of Architecture Work — a formal TOGAF document scoping an architecture initiative |
 | **ADR** | Architecture Decision Record — captures a decision's context, alternatives, and consequences, with status workflow and card linking |

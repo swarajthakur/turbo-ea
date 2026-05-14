@@ -1,9 +1,9 @@
 """Unit tests for pure helpers in ``app.services.risk_service``.
 
 Exercises the bits that don't need a database — the 4×4 derived-level
-table, the status transition validator, and the CVE-severity → impact
-mapping used by the promote-from-finding flow. DB-touching pieces
-(next_reference, promote_*) are covered by integration tests.
+table and the status transition validator. DB-touching pieces
+(next_reference, promote_compliance_finding) are covered by integration
+tests.
 """
 
 from __future__ import annotations

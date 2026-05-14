@@ -19,10 +19,6 @@ Le registre met en œuvre le processus de gestion des risques d'architecture de 
 
 Trois chemins mènent à la même boîte de dialogue **Créer un risque** — chaque variante pré-remplit des champs différents afin que vous puissiez modifier puis valider :
 
-1. **Manuel** — onglet Risques → **+ Nouveau risque**. Formulaire vierge.
-2. **Depuis un constat CVE** — TurboLens → Sécurité et conformité → panneau CVE → **Créer un risque**. Pré-remplit le titre (ID CVE sur la fiche), la description (texte NVD + impact métier + CVSS), la catégorie `security`, la probabilité / l'impact depuis le CVE, la mitigation depuis la remédiation du constat, et lie la fiche affectée.
-3. **Depuis un constat de conformité** — TurboLens → Sécurité et conformité → onglet Conformité → **Créer un risque** sur un constat non conforme. Pré-remplit la catégorie `compliance`, la probabilité / l'impact depuis la gravité + le statut de la réglementation, la description depuis l'exigence + l'écart.
-
 Les trois variantes incluent les champs **Propriétaire**, **Catégorie** et **Date cible de résolution** pour attribuer la responsabilité dès la création — sans avoir à rouvrir le risque.
 
 La promotion est **idempotente** — une fois qu'un constat a été promu, son bouton bascule en **Ouvrir le risque R-000123** et navigue directement vers la page de détail du risque.

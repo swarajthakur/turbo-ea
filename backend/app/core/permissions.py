@@ -161,10 +161,10 @@ APP_PERMISSIONS: dict[str, dict] = {
         },
     },
     "security_compliance": {
-        "label": "Security & Compliance",
+        "label": "Compliance",
         "permissions": {
-            "security_compliance.view": "View CVE findings and compliance reports",
-            "security_compliance.manage": "Trigger security scans and update finding status",
+            "security_compliance.view": "View compliance reports",
+            "security_compliance.manage": "Trigger compliance scans and update finding status",
         },
     },
     "risks": {

@@ -19,10 +19,6 @@ Il registro implementa il processo di gestione dei rischi di architettura della 
 
 Tre percorsi confluiscono nello stesso dialogo **Crea rischio** — ciascuna variante precompila campi diversi in modo che possiate modificare e inviare:
 
-1. **Manuale** — scheda Rischi → **+ Nuovo rischio**. Form vuoto.
-2. **Da una evidenza CVE** — TurboLens → Sicurezza e conformità → pannello CVE → **Crea rischio**. Precompila titolo (ID CVE sulla card), descrizione (testo NVD + impatto sul business + CVSS), categoria `security`, probabilità/impatto dal CVE, mitigazione dalla remediation dell'evidenza e collega la card coinvolta.
-3. **Da una evidenza di conformità** — TurboLens → Sicurezza e conformità → scheda Conformità → **Crea rischio** su un'evidenza non conforme. Precompila categoria `compliance`, probabilità/impatto dalla gravità + stato della normativa, descrizione da requisito + lacuna.
-
 Tutte e tre le varianti includono i campi **Proprietario**, **Categoria** e **Data obiettivo di risoluzione**, così da assegnare responsabilità già in fase di creazione — senza riaprire il rischio.
 
 La promozione è **idempotente** — una volta promossa un'evidenza, il suo pulsante diventa **Apri rischio R-000123** e porta direttamente alla pagina di dettaglio del rischio.

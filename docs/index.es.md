@@ -33,7 +33,7 @@ Esta guía es para **todos los usuarios de Turbo EA** — arquitectos empresaria
 | **Informes** | Visualizaciones predefinidas: Portafolio, Mapa de Capacidades, Ciclo de Vida, Dependencias, Coste, Matriz, Calidad de Datos y Fin de Vida |
 | **BPM** | Gestión de Procesos de Negocio — modele procesos con un editor BPMN 2.0, vincule elementos del diagrama a cards y evalúe madurez, riesgo y automatización |
 | **PPM** | Project Portfolio Management — gestione cards de Iniciativa como proyectos completos con informes de estado, Work Breakdown Structures, tableros kanban y Gantt, presupuestos, costes y un registro de riesgos por iniciativa |
-| **TurboLens** | Inteligencia EA potenciada por IA — análisis de proveedores, detección de duplicados, evaluación de modernización, el asistente Architecture AI de 5 pasos y escaneos de Seguridad y Cumplimiento (CVE más EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001) |
+| **TurboLens** | Inteligencia EA potenciada por IA — análisis de proveedores, detección de duplicados, evaluación de modernización, el asistente Architecture AI de 5 pasos y escaneos de Cumplimiento (EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001) |
 | **EA Delivery** | La superficie de entrega alineada con TOGAF — Statements of Architecture Work, Architecture Decision Records y el Registro de Riesgos a nivel de paisaje |
 | **SoAW** | Statement of Architecture Work — documento formal TOGAF que delimita el alcance de una iniciativa de arquitectura |
 | **ADR** | Architecture Decision Record — captura el contexto, las alternativas y las consecuencias de una decisión, con flujo de estado y vinculación a cards |

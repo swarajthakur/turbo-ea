@@ -4,10 +4,6 @@ El módulo **GRC** reúne Gobernanza, Riesgo y Cumplimiento en un único espacio
 
 GRC tiene tres pestañas:
 
-- **Gobernanza** — Principios EA y Architecture Decision Records (ADR).
-- **Riesgo** — el [Registro de riesgos](risks.md) según TOGAF Fase G.
-- **Cumplimiento** — el escáner bajo demanda (CVE + análisis de brechas regulatorias) que antes se encontraba en TurboLens.
-
 Puedes apuntar directamente a cualquier pestaña con `/grc?tab=governance`, `/grc?tab=risk` o `/grc?tab=compliance`.
 
 ![GRC — pestaña Gobernanza](../assets/img/es/52_grc_gobernanza.png)
@@ -97,20 +93,11 @@ Haga clic en el icono de vista previa para ver una versión de solo lectura y fo
 
 Incrusta el **Registro de riesgos** TOGAF Fase G. El ciclo de vida completo, el flujo de estados, los conmutadores de matriz y el comportamiento de propietarios están documentados en la [guía del Registro de riesgos](risks.md). Lo más relevante:
 
-- El registro vive en `/grc?tab=risk` (antes estaba bajo Entrega EA).
-- Los riesgos pueden crearse manualmente o **promoverse** desde un hallazgo CVE o de cumplimiento en la pestaña Cumplimiento.
-- La promoción es idempotente — una vez promovido un hallazgo, su botón cambia a **Abrir riesgo R-000123**.
-
 ## Cumplimiento
 
 ![GRC — escáner de cumplimiento](../assets/img/es/54_grc_cumplimiento.png)
 
 El escáner de seguridad bajo demanda, con dos mitades independientes:
-
-- **Escaneo CVE** — consulta NIST NVD para los proveedores / productos / versiones del paisaje vivo, y luego pide al LLM que priorice los hallazgos.
-- **Escaneo de cumplimiento** — análisis de brechas por regulación con IA frente a las regulaciones habilitadas. Seis marcos vienen habilitados por defecto (EU AI Act, RGPD, NIS2, DORA, SOC 2, ISO 27001); los administradores pueden habilitarlos o deshabilitarlos — y añadir regulaciones personalizadas como HIPAA o políticas internas — en [**Administración → Metamodelo → Regulaciones**](../admin/metamodel.md#compliance-regulations).
-
-`SEED_DEMO=true` carga un conjunto curado de hallazgos CVE y de cumplimiento de ejemplo (en las seis regulaciones integradas y con una mezcla de estados del ciclo de vida) contra las fichas de demostración NexaTech — así la pestaña es utilizable desde el primer momento sin necesidad de configurar un proveedor de IA.
 
 Los hallazgos son **duraderos entre re-escaneos** — las decisiones de la usuaria, las notas de revisión, el veredicto IA del usuario sobre una ficha y el enlace de vuelta a un Riesgo promovido sobreviven a los escaneos posteriores. Un hallazgo que la siguiente pasada ya no reporta se marca `auto_resolved` y se oculta por defecto; el Riesgo previamente promovido se conserva para no romper la pista de auditoría.
 

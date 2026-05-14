@@ -5,6 +5,18 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.12.0] - 2026-05-14
+
+The TurboLens CVE scanner has been removed. The Security tab is now Compliance-only, and the on-demand regulation gap analysis remains fully intact.
+
+### Removed
+- **TurboLens CVE scanner, NVD integration, and CVE findings registry.** The `turbolens_cve_findings` table, the NVD REST client (`services/turbolens_nvd.py`), the CVE scan orchestrator (`run_cve_scan`, AI prioritisation pass, risk-matrix aggregator), and every CVE-related API route (`POST /security/cve-scan`, `GET/PATCH /security/findings`, `GET /security/findings/{id}`, `GET /security/export.csv`) are gone. The CVE → Risk promotion path (`POST /risks/promote/cve/{id}` and the supporting `promote_cve_finding` service helper) is also removed; `RiskSourceType` no longer carries `security_cve`. Migration `084_remove_cve_scanner` drops the table, purges promoted CVE-derived risks (and their card joins + owner Todos), and clears `security_cve` analysis-run history. The `NVD_API_KEY` environment variable is no longer read.
+- **CVE UI surface.** The TurboLens Security tab is rebranded to Compliance: the inner CVE sub-tab, the CVE findings table, the clickable 5×5 probability × severity risk matrix, the CVE finding drawer, the "Top critical findings" overview block, and the CSV export button are removed. The Create Risk dialog's CVE-promote branch and the CVE-flavoured i18n keys (severity / priority / probability / status / drawer / patch / matrix labels) are deleted across all 8 locales.
+- **CVE demo seed data.** `seed_demo_security.py` no longer ships the 8 fictitious `CVE-2025-9XXXX` rows; only the 12 compliance findings remain. The `seed_demo.py` sample risk with `source_type: "security_cve"` is removed. The matching test suites (`test_turbolens_nvd`, `test_turbolens_security_cve_scan`) are deleted and `test_turbolens_security` / `test_seed_demo_security` keep only the compliance assertions.
+
+### Changed
+- **Permission descriptions.** `security_compliance.view` / `security_compliance.manage` keys are kept (the compliance scanner still uses them) but their descriptions now reference compliance only. The permission group label is renamed from "Security & Compliance" to "Compliance".
+
 ## [1.11.5] - 2026-05-14
 
 First expansion of the MCP server toolset since its creation. The server now exposes 26 read-only tools (up from 8), covering the major backend modules that have shipped over the last two weeks.
@@ -13,7 +25,7 @@ First expansion of the MCP server toolset since its creation. The server now exp
 - **18 new MCP tools across five clusters.** GRC: `list_risks`, `get_risk`, `get_risk_metrics`, `get_card_risks`, `list_cve_findings`, `list_compliance_findings`, `get_security_overview`. Governance & Delivery: `list_principles`, `list_adrs`, `get_adr`, `list_soaws`. Reports: `get_portfolio_report`, `get_cost_treemap`, `get_capability_heatmap`, `get_data_quality_report`. Card context: `get_card_stakeholders`, `get_card_comments`, `get_card_documents`. Every tool is a read-only `GET` shim — the user's JWT is passed straight through to the backend so RBAC is enforced server-side without any per-tool permission checks on the MCP side. The Risk Register filters match the existing UI sidebar; a `_compact()` helper drops `None` / empty filters so URLs stay clean. 20 new unit tests in `mcp-server/tests/test_server.py` (mocked `TurboEAClient.get` + path/params assertions) round out the coverage. Tool reference in `docs/admin/mcp.md` (+ 7 locales) refreshed.
 
 ### Fixed
-- **MCP HTTP transport now uses Streamable HTTP, served at the right path, and trusts its public hostname.** Three coupled bugs that made the public deployment unreachable from Claude Desktop's custom connector:
+- **MCP HTTP transport now uses Streamable HTTP, served at the right path, and trusts its public hostname.** Six coupled bugs that made the public deployment unreachable from Claude Desktop's custom connector:
   1. The server was wired to `mcp.sse_app()`, the older two-endpoint SSE transport (`GET /sse` stream + `POST /messages/?session_id=…`). Modern MCP clients speak Streamable HTTP — POST JSON-RPC directly to the protocol endpoint with an optional SSE upgrade — so the handshake silently failed. Switched to `mcp.streamable_http_app()`.
   2. The streamable app was mounted inside an outer Starlette at `/mcp`, which pushed the protocol route to `/mcp/mcp` on the upstream and triggered a 307 for clients hitting `/mcp` without a trailing slash. The streamable app is now the top-level ASGI app with the OAuth + well-known + health routes attached directly to it, so nginx's `/mcp/` strip lines up with the upstream's `/mcp`, `/.well-known/*`, and `/oauth/*` routes.
   3. FastMCP's built-in DNS-rebinding protection only accepts `localhost` / `127.0.0.1` by default, so any reverse-proxied request through a real hostname got a `421 Misdirected Request`. We now derive `allowed_hosts` and `allowed_origins` from `MCP_PUBLIC_URL` + `TURBO_EA_PUBLIC_URL` at startup and pass them to `TransportSecuritySettings`, keeping the localhost entries for stdio/local development.

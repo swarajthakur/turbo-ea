@@ -1,13 +1,11 @@
 /**
- * CreateRiskDialog — shared create path used three ways:
+ * CreateRiskDialog — shared create path used two ways:
  *
  * 1. Manual risk creation (mode = "manual") → POST /risks.
- * 2. Promote from a CVE finding (mode = "cve") →
- *    POST /risks/promote/cve/{finding_id}. Idempotent server-side.
- * 3. Promote from a compliance finding (mode = "compliance") →
- *    POST /risks/promote/compliance/{finding_id}.
+ * 2. Promote from a compliance finding (mode = "compliance") →
+ *    POST /risks/promote/compliance/{finding_id}. Idempotent server-side.
  *
- * Every variant renders the same form with seeded fields the user can
+ * Both variants render the same form with seeded fields the user can
  * edit before submit. On success the caller is invoked with the new
  * risk so the UI can route to its detail page.
  */
@@ -103,7 +101,7 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
 
   const mode = seed?.mode ?? "manual";
   const dialogTitle = useMemo(() => {
-    if (mode === "cve" || mode === "compliance") return t("risks.createRiskFromFinding");
+    if (mode === "compliance") return t("risks.createRiskFromFinding");
     return t("risks.newRisk");
   }, [mode, t]);
 
@@ -126,12 +124,7 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
         target_resolution_date: target || null,
         owner_id: ownerId || null,
       };
-      if (mode === "cve" && seed?.findingId) {
-        created = await api.post<Risk>(
-          `/risks/promote/cve/${seed.findingId}`,
-          overrides,
-        );
-      } else if (mode === "compliance" && seed?.findingId) {
+      if (mode === "compliance" && seed?.findingId) {
         created = await api.post<Risk>(
           `/risks/promote/compliance/${seed.findingId}`,
           overrides,
@@ -158,9 +151,7 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
           {mode !== "manual" && (
             <Alert severity="info">
               {t("risks.section.identification")}:{" "}
-              {mode === "cve"
-                ? t("risks.source.security_cve")
-                : t("risks.source.security_compliance")}
+              {t("risks.source.security_compliance")}
             </Alert>
           )}
 

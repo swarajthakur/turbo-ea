@@ -67,7 +67,7 @@ import type {
 import {
   complianceDecisionColor,
   complianceStatusColor,
-  cveSeverityColor,
+  severityChipColor,
 } from "@/features/turbolens/utils";
 import ComplianceFilterSidebar, {
   COMPLIANCE_GRID_COLUMNS,
@@ -379,7 +379,7 @@ export default function ComplianceGrid({
         p.value ? (
           <Chip
             size="small"
-            color={cveSeverityColor(p.value as TurboLensComplianceFinding["severity"])}
+            color={severityChipColor(p.value as TurboLensComplianceFinding["severity"])}
             label={t(`turbolens_security_severity_${p.value}`)}
           />
         ) : null,

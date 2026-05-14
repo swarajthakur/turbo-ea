@@ -26,7 +26,6 @@ from app.models.turbolens import (
     TurboLensAnalysisRun,
     TurboLensAssessment,
     TurboLensComplianceFinding,
-    TurboLensCveFinding,
     TurboLensDuplicateCluster,
     TurboLensModernization,
     TurboLensVendorAnalysis,
@@ -42,8 +41,6 @@ from app.schemas.turbolens import (
     ComplianceFindingCreate,
     ComplianceFindingDecisionUpdate,
     ComplianceFindingOut,
-    CveFindingOut,
-    CveFindingStatusUpdate,
     DuplicateClusterOut,
     ModernizationOut,
     SecurityOverviewOut,
@@ -76,11 +73,10 @@ class AnalysisType(str, enum.Enum):
     MODERNIZATION = "modernization"
     ARCHITECT = "architect"
     ARCHITECT_COMMIT = "architect_commit"
-    SECURITY_CVE = "security_cve"
     SECURITY_COMPLIANCE = "security_compliance"
 
 
-SECURITY_SCAN_TYPES = (AnalysisType.SECURITY_CVE, AnalysisType.SECURITY_COMPLIANCE)
+SECURITY_SCAN_TYPES = (AnalysisType.SECURITY_COMPLIANCE,)
 
 
 class AnalysisStatus(str, enum.Enum):
@@ -905,29 +901,6 @@ async def _load_card_meta(
     return out
 
 
-@router.post("/security/cve-scan")
-async def trigger_cve_scan(
-    body: SecurityScanRequest | None,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Trigger the CVE (NVD + AI prioritisation) pipeline only."""
-    await PermissionService.require_permission(db, user, "security_compliance.manage")
-
-    run = await _create_analysis_run(db, AnalysisType.SECURITY_CVE, user)
-    include_itc = body.include_itc if body else True
-    user_id = str(user.id)
-
-    async def _service(db_: AsyncSession) -> dict[str, Any]:
-        from app.services.turbolens_security import run_cve_scan
-
-        return await run_cve_scan(db_, run.id, user_id, include_itc=include_itc)
-
-    background_tasks.add_task(_run_analysis, str(run.id), _service, "CVE scan")
-    return {"run_id": str(run.id), "status": "running"}
-
-
 @router.post("/security/compliance-scan")
 async def trigger_compliance_scan(
     body: SecurityScanRequest | None,
@@ -959,31 +932,27 @@ async def security_active_runs(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, TurboLensAnalysisRunOut | None]:
-    """Return the latest running CVE + compliance scans.
+    """Return the latest running compliance scan.
 
     Used by the UI on mount to reattach polling and show progress even
-    after a page refresh. Either key is ``null`` when no scan of that
-    type is currently running.
+    after a page refresh. ``compliance`` is ``null`` when no scan is
+    currently running.
     """
     await PermissionService.require_permission(db, user, "security_compliance.view")
 
-    out: dict[str, TurboLensAnalysisRunOut | None] = {"cve": None, "compliance": None}
-    for key, scan_type in (
-        ("cve", AnalysisType.SECURITY_CVE),
-        ("compliance", AnalysisType.SECURITY_COMPLIANCE),
-    ):
-        result = await db.execute(
-            select(TurboLensAnalysisRun)
-            .where(
-                TurboLensAnalysisRun.analysis_type == scan_type,
-                TurboLensAnalysisRun.status == AnalysisStatus.RUNNING,
-            )
-            .order_by(TurboLensAnalysisRun.started_at.desc())
-            .limit(1)
+    out: dict[str, TurboLensAnalysisRunOut | None] = {"compliance": None}
+    result = await db.execute(
+        select(TurboLensAnalysisRun)
+        .where(
+            TurboLensAnalysisRun.analysis_type == AnalysisType.SECURITY_COMPLIANCE,
+            TurboLensAnalysisRun.status == AnalysisStatus.RUNNING,
         )
-        run = result.scalar_one_or_none()
-        if run:
-            out[key] = TurboLensAnalysisRunOut.model_validate(run, from_attributes=True)
+        .order_by(TurboLensAnalysisRun.started_at.desc())
+        .limit(1)
+    )
+    run = result.scalar_one_or_none()
+    if run:
+        out["compliance"] = TurboLensAnalysisRunOut.model_validate(run, from_attributes=True)
     return out
 
 
@@ -992,15 +961,11 @@ async def security_overview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> SecurityOverviewOut:
-    """KPIs + risk matrix + top critical findings for the dashboard."""
+    """KPIs for the compliance scanner dashboard."""
     await PermissionService.require_permission(db, user, "security_compliance.view")
 
     from app.schemas.turbolens import SecurityScanRunOut
-    from app.services.turbolens_security import (
-        build_risk_matrix,
-        compliance_score,
-        finding_to_dict,
-    )
+    from app.services.turbolens_security import compliance_score
 
     async def _latest(scan_type: AnalysisType) -> SecurityScanRunOut:
         result = await db.execute(
@@ -1031,22 +996,10 @@ async def security_overview(
             summary=summary,
         )
 
-    cve_run = await _latest(AnalysisType.SECURITY_CVE)
     compliance_run = await _latest(AnalysisType.SECURITY_COMPLIANCE)
-
-    cve_res = await db.execute(select(TurboLensCveFinding))
-    cve_rows = list(cve_res.scalars().all())
 
     compliance_res = await db.execute(select(TurboLensComplianceFinding))
     compliance_rows = list(compliance_res.scalars().all())
-
-    by_severity: dict[str, int] = {}
-    by_status: dict[str, int] = {}
-    by_probability: dict[str, int] = {}
-    for row in cve_rows:
-        by_severity[row.severity] = by_severity.get(row.severity, 0) + 1
-        by_status[row.status] = by_status.get(row.status, 0) + 1
-        by_probability[row.probability] = by_probability.get(row.probability, 0) + 1
 
     by_regulation: dict[str, list[TurboLensComplianceFinding]] = {}
     for comp_row in compliance_rows:
@@ -1060,158 +1013,11 @@ async def security_overview(
             status_counts[comp_row.status] = status_counts.get(comp_row.status, 0) + 1
         compliance_by_status[reg] = status_counts
 
-    # Top 5 criticals, joined with card names.
-    from app.services.turbolens_security import load_risk_references
-
-    criticals = sorted(
-        (r for r in cve_rows if r.severity in ("critical", "high")),
-        key=lambda r: (r.severity != "critical", -(r.cvss_score or 0.0)),
-    )[:5]
-    name_map = await _load_card_names(db, {r.card_id for r in criticals})
-    risk_refs = await load_risk_references(db, {r.risk_id for r in criticals if r.risk_id})
-    top_critical = [
-        CveFindingOut.model_validate(
-            finding_to_dict(
-                r,
-                name_map.get(str(r.card_id)),
-                risk_reference=risk_refs.get(str(r.risk_id)) if r.risk_id else None,
-            )
-        )
-        for r in criticals
-    ]
-
     return SecurityOverviewOut(
-        cve_run=cve_run,
         compliance_run=compliance_run,
-        total_findings=len(cve_rows),
-        by_severity=by_severity,
-        by_status=by_status,
-        by_probability=by_probability,
-        risk_matrix=build_risk_matrix(cve_rows),
         compliance_scores=compliance_scores,
         compliance_by_status=compliance_by_status,
-        top_critical=top_critical,
     )
-
-
-_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
-_PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-
-
-@router.get("/security/findings")
-async def list_cve_findings(
-    severity: str | None = None,
-    probability: str | None = None,
-    status: str | None = None,
-    card_id: str | None = None,
-    card_type: str | None = None,
-    page: int = 1,
-    page_size: int = 50,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """Paginated CVE findings list. ``probability`` + ``severity`` together
-    drive the risk-matrix drill-through from the Security Overview.
-    """
-    await PermissionService.require_permission(db, user, "security_compliance.view")
-
-    from app.services.turbolens_security import finding_to_dict, load_risk_references
-
-    stmt = select(TurboLensCveFinding)
-    if severity:
-        stmt = stmt.where(TurboLensCveFinding.severity == severity)
-    if probability:
-        stmt = stmt.where(TurboLensCveFinding.probability == probability)
-    if status:
-        stmt = stmt.where(TurboLensCveFinding.status == status)
-    if card_type:
-        stmt = stmt.where(TurboLensCveFinding.card_type == card_type)
-    if card_id:
-        try:
-            stmt = stmt.where(TurboLensCveFinding.card_id == uuid.UUID(card_id))
-        except ValueError as exc:
-            raise HTTPException(400, "Invalid card_id") from exc
-
-    rows_res = await db.execute(stmt)
-    rows = list(rows_res.scalars().all())
-    rows.sort(
-        key=lambda r: (
-            _PRIORITY_ORDER.get(r.priority, 9),
-            _SEVERITY_ORDER.get(r.severity, 9),
-            -(r.cvss_score or 0.0),
-        )
-    )
-
-    total = len(rows)
-    page = max(page, 1)
-    page_size = max(min(page_size, 200), 1)
-    start = (page - 1) * page_size
-    page_rows = rows[start : start + page_size]
-    name_map = await _load_card_names(db, {r.card_id for r in page_rows})
-    risk_refs = await load_risk_references(db, {r.risk_id for r in page_rows if r.risk_id})
-    items = [
-        CveFindingOut.model_validate(
-            finding_to_dict(
-                r,
-                name_map.get(str(r.card_id)),
-                risk_reference=risk_refs.get(str(r.risk_id)) if r.risk_id else None,
-            )
-        )
-        for r in page_rows
-    ]
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    }
-
-
-async def _one_cve_out(db: AsyncSession, row: TurboLensCveFinding) -> "CveFindingOut":
-    """Shared serialiser for /findings/{id} get + patch — resolves the
-    card name and the promoted risk reference in a single round-trip.
-    """
-    from app.services.turbolens_security import finding_to_dict, load_risk_references
-
-    name_map = await _load_card_names(db, {row.card_id})
-    risk_refs = await load_risk_references(db, {row.risk_id} if row.risk_id else set())
-    return CveFindingOut.model_validate(
-        finding_to_dict(
-            row,
-            name_map.get(str(row.card_id)),
-            risk_reference=risk_refs.get(str(row.risk_id)) if row.risk_id else None,
-        )
-    )
-
-
-@router.get("/security/findings/{finding_id}")
-async def get_cve_finding(
-    finding_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> CveFindingOut:
-    await PermissionService.require_permission(db, user, "security_compliance.view")
-    row = await db.get(TurboLensCveFinding, uuid.UUID(finding_id))
-    if not row:
-        raise HTTPException(404, "Finding not found")
-    return await _one_cve_out(db, row)
-
-
-@router.patch("/security/findings/{finding_id}")
-async def update_cve_finding_status(
-    finding_id: str,
-    body: CveFindingStatusUpdate,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> CveFindingOut:
-    await PermissionService.require_permission(db, user, "security_compliance.manage")
-    row = await db.get(TurboLensCveFinding, uuid.UUID(finding_id))
-    if not row:
-        raise HTTPException(404, "Finding not found")
-    row.status = body.status
-    await db.commit()
-    await db.refresh(row)
-    return await _one_cve_out(db, row)
 
 
 @router.get("/security/compliance")
@@ -1833,78 +1639,6 @@ async def list_card_compliance_findings(
         )
         for row in rows
     ]
-
-
-@router.get("/security/export.csv")
-async def export_cve_findings_csv(
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Stream CVE findings as CSV (OWASP / NIST standard column order)."""
-    import csv
-    import io
-
-    from fastapi.responses import StreamingResponse
-
-    await PermissionService.require_permission(db, user, "security_compliance.view")
-
-    rows_res = await db.execute(select(TurboLensCveFinding))
-    rows = list(rows_res.scalars().all())
-    name_map = await _load_card_names(db, {r.card_id for r in rows})
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(
-        [
-            "Card",
-            "Card Type",
-            "CVE",
-            "CVSS",
-            "Severity",
-            "Attack Vector",
-            "Probability",
-            "Priority",
-            "Patch Available",
-            "Published",
-            "Last Modified",
-            "Status",
-            "Vendor",
-            "Product",
-            "Version",
-            "Business Impact",
-            "Remediation",
-            "Description",
-        ]
-    )
-    for row in rows:
-        writer.writerow(
-            [
-                name_map.get(str(row.card_id), ""),
-                row.card_type,
-                row.cve_id,
-                row.cvss_score if row.cvss_score is not None else "",
-                row.severity,
-                row.attack_vector or "",
-                row.probability,
-                row.priority,
-                "yes" if row.patch_available else "no",
-                row.published_date.isoformat() if row.published_date else "",
-                row.last_modified_date.isoformat() if row.last_modified_date else "",
-                row.status,
-                row.vendor,
-                row.product,
-                row.version or "",
-                (row.business_impact or "").replace("\n", " "),
-                (row.remediation or "").replace("\n", " "),
-                (row.description or "").replace("\n", " ")[:500],
-            ]
-        )
-    buffer.seek(0)
-    return StreamingResponse(
-        iter([buffer.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=turbolens_cve_findings.csv"},
-    )
 
 
 # ── Analysis History ──────────────────────────────────────────────────────

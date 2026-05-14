@@ -148,42 +148,19 @@ export function approachColor(approach: string): ChipColor {
   return APPROACH_COLORS[approach] ?? "default";
 }
 
-// ── Security & Compliance color helpers ─────────────────────────────────
+// ── Compliance color helpers ────────────────────────────────────────────
 
-const CVE_SEVERITY_COLORS: Record<string, ChipColor> = {
+const SEVERITY_CHIP_COLORS: Record<string, ChipColor> = {
   critical: "error",
   high: "error",
   medium: "warning",
   low: "info",
+  info: "info",
   unknown: "default",
 };
 
-export function cveSeverityColor(severity: string): ChipColor {
-  return CVE_SEVERITY_COLORS[severity] ?? "default";
-}
-
-const CVE_STATUS_COLORS: Record<string, ChipColor> = {
-  open: "error",
-  acknowledged: "info",
-  in_progress: "warning",
-  mitigated: "success",
-  accepted: "default",
-};
-
-export function cveStatusColor(status: string): ChipColor {
-  return CVE_STATUS_COLORS[status] ?? "default";
-}
-
-const PROBABILITY_COLORS: Record<string, ChipColor> = {
-  very_high: "error",
-  high: "warning",
-  medium: "info",
-  low: "success",
-  unknown: "default",
-};
-
-export function probabilityColor(probability: string): ChipColor {
-  return PROBABILITY_COLORS[probability] ?? "default";
+export function severityChipColor(severity: string): ChipColor {
+  return SEVERITY_CHIP_COLORS[severity] ?? "default";
 }
 
 const COMPLIANCE_STATUS_COLORS: Record<string, ChipColor> = {

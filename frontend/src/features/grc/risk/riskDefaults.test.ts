@@ -3,46 +3,8 @@ import {
   emptySeed,
   riskLevelChipColor,
   seedFromCompliance,
-  seedFromCve,
 } from "./riskDefaults";
-import type {
-  TurboLensComplianceFinding,
-  TurboLensCveFinding,
-} from "@/types";
-
-function cve(overrides: Partial<TurboLensCveFinding> = {}): TurboLensCveFinding {
-  return {
-    id: "f1",
-    run_id: "r1",
-    card_id: "c1",
-    card_name: "NexaCore ERP",
-    card_type: "Application",
-    cve_id: "CVE-2024-12345",
-    vendor: "apache",
-    product: "http_server",
-    version: "2.4.58",
-    cvss_score: 9.1,
-    cvss_vector: "CVSS:3.1/AV:N/...",
-    severity: "critical",
-    attack_vector: "NETWORK",
-    exploitability_score: 3.9,
-    impact_score: 5.9,
-    patch_available: false,
-    published_date: "2024-05-01",
-    last_modified_date: "2024-06-01",
-    description: "Remote code execution.",
-    nvd_references: null,
-    priority: "critical",
-    probability: "very_high",
-    business_impact: "Fronts customer orders.",
-    remediation: "Upgrade to 2.4.60.",
-    status: "open",
-    risk_id: null,
-    risk_reference: null,
-    created_at: null,
-    ...overrides,
-  };
-}
+import type { TurboLensComplianceFinding } from "@/types";
 
 function compliance(
   overrides: Partial<TurboLensComplianceFinding> = {},
@@ -69,33 +31,6 @@ function compliance(
     ...overrides,
   };
 }
-
-describe("seedFromCve", () => {
-  it("prefills title, category, probability, impact and card link", () => {
-    const seed = seedFromCve(cve());
-    expect(seed.mode).toBe("cve");
-    expect(seed.findingId).toBe("f1");
-    expect(seed.category).toBe("security");
-    expect(seed.title).toContain("CVE-2024-12345");
-    expect(seed.title).toContain("NexaCore ERP");
-    expect(seed.initial_probability).toBe("very_high");
-    expect(seed.initial_impact).toBe("critical");
-    expect(seed.mitigation).toBe("Upgrade to 2.4.60.");
-    expect(seed.cardIds).toEqual(["c1"]);
-    // Description includes description + business impact + CVSS.
-    expect(seed.description).toContain("Remote code execution.");
-    expect(seed.description).toContain("Business impact");
-    expect(seed.description).toContain("CVSS 9.1");
-  });
-
-  it("falls back to safe defaults on unknown severity/probability", () => {
-    const seed = seedFromCve(
-      cve({ severity: "unknown", probability: "unknown" }),
-    );
-    expect(seed.initial_probability).toBe("medium");
-    expect(seed.initial_impact).toBe("medium");
-  });
-});
 
 describe("seedFromCompliance", () => {
   it("escalates probability for non_compliant findings", () => {

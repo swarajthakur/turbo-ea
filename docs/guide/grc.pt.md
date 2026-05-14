@@ -4,10 +4,6 @@ O módulo **GRC** reúne Governança, Risco e Conformidade num único espaço de
 
 GRC tem três abas:
 
-- **Governança** — Princípios EA e Architecture Decision Records (ADR).
-- **Risco** — o [Registro de riscos](risks.md) segundo TOGAF Fase G.
-- **Conformidade** — o scanner sob demanda (CVE + análise de lacunas regulatórias) que antes ficava em TurboLens.
-
 Você pode apontar diretamente para qualquer aba via `/grc?tab=governance`, `/grc?tab=risk` ou `/grc?tab=compliance`.
 
 ![GRC — aba Governança](../assets/img/pt/52_grc_governanca.png)
@@ -97,20 +93,11 @@ Clique no ícone de pré-visualização para ver uma versão somente leitura e f
 
 Incorpora o **Registro de riscos** TOGAF Fase G. Ciclo de vida completo, fluxo de status, alternadores da matriz e comportamento dos proprietários estão documentados no [guia do Registro de riscos](risks.md). Os pontos mais relevantes:
 
-- O registro vive em `/grc?tab=risk` (antes ficava em Entrega EA).
-- Riscos podem ser criados manualmente ou **promovidos** a partir de uma conclusão CVE ou de conformidade na aba Conformidade.
-- A promoção é idempotente — uma vez promovida uma conclusão, o botão alterna para **Abrir risco R-000123**.
-
 ## Conformidade
 
 ![GRC — scanner de conformidade](../assets/img/pt/54_grc_conformidade.png)
 
 O scanner de segurança sob demanda, com duas metades independentes:
-
-- **Varredura CVE** — consulta NIST NVD pelos fornecedores / produtos / versões do panorama vivo, e depois pede ao LLM que priorize as conclusões.
-- **Varredura de conformidade** — análise de lacunas por regulação assistida por IA contra as regulações habilitadas. Seis frameworks vêm habilitados por padrão (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); administradores podem habilitá-los ou desabilitá-los — e adicionar regulações personalizadas como HIPAA ou políticas internas — em [**Administração → Metamodelo → Regulações**](../admin/metamodel.md#compliance-regulations).
-
-`SEED_DEMO=true` popula um conjunto curado de conclusões CVE e de conformidade de exemplo (nas seis regulações integradas e com uma mistura de estados do ciclo de vida) sobre os cards de demonstração NexaTech — a aba fica utilizável desde o primeiro acesso, sem necessidade de um provedor de IA configurado.
 
 As conclusões são **duráveis entre re-varreduras** — decisões da usuária, notas de revisão, o veredicto de IA do usuário sobre um card e o vínculo de volta a um Risco promovido sobrevivem às varreduras subsequentes. Uma conclusão que a próxima passagem não relatar mais é marcada `auto_resolved` e ocultada por padrão; o Risco previamente promovido é preservado para não romper a trilha de auditoria.
 

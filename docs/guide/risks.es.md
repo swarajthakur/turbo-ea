@@ -19,10 +19,6 @@ El registro implementa el proceso de Gestión de Riesgos de Arquitectura de **TO
 
 Tres caminos convergen en el mismo diálogo **Crear riesgo** — cada variante precarga campos distintos para que edite y envíe:
 
-1. **Manual** — pestaña Riesgos → **+ Nuevo riesgo**. Formulario en blanco.
-2. **Desde un hallazgo CVE** — TurboLens → Seguridad y Cumplimiento → panel de CVE → **Crear riesgo**. Precarga título (ID de CVE sobre la ficha), descripción (texto del NVD + impacto de negocio + CVSS), categoría `security`, probabilidad/impacto del CVE, mitigación desde la recomendación de remediación del hallazgo y enlaza la ficha afectada.
-3. **Desde un hallazgo de cumplimiento** — TurboLens → Seguridad y Cumplimiento → pestaña Cumplimiento → **Crear riesgo** sobre un hallazgo no conforme. Precarga categoría `compliance`, probabilidad/impacto a partir de la severidad + estado de la regulación, descripción desde el requisito + la brecha.
-
 Las tres variantes incluyen los campos **Propietario**, **Categoría** y **Fecha objetivo de resolución** para asignar responsabilidad ya en la creación — sin necesidad de reabrir el riesgo.
 
 La promoción es **idempotente** — una vez que un hallazgo ha sido promovido, su botón cambia a **Abrir riesgo R-000123** y navega directamente a la página de detalle del riesgo.

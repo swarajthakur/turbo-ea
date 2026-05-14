@@ -33,7 +33,7 @@
 | **报告** | 预置可视化：投资组合、能力地图、生命周期、依赖关系、成本、矩阵、数据质量和生命周期结束 |
 | **BPM** | 业务流程管理 —— 使用 BPMN 2.0 编辑器对业务流程建模，将图表元素链接到 card，并评估成熟度、风险与自动化程度 |
 | **PPM** | 项目组合管理 —— 将 Initiative card 作为完整项目管理：状态报告、Work Breakdown Structures、看板与甘特图、预算、成本，以及每个倡议的风险登记册 |
-| **TurboLens** | AI 驱动的 EA 智能 —— 供应商分析、重复检测、现代化评估、5 步 Architecture AI 向导，以及安全与合规扫描（CVE 加上 EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001） |
+| **TurboLens** | AI 驱动的 EA 智能 —— 供应商分析、重复检测、现代化评估、5 步 Architecture AI 向导，以及合规扫描（EU AI Act / GDPR / NIS2 / DORA / SOC 2 / ISO 27001） |
 | **EA Delivery** | 与 TOGAF 对齐的交付层 —— Statements of Architecture Work、Architecture Decision Records 以及 EA 全景级别的风险登记册 |
 | **SoAW** | 架构工作说明书 —— TOGAF 中正式界定架构项目范围的文档 |
 | **ADR** | 架构决策记录 —— 捕获决策的背景、备选方案与后果，含状态工作流和 card 链接 |

@@ -1,40 +1,11 @@
 import { describe, it, expect } from "vitest";
-import {
-  complianceStatusColor,
-  cveSeverityColor,
-  cveStatusColor,
-  probabilityColor,
-} from "./utils";
+import { complianceStatusColor } from "./utils";
 import {
   deriveLevelFromPair,
   riskLevelBackground,
 } from "../grc/risk/riskMatrixColors";
 
-describe("CVE severity / status / probability colors", () => {
-  it("maps known CVE severity values to MUI chip colors", () => {
-    expect(cveSeverityColor("critical")).toBe("error");
-    expect(cveSeverityColor("high")).toBe("error");
-    expect(cveSeverityColor("medium")).toBe("warning");
-    expect(cveSeverityColor("low")).toBe("info");
-    expect(cveSeverityColor("unknown")).toBe("default");
-    expect(cveSeverityColor("nonsense")).toBe("default");
-  });
-
-  it("maps finding status to chip colors", () => {
-    expect(cveStatusColor("open")).toBe("error");
-    expect(cveStatusColor("acknowledged")).toBe("info");
-    expect(cveStatusColor("in_progress")).toBe("warning");
-    expect(cveStatusColor("mitigated")).toBe("success");
-    expect(cveStatusColor("accepted")).toBe("default");
-  });
-
-  it("maps probability to chip colors", () => {
-    expect(probabilityColor("very_high")).toBe("error");
-    expect(probabilityColor("high")).toBe("warning");
-    expect(probabilityColor("medium")).toBe("info");
-    expect(probabilityColor("low")).toBe("success");
-  });
-
+describe("complianceStatusColor", () => {
   it("maps compliance status to chip colors", () => {
     expect(complianceStatusColor("compliant")).toBe("success");
     expect(complianceStatusColor("partial")).toBe("warning");

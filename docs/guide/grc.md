@@ -6,7 +6,7 @@ GRC has three tabs:
 
 - **Governance** — EA Principles and Architecture Decision Records (ADRs).
 - **Risk** — the TOGAF Phase G [Risk Register](risks.md).
-- **Compliance** — the on-demand scanner (CVE + regulation gap analysis) that used to sit in TurboLens.
+- **Compliance** — the on-demand regulation gap-analysis scanner that used to sit in TurboLens.
 
 You can deep-link any tab via `/grc?tab=governance`, `/grc?tab=risk` or `/grc?tab=compliance`.
 
@@ -98,19 +98,16 @@ Click the preview icon to view a read-only, formatted version of the ADR — use
 Embeds the TOGAF Phase G **Risk Register**. The full lifecycle, status workflow, matrix toggles and ownership behaviour are documented in the [Risk Register guide](risks.md). The most relevant points:
 
 - The register lives at `/grc?tab=risk` (it used to live under EA Delivery).
-- Risks can be created manually or **promoted** from a CVE or compliance finding under the Compliance tab.
+- Risks can be created manually or **promoted** from a compliance finding under the Compliance tab.
 - Promotion is idempotent — once a finding has been promoted its button flips to **Open risk R-000123**.
 
 ## Compliance
 
 ![GRC — Compliance scanner](../assets/img/en/54_grc_compliance.png)
 
-The on-demand security scanner, with two independent halves:
+On-demand, per-regulation AI gap analysis against the enabled regulations. Six frameworks ship enabled by default (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); admins can enable or disable any of them — and add custom regulations like HIPAA or internal policies — under [**Administration → Metamodel → Regulations**](../admin/metamodel.md#compliance-regulations).
 
-- **CVE scan** — queries NIST NVD for the live landscape's vendors / products / versions, then asks the LLM to prioritise findings.
-- **Compliance scan** — per-regulation AI gap analysis against the enabled regulations. Six frameworks ship enabled by default (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); admins can enable or disable any of them — and add custom regulations like HIPAA or internal policies — under [**Administration → Metamodel → Regulations**](../admin/metamodel.md#compliance-regulations).
-
-`SEED_DEMO=true` populates a hand-curated set of example CVE and compliance findings (across all six built-in regulations and a mix of lifecycle states) against the NexaTech demo cards, so the tab is usable out of the box without an AI provider configured.
+`SEED_DEMO=true` populates a hand-curated set of example compliance findings (across all six built-in regulations and a mix of lifecycle states) against the NexaTech demo cards, so the tab is usable out of the box without an AI provider configured.
 
 Findings are **durable across re-scans** — user decisions, reviewer notes, the user's AI verdict on a card, and the back-link to a promoted Risk all survive subsequent scans. A finding the next pass no longer reports is flagged `auto_resolved` and hidden by default; the previously-promoted Risk is left intact so its audit trail isn't broken.
 

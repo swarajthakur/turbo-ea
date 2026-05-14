@@ -223,39 +223,19 @@ Der Tab **Sicherheit & Compliance** führt einen On-Demand-Scan gegen die aktuel
 
 ### Was gescannt wird
 
-- **CVEs** — jede nicht archivierte Anwendung und IT-Komponente wird anhand der Attribute `vendor`, `productName` / `version` der Karte in der [NIST National Vulnerability Database](https://nvd.nist.gov/) nachgeschlagen. Die Ergebnisse werden von einem KI-Durchlauf kontextualisiert, der **Priorität** (kritisch / hoch / mittel / niedrig) und **Wahrscheinlichkeit** (sehr hoch / hoch / mittel / niedrig) anhand geschäftlicher Kritikalität, Lebenszyklusphase, Angriffsvektor, Ausnutzbarkeit und Patch-Verfügbarkeit bewertet.
-- **Compliance** — dieselbe Landschaft wird vom konfigurierten LLM gegen **EU AI Act**, **DSGVO**, **NIS2**, **DORA**, **SOC 2** und **ISO/IEC 27001** geprüft. Jede Regulierung hat eine eigene Checkliste; Befunde sind entweder **kartenbezogen** (eine bestimmte Karte ist Quelle der Lücke) oder **landschaftsweit** (systemisches Thema).
-
 ### Einen Scan ausführen
 
 Nur Benutzer mit `security_compliance.manage` können Scans auslösen (standardmässig admin). Der Übersichts-Tab zeigt **zwei unabhängige Scan-Karten**:
-
-- **CVE-Scan** — fragt NVD ab + KI-Priorisierung. Kann gefahrlos oft wiederholt werden; Compliance-Befunde bleiben unberührt.
-- **Compliance-Scan** — KI-Lückenanalyse gegen die abgehakten Regulierungen. Ersetzt Compliance-Befunde für die in diesem Lauf ausgewählten Regulierungen.
-
-Jeder Scan meldet seinen eigenen phasenbewussten Fortschritt (Karten laden → NVD abfragen → KI-Priorisierung → speichern, bzw. Karten laden → semantische KI-Erkennung → Prüfung pro Regulierung). Beide können gleichzeitig laufen.
 
 Ein Seiten-Refresh **unterbricht einen laufenden Scan nicht** — die Hintergrund-Task läuft serverseitig weiter, und die UI hängt sich beim Neuladen automatisch wieder an die Fortschrittsabfrage.
 
 ### Struktur des Risikoberichts
 
-- **Übersicht** — KPI-Leiste (Gesamtzahl Befunde, Anzahl kritisch / hoch / mittel, Gesamt-Compliance-Score), eine 5×5-**Wahrscheinlichkeit-×-Schweregrad-Risikomatrix**, die fünf kritischsten Befunde und eine kompakte Compliance-Heatmap mit Drill-Down in die Details. Die Matrix selbst ist **klickbar**: Ein Klick auf eine Zelle öffnet den CVEs-Unter-Tab gefiltert auf diesen Bucket, mit einem verwerfbaren Chip oberhalb der Tabelle zur Anzeige (und Löschung) des aktiven Filters.
-- **CVEs** — filterbare Tabelle mit Karte, CVE-ID (verlinkt auf die NVD-Detailseite), CVSS-Basisscore, Schweregrad, Priorität, Wahrscheinlichkeit, Patch-Verfügbarkeit und Status. Jede Zeile öffnet eine Detail-Schublade mit Beschreibung, CVSS-Vektor, Angriffsvektor, Ausnutzbarkeits- / Auswirkungs-Scores, Referenzen, KI-generierten Geschäftsauswirkungen und Behebung sowie einer Status-Aktionsleiste (**Bestätigen → In Bearbeitung setzen → Als behoben markieren / Risiko akzeptieren / Wiedereröffnen**).
-- **Compliance** — ein AG-Grid, das das Inventar-Grid spiegelt: Filter-Sidebar, persistierte Spaltensichtbarkeit und Sortierung, Volltextsuche und eine Detail-Schublade pro Befund. Zeilen tragen Status, Artikel, Kategorie, Anforderung, Lückenbeschreibung, Behebung und Nachweise. Ein kleiner **KI-erkannt**-Chip hebt Karten hervor, die vom semantischen Detektor als KI-tragend markiert wurden, obwohl sie nicht als KI-Subtypen klassifiziert sind.
-- **CSV exportieren** — lädt die CVE-Befunde in einer Spaltenreihenfolge nach OWASP/NIST-Stil herunter (Karte, Typ, CVE, CVSS, Schweregrad, Angriffsvektor, Wahrscheinlichkeit, Priorität, Patch, Veröffentlicht, Zuletzt geändert, Status, Hersteller, Produkt, Version, Geschäftsauswirkung, Behebung, Beschreibung).
-
 ### Befunde überleben Re-Scans
 
 Nutzerentscheidungen und Reviewer-Metadaten sind **über Re-Scans hinweg dauerhaft**:
 
-- CVE-Befunde werden per `(card_id, cve_id)` upserted. Ein nutzergesetzter Status (`acknowledged`, `mitigated`, `accepted`) und jeder Rückverweis auf ein überführtes Risiko überleben den nächsten Scan.
-- Compliance-Befunde werden per `(scope, card, regulation, normalised_article)` upserted. Artikel-IDs wie *Art. 6 / Article 6 / § 6* fallen auf dieselbe Zeile zusammen, sodass LLM-Umformulierungen keine Duplikate mehr erzeugen.
-- Ein Befund, den der nächste Lauf nicht mehr meldet, wird **nicht gelöscht** — er erhält das Flag `auto_resolved=true` und wird standardmässig ausgeblendet, sodass seine Historie (und das verknüpfte Risiko) erhalten bleibt.
-- Das **KI-Verdikt** des Nutzers auf einer Karte (`hasAiFeatures = true / false`) bleibt ebenfalls bestehen. Wer die KI-Klassifizierung des LLM bestätigt oder ablehnt, überschreibt damit den Detektor für nachfolgende Scans — LLM-Drift kann den Geltungsbereich nicht stillschweigend ändern.
-
 ### Einen Befund ins Risikoregister überführen
-
-Jede CVE-Schublade und jede Compliance-Befundkarte enthält eine primäre Aktion **Risiko anlegen**. Ein Klick öffnet den gemeinsamen Risiko-anlegen-Dialog mit Titel, Beschreibung, Kategorie, Wahrscheinlichkeit, Auswirkung, Massnahme und betroffener Karte **aus dem Befund vorbefüllt**. Sie können jedes Feld vor dem Speichern bearbeiten, einen **Eigentümer** zuweisen und ein **Ziel-Erledigungsdatum** wählen. Beim Speichern wechselt die Zeile des Befunds zu **Risiko R-000123 öffnen**, damit der Link sichtbar bleibt — Überführungen sind serverseitig idempotent. Siehe [Risikoregister](risks.md) für den vollständigen TOGAF-konformen Lebenszyklus und wie eine Eigentümerzuweisung ein Folge-Todo + Glocken-Benachrichtigung erzeugt.
 
 Erreicht das verknüpfte Risiko später `mitigated`, `monitoring`, `closed` oder `accepted` (oder wird gelöscht), bewegt die Back-Propagation-Engine automatisch jeden verknüpften Compliance-Befund in den passenden Zustand (`mitigated`, `verified`, `accepted` oder zurück auf `in_review`). Die im Risiko erfasste Akzeptanzbegründung wird in die Prüfnotiz des Befunds gespiegelt, damit der Audit-Pfad konsistent bleibt.
 
@@ -274,17 +254,7 @@ KI-Funktionen sind häufig in universelle Anwendungen eingebettet. Der EU-AI-Act
 
 ### Fortschritt und Wiederaufnahme
 
-Jeder Scan schreibt phasenbewussten Fortschritt (Karten laden → NVD abfragen → KI-Priorisierung → speichern, bzw. Karten laden → semantische KI-Erkennung → Prüfung pro Regulierung) in seinen Analyselauf-Datensatz. Die UI rendert eine Live-Fortschrittsanzeige pro Scan. **Ein Seiten-Refresh unterbricht einen Scan nicht** — die Hintergrund-Task läuft serverseitig weiter, und beim Einhängen fragt der Sicherheits-Tab `/turbolens/security/active-runs` ab und schliesst die Fortschrittsabfrage wieder an.
-
-### NVD-API-Schlüssel (optional)
-
-Ohne Schlüssel erlaubt NVD nur 5 Anfragen pro 30 Sekunden, was grossflächige Scans verlangsamen kann. Fordern Sie einen kostenlosen Schlüssel unter <https://nvd.nist.gov/developers/request-an-api-key> an und setzen Sie ihn über die Umgebungsvariable `NVD_API_KEY`, um das Limit auf 50 Anfragen pro 30 Sekunden anzuheben.
-
 ### Statusworkflow
-
-CVE- und Compliance-Befunde haben **unterschiedliche Lebenszyklen**, jeder in der Detail-Schublade als horizontale Phasen-Timeline gezeichnet. Beide sind auf Nutzer mit `security_compliance.manage` beschränkt; die Engine erzwingt Übergänge serverseitig und weist illegale Bewegungen mit klarer Fehlermeldung ab.
-
-**CVE-Befunde**
 
 ```
 open → acknowledged → in progress → mitigated
@@ -316,9 +286,3 @@ Alle Analyseläufe werden unter **TurboLens > Verlauf** nachverfolgt und zeigen:
 
 ## Berechtigungen
 
-| Berechtigung | Beschreibung |
-|--------------|--------------|
-| `turbolens.view` | Analyseergebnisse anzeigen (vergeben an admin, bpm_admin, member) |
-| `turbolens.manage` | Analysen auslösen (vergeben an admin) |
-| `security_compliance.view` | CVE- und Compliance-Befunde anzeigen (vergeben an admin, bpm_admin, member, viewer) |
-| `security_compliance.manage` | Sicherheits-Scans auslösen und Befundstatus aktualisieren (vergeben an admin) |

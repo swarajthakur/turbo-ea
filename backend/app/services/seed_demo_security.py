@@ -1,27 +1,24 @@
-"""NexaTech Industries demo — TurboLens Security & Compliance findings.
+"""NexaTech Industries demo — TurboLens Compliance findings.
 
-Hand-curated CVE and compliance gap examples so that a fresh
-``SEED_DEMO=true`` boot lands users on a populated **GRC → Compliance** tab
-(and the Card Detail Compliance tab) without needing an AI provider configured.
+Hand-curated compliance gap examples so that a fresh ``SEED_DEMO=true`` boot
+lands users on a populated **GRC → Compliance** tab (and the Card Detail
+Compliance tab) without needing an AI provider configured.
 
-Idempotent: skips if any ``TurboLensCveFinding`` or
-``TurboLensComplianceFinding`` row already exists.
+Idempotent: skips if any ``TurboLensComplianceFinding`` row already exists.
 
 Can be triggered:
   1. Automatically via ``SEED_DEMO=true`` (full demo experience)
   2. Incrementally via ``SEED_SECURITY=true`` on an existing instance that
      already has the base NexaTech cards from ``seed_demo``.
 
-The findings have **fictitious** CVE IDs in the ``CVE-2025-9XXXX`` block so
-they cannot collide with real-world advisories. Re-running an actual scan
-later upserts cleanly by the natural keys (``(card_id, cve_id)`` for CVEs;
-``finding_key`` for compliance) — seeded user-state will survive.
+Re-running an actual scan later upserts cleanly by the natural ``finding_key`` —
+seeded user-state will survive.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,222 +27,8 @@ from app.models.card import Card
 from app.models.turbolens import (
     TurboLensAnalysisRun,
     TurboLensComplianceFinding,
-    TurboLensCveFinding,
 )
 from app.services.turbolens_security import compute_finding_key
-
-# ===================================================================
-# CVE FINDINGS — 8 entries across severity tiers and lifecycle states.
-# CVE IDs are deliberately fictitious (CVE-2025-9XXXX block).
-# ===================================================================
-CVE_FINDINGS: list[dict] = [
-    {
-        "card_name": "PostgreSQL 16",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91001",
-        "vendor": "PostgreSQL",
-        "product": "PostgreSQL",
-        "version": "16.3",
-        "cvss_score": 9.8,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "severity": "critical",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 4, 12),
-        "description": (
-            "Heap buffer overflow in the legacy COPY parser allows a remote "
-            "authenticated attacker to execute arbitrary code with database "
-            "process privileges."
-        ),
-        "priority": "critical",
-        "probability": "high",
-        "business_impact": (
-            "PostgreSQL backs SAP S/4HANA RISE and core analytics. An exploit "
-            "would compromise order, customer and financial data."
-        ),
-        "remediation": "Upgrade to PostgreSQL 16.4 or later; restart the cluster during the next maintenance window.",
-        "status": "open",
-    },
-    {
-        "card_name": "Nginx",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91002",
-        "vendor": "F5",
-        "product": "NGINX",
-        "version": "1.24.0",
-        "cvss_score": 8.1,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
-        "severity": "high",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 3, 28),
-        "description": (
-            "HTTP/2 header processing flaw triggers a use-after-free on "
-            "specially-crafted request streams."
-        ),
-        "priority": "high",
-        "probability": "medium",
-        "business_impact": ("Nginx fronts every external-facing service in NexaTech's edge tier."),
-        "remediation": "Upgrade to nginx 1.26.2 and disable HTTP/2 until the rollout completes.",
-        "status": "acknowledged",
-    },
-    {
-        "card_name": "Node.js 20 LTS",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91003",
-        "vendor": "Node.js",
-        "product": "Node.js",
-        "version": "20.11.0",
-        "cvss_score": 7.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-        "severity": "high",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 5, 1),
-        "description": (
-            "Prototype-pollution gadget in the deprecated `util._extend` helper "
-            "exposes sensitive request context to crafted JSON payloads."
-        ),
-        "priority": "high",
-        "probability": "medium",
-        "business_impact": (
-            "Used across NexaPortal microservices; a successful exploit leaks "
-            "session tokens of authenticated users."
-        ),
-        "remediation": "Upgrade to Node.js 20.13.1 LTS and re-deploy affected microservices.",
-        "status": "in_progress",
-    },
-    {
-        "card_name": "Redis 7",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91004",
-        "vendor": "Redis",
-        "product": "Redis",
-        "version": "7.2.4",
-        "cvss_score": 6.5,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
-        "severity": "medium",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 2, 15),
-        "description": (
-            "Out-of-bounds read in the GETRANGE command leaks adjacent memory "
-            "contents to an authenticated client."
-        ),
-        "priority": "medium",
-        "probability": "low",
-        "business_impact": (
-            "Cache-only deployment; sensitive data exposure is limited to "
-            "short-lived session blobs."
-        ),
-        "remediation": "Patched in 7.2.5; rolled out across all cache nodes 2025-03-08.",
-        "status": "mitigated",
-    },
-    {
-        "card_name": "Python 3.12",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91005",
-        "vendor": "Python Software Foundation",
-        "product": "CPython",
-        "version": "3.12.2",
-        "cvss_score": 5.9,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N",
-        "severity": "medium",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 4, 22),
-        "description": (
-            "Improper validation in `urllib.parse` allows host-header smuggling "
-            "when behind reverse proxies that don't strip whitespace."
-        ),
-        "priority": "medium",
-        "probability": "medium",
-        "business_impact": ("Python backs the data-pipeline tier and the AI inference workers."),
-        "remediation": "Pin to Python 3.12.4 in the shared base image and rebuild downstream containers.",
-        "status": "open",
-    },
-    {
-        "card_name": "Fortinet FortiGate 600F",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91006",
-        "vendor": "Fortinet",
-        "product": "FortiOS",
-        "version": "7.4.3",
-        "cvss_score": 9.3,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L",
-        "severity": "critical",
-        "attack_vector": "network",
-        "patch_available": False,
-        "published_date": date(2025, 5, 10),
-        "description": (
-            "SSL-VPN portal accepts a malformed authentication header that bypasses MFA validation."
-        ),
-        "priority": "critical",
-        "probability": "high",
-        "business_impact": (
-            "Perimeter firewall protects the OT/factory-floor segment. A "
-            "compromise reaches the SCADA estate."
-        ),
-        "remediation": (
-            "Vendor patch pending. Compensating control in place: SSL-VPN "
-            "portal disabled, replaced by IPsec until the fix ships."
-        ),
-        "status": "accepted",
-    },
-    {
-        "card_name": "Cisco Catalyst 9300",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91007",
-        "vendor": "Cisco",
-        "product": "Catalyst 9300 IOS XE",
-        "version": "17.12.1",
-        "cvss_score": 7.8,
-        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
-        "severity": "high",
-        "attack_vector": "local",
-        "patch_available": True,
-        "published_date": date(2025, 3, 5),
-        "description": (
-            "Privilege escalation in the CLI history component allows a "
-            "level-1 operator to load a crafted boot image."
-        ),
-        "priority": "high",
-        "probability": "low",
-        "business_impact": (
-            "Core switching fabric in the manufacturing campus. Compromise "
-            "would allow VLAN hopping into the OT segment."
-        ),
-        "remediation": "Upgrade IOS XE to 17.12.3; reload during the next change window.",
-        "status": "open",
-    },
-    {
-        "card_name": "Azure Kubernetes Service",
-        "card_type": "ITComponent",
-        "cve_id": "CVE-2025-91008",
-        "vendor": "Microsoft",
-        "product": "Azure Kubernetes Service",
-        "version": "1.29.2",
-        "cvss_score": 3.7,
-        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
-        "severity": "low",
-        "attack_vector": "network",
-        "patch_available": True,
-        "published_date": date(2025, 4, 1),
-        "description": (
-            "Information disclosure: cluster metadata endpoint returns "
-            "outbound IP under specific load-balancer configurations."
-        ),
-        "priority": "low",
-        "probability": "very_low",
-        "business_impact": (
-            "Hosts production microservice workloads. Disclosure is limited "
-            "to non-sensitive infrastructure metadata."
-        ),
-        "remediation": "Auto-patched in node-image 202504-x; no action required.",
-        "status": "open",
-    },
-]
-
 
 # ===================================================================
 # COMPLIANCE FINDINGS — 12 entries across all six built-in regulations,
@@ -392,11 +175,11 @@ COMPLIANCE_FINDINGS: list[dict] = [
             "information systems."
         ),
         "gap_description": (
-            "Perimeter firewall is running an unpatched SSL-VPN vulnerability "
-            "(CVE-2025-91006); the documented incident response plan does not "
-            "cover MFA bypass scenarios."
+            "Perimeter firewall is running an unpatched SSL-VPN vulnerability; "
+            "the documented incident response plan does not cover MFA bypass "
+            "scenarios."
         ),
-        "evidence": ("Linked to CVE-2025-91006; SOC playbook last reviewed 2024-Q3."),
+        "evidence": ("SOC playbook last reviewed 2024-Q3."),
         "remediation": (
             "Disable SSL-VPN portal until vendor patch lands; refresh IR "
             "playbook with an MFA-bypass scenario and run a tabletop exercise."
@@ -547,10 +330,7 @@ COMPLIANCE_FINDINGS: list[dict] = [
 # Helpers
 # ===================================================================
 async def _has_any_findings(db: AsyncSession) -> bool:
-    """True if any CVE or compliance finding already exists in the DB."""
-    cve = await db.execute(select(TurboLensCveFinding.id).limit(1))
-    if cve.scalar_one_or_none() is not None:
-        return True
+    """True if any compliance finding already exists in the DB."""
     comp = await db.execute(select(TurboLensComplianceFinding.id).limit(1))
     return comp.scalar_one_or_none() is not None
 
@@ -559,9 +339,9 @@ async def _has_any_findings(db: AsyncSession) -> bool:
 # Public entry point
 # ===================================================================
 async def seed_security_demo_data(db: AsyncSession) -> dict:
-    """Insert demo CVE + Compliance findings against existing NexaTech cards.
+    """Insert demo Compliance findings against existing NexaTech cards.
 
-    Skipped if any finding row already exists (idempotent).
+    Skipped if any compliance finding already exists (idempotent).
     Cards referenced by name that aren't present in the DB are silently
     skipped so the seeder stays compatible with partial-demo installs.
     """
@@ -576,16 +356,6 @@ async def seed_security_demo_data(db: AsyncSession) -> dict:
 
     now = datetime.now(timezone.utc)
 
-    # Two synthetic AnalysisRun rows — one per scan engine. ``results.demo``
-    # makes them identifiable in the History tab and in tests.
-    cve_run = TurboLensAnalysisRun(
-        id=uuid.uuid4(),
-        analysis_type="security_cve",
-        status="completed",
-        started_at=now,
-        completed_at=now,
-        results={"demo": True, "findings_count": len(CVE_FINDINGS)},
-    )
     compliance_run = TurboLensAnalysisRun(
         id=uuid.uuid4(),
         analysis_type="security_compliance",
@@ -594,42 +364,7 @@ async def seed_security_demo_data(db: AsyncSession) -> dict:
         completed_at=now,
         results={"demo": True, "findings_count": len(COMPLIANCE_FINDINGS)},
     )
-    db.add_all([cve_run, compliance_run])
-    await db.flush()
-
-    # ---- CVE findings ------------------------------------------------
-    cve_count = 0
-    for f in CVE_FINDINGS:
-        card_id = name_to_id.get(f["card_name"])
-        if not card_id:
-            # NexaTech base seed didn't include this card on this install —
-            # skip rather than fail.
-            continue
-        db.add(
-            TurboLensCveFinding(
-                id=uuid.uuid4(),
-                run_id=cve_run.id,
-                card_id=card_id,
-                card_type=f["card_type"],
-                cve_id=f["cve_id"],
-                vendor=f["vendor"],
-                product=f["product"],
-                version=f.get("version"),
-                cvss_score=f.get("cvss_score"),
-                cvss_vector=f.get("cvss_vector"),
-                severity=f.get("severity", "unknown"),
-                attack_vector=f.get("attack_vector"),
-                patch_available=f.get("patch_available", False),
-                published_date=f.get("published_date"),
-                description=f.get("description", ""),
-                priority=f.get("priority", "medium"),
-                probability=f.get("probability", "medium"),
-                business_impact=f.get("business_impact"),
-                remediation=f.get("remediation"),
-                status=f.get("status", "open"),
-            )
-        )
-        cve_count += 1
+    db.add(compliance_run)
     await db.flush()
 
     # ---- Compliance findings ----------------------------------------
@@ -672,7 +407,6 @@ async def seed_security_demo_data(db: AsyncSession) -> dict:
 
     await db.commit()
     return {
-        "cve_findings": cve_count,
         "compliance_findings": compliance_count,
-        "analysis_runs": 2,
+        "analysis_runs": 1,
     }

@@ -4,10 +4,6 @@
 
 GRC 共有三个标签页：
 
-- **治理** — EA 原则与 Architecture Decision Records（ADR）。
-- **风险** — TOGAF 阶段 G 的[风险登记册](risks.md)。
-- **合规** — 之前位于 TurboLens 的按需扫描器（CVE + 法规差距分析）。
-
 任意标签页都可以通过 `/grc?tab=governance`、`/grc?tab=risk` 或 `/grc?tab=compliance` 直接深链。
 
 ![GRC — 治理标签页](../assets/img/zh/52_grc_governance.png)
@@ -97,20 +93,11 @@ ADR 支持正式签署流程：
 
 嵌入 TOGAF 阶段 G 的**风险登记册**。完整的生命周期、状态工作流、矩阵切换与责任人行为详见[风险登记册指南](risks.md)。要点如下：
 
-- 登记册位于 `/grc?tab=risk`（此前位于 EA 交付下）。
-- 风险可以手动创建，也可以从合规标签页的 CVE 或合规发现中**升级**而来。
-- 升级是幂等的——发现一旦被升级，按钮即切换为「打开风险 R-000123」。
-
 ## 合规
 
 ![GRC — 合规扫描器](../assets/img/zh/54_grc_compliance.png)
 
 按需的安全扫描器，由两个相互独立的部分组成：
-
-- **CVE 扫描** — 针对当前生效景观中的供应商 / 产品 / 版本查询 NIST NVD，再由 LLM 对发现进行优先级排序。
-- **合规扫描** — 针对启用的法规逐项进行 AI 差距分析。默认启用六个框架（EU AI 法、GDPR、NIS2、DORA、SOC 2、ISO 27001）；管理员可在[**管理 → 元模型 → 法规**](../admin/metamodel.md#compliance-regulations)中启用 / 禁用它们，也可以添加自定义法规（如 HIPAA、内部政策）。
-
-`SEED_DEMO=true` 会针对 NexaTech 演示卡片预填一组精选的 CVE 与合规发现样例（覆盖全部六项内置法规，并包含多种生命周期状态）—— 即使尚未配置 AI 提供商，该标签页也可直接使用。
 
 发现在**重新扫描后依然持久** — 用户的判定、审查备注、用户对某张卡片的 AI 判定，以及到已升级风险的反向链接均会在后续扫描中保留。下一次扫描不再报告的发现会被标记为 `auto_resolved` 并默认隐藏；此前升级的风险保持不变，以免审计踪迹断裂。
 

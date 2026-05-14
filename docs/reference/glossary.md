@@ -50,9 +50,6 @@
 | **Survey** | A data-maintenance questionnaire targeting specific card types to collect information from stakeholders |
 | **Tag / Tag Group** | A classification label organized into groups with single-select or multi-select modes, optional type restrictions, and an optional mandatory flag that blocks approval and feeds the data-quality score |
 | **Mandatory Tag Group** | A tag group flagged as required. Applicable cards cannot be approved until at least one tag from the group is attached, and satisfying it contributes to the card's data-quality score |
-| **CVE** | Common Vulnerabilities and Exposures — a public identifier for a known software vulnerability (e.g., `CVE-2024-12345`). TurboLens Security & Compliance looks up CVEs per card in the NIST NVD |
-| **CVSS** | Common Vulnerability Scoring System — the industry-standard 0.0–10.0 score that rates the severity of a CVE. TurboLens records the base score, attack vector and exploitability / impact sub-scores |
-| **NVD** | NIST National Vulnerability Database — the U.S. government's repository of CVE records used by TurboLens to fetch vulnerability data. Rate limits: 5 requests / 30 seconds unauthenticated, 50 / 30 s with `NVD_API_KEY` |
 | **EU AI Act Semantic Detection** | A TurboLens compliance pass that asks the LLM to flag cards embedding AI / ML capabilities (LLMs, recommendation engines, computer vision, scoring, chatbots, …) even when they are not explicitly classified as `AI Agent` / `AI Model`. Such findings are marked **AI-detected** |
 | **Initial vs Residual Risk** | Two assessments captured on every risk in the Risk Register. `Initial` is the unmitigated probability × impact; `Residual` is the post-mitigation probability × impact, editable once a mitigation plan exists. Both derive a level via the 4×4 matrix |
 | **Risk Reference** | A monotonic human-readable identifier (`R-000123`) assigned on risk creation. It stays visible in promoted-finding buttons (**Open risk R-000123**) and in the owner's linked Todo description |
@@ -63,10 +60,7 @@
 | **Work Package** | A logical grouping of tasks within a Gantt timeline that has its own start date, end date, and completion percentage |
 | **AI Suggestion** | An auto-generated card description produced by combining web search results with a Large Language Model (LLM) |
 | **AI Verdict** | A user's confirmation or rejection of the LLM's AI-bearing classification for a card (`hasAiFeatures = true / false`). Persists across re-scans so LLM drift cannot silently change the EU AI Act scope |
-| **Auto-resolved Finding** | A CVE or compliance finding that a later scan no longer reports. The row is flagged `auto_resolved = true` and hidden by default, but not deleted — its history (and any promoted Risk) stays intact |
-| **Compliance Finding Lifecycle** | The state machine for compliance findings: `new → in_review → mitigated → verified`, with `accepted`, `not_applicable` and `risk_tracked` as side branches. Distinct from the CVE lifecycle (`open → acknowledged → in progress → mitigated`) |
 | **GRC** | Governance, Risk and Compliance — the unified workspace at `/grc` with three tabs (Governance, Risk, Compliance) consolidating EA Principles, ADRs, the Risk Register and the Security & Compliance scanner |
 | **Phase G** | TOGAF ADM "Implementation Governance" phase. The source of the Risk Register's vocabulary and lifecycle |
-| **Promote to Risk** | The idempotent action that turns a CVE or compliance finding into a Risk Register entry. The finding gains an **Open risk R-NNNNNN** back-link; clicking it again navigates to the existing risk instead of creating a duplicate |
 | **Risk Register** | Landscape-level register of architecture risks aligned to TOGAF Phase G. Lives at `/grc?tab=risk`. Distinct from the initiative-scoped risks captured inside PPM |
 | **Risk Owner** | The user accountable for a risk. Assignment auto-creates a system Todo on the owner's Todos page and fires a `risk_assigned` notification |

@@ -5,15 +5,7 @@ import type {
   RiskImpact,
   RiskProbability,
   TurboLensComplianceFinding,
-  TurboLensCveFinding,
 } from "@/types";
-
-const CVE_SEVERITY_TO_IMPACT: Record<string, RiskImpact> = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-};
 
 const COMPLIANCE_SEVERITY_TO_IMPACT: Record<string, RiskImpact> = {
   critical: "critical",
@@ -23,18 +15,13 @@ const COMPLIANCE_SEVERITY_TO_IMPACT: Record<string, RiskImpact> = {
   info: "low",
 };
 
-function safeProbability(v: string | null | undefined): RiskProbability {
-  if (v === "very_high" || v === "high" || v === "medium" || v === "low") return v;
-  return "medium";
-}
-
 function safeImpact(v: string | null | undefined): RiskImpact {
   if (v === "critical" || v === "high" || v === "medium" || v === "low") return v;
   return "medium";
 }
 
 export interface RiskDialogSeed {
-  mode: "manual" | "cve" | "compliance";
+  mode: "manual" | "compliance";
   title: string;
   description: string;
   category: RiskCategory;
@@ -44,20 +31,6 @@ export interface RiskDialogSeed {
   cardIds: string[];
   /** If set, CreateRiskDialog calls the promote endpoint with this finding id. */
   findingId?: string;
-}
-
-export function seedFromCve(finding: TurboLensCveFinding): RiskDialogSeed {
-  return {
-    mode: "cve",
-    findingId: finding.id,
-    title: `${finding.cve_id} on ${finding.card_name ?? finding.product ?? finding.card_id}`,
-    description: composeCveDescription(finding),
-    category: "security",
-    initial_probability: safeProbability(finding.probability),
-    initial_impact: safeImpact(CVE_SEVERITY_TO_IMPACT[finding.severity]),
-    mitigation: finding.remediation ?? "",
-    cardIds: [finding.card_id],
-  };
 }
 
 export function seedFromCompliance(finding: TurboLensComplianceFinding): RiskDialogSeed {
@@ -92,20 +65,6 @@ export function emptySeed(cardIds: string[] = []): RiskDialogSeed {
     mitigation: "",
     cardIds,
   };
-}
-
-function composeCveDescription(finding: TurboLensCveFinding): string {
-  const blocks: string[] = [];
-  if (finding.description) blocks.push(finding.description);
-  if (finding.business_impact) blocks.push(`Business impact: ${finding.business_impact}`);
-  if (finding.cvss_score != null) {
-    blocks.push(
-      `CVSS ${finding.cvss_score.toFixed(1)} (${finding.severity}), attack vector: ${
-        finding.attack_vector ?? "unknown"
-      }.`,
-    );
-  }
-  return blocks.join("\n\n");
 }
 
 /** Pick a UI chip colour based on a risk level. Used by both list + detail. */

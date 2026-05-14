@@ -1,18 +1,11 @@
-"""TurboLens Security & Compliance scan orchestrator.
+"""TurboLens Compliance scan orchestrator.
 
 Runs in a background task triggered from
-``POST /turbolens/security/scan``. Two pipelines:
-
-1. **CVE scan** — for every non-archived Application / ITComponent card,
-   query NVD for CVEs matching the vendor/product/version attributes,
-   then call the configured LLM to prioritize each finding using
-   business context (criticality, lifecycle, subtype).
-
-2. **Compliance scan** — per regulation (EU AI Act, GDPR, NIS2, DORA,
-   SOC 2, ISO 27001) call the LLM with a regulation-specific system
-   prompt against a landscape summary. The EU AI Act check runs a
-   semantic detection pass first so cards that embed AI but are not
-   classified as ``AI Agent`` / ``AI Model`` are still evaluated.
+``POST /turbolens/security/compliance-scan``. Per regulation (EU AI Act,
+GDPR, NIS2, DORA, SOC 2, ISO 27001) the configured LLM is called with a
+regulation-specific system prompt against a landscape summary. The EU AI
+Act check runs a semantic detection pass first so cards that embed AI but
+are not classified as ``AI Agent`` / ``AI Model`` are still evaluated.
 """
 
 from __future__ import annotations
@@ -24,7 +17,7 @@ import re
 import uuid as uuid_mod
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -35,7 +28,6 @@ from app.models.compliance_regulation import ComplianceRegulation
 from app.models.turbolens import (
     TurboLensAnalysisRun,
     TurboLensComplianceFinding,
-    TurboLensCveFinding,
 )
 from app.services import notification_service
 from app.services.turbolens_ai import (
@@ -43,12 +35,6 @@ from app.services.turbolens_ai import (
     get_ai_config,
     is_ai_configured,
     parse_json,
-)
-from app.services.turbolens_nvd import (
-    CveRecord,
-    derive_probability,
-    patch_age_days,
-    search_cves,
 )
 
 logger = logging.getLogger("turboea.turbolens.security")
@@ -58,8 +44,6 @@ logger = logging.getLogger("turboea.turbolens.security")
 EU_AI_ACT_KEY = "eu_ai_act"
 
 AI_SUBTYPES = {"AI Agent", "AI Model", "MCP Server"}
-CVE_PER_CARD_LIMIT = 20
-AI_BATCH_SIZE = 25
 COMPLIANCE_BATCH_SIZE = 60
 # `detect_ai_bearing_cards` packs each card with a richer payload (name, vendor,
 # product, description, plus an EU AI Act risk-tier verdict per item in the
@@ -170,209 +154,6 @@ async def load_scan_targets(db: AsyncSession, include_itc: bool = True) -> list[
             )
         )
     return out
-
-
-# ---------------------------------------------------------------------------
-# CVE scan
-# ---------------------------------------------------------------------------
-
-
-def _dedupe_key(card_id: str, cve_id: str) -> tuple[str, str]:
-    return (card_id, cve_id)
-
-
-def _base_finding(card: ScanCard, rec: CveRecord) -> dict[str, Any]:
-    """Build the DB-ready dict before AI enrichment."""
-    age = patch_age_days(rec.published_date) if rec.patch_available else None
-    probability = derive_probability(rec.exploitability_score, rec.attack_vector, age)
-    priority = _priority_from_cvss_and_criticality(rec.cvss_score, card.business_criticality)
-    return {
-        "card_id": card.id,
-        "card_type": card.type,
-        "cve_id": rec.cve_id,
-        "vendor": card.vendor,
-        "product": card.product,
-        "version": card.version,
-        "cvss_score": rec.cvss_score,
-        "cvss_vector": rec.cvss_vector,
-        "severity": rec.severity,
-        "attack_vector": rec.attack_vector,
-        "exploitability_score": rec.exploitability_score,
-        "impact_score": rec.impact_score,
-        "patch_available": rec.patch_available,
-        "published_date": rec.published_date,
-        "last_modified_date": rec.last_modified_date,
-        "description": rec.description,
-        "nvd_references": rec.references[:10],
-        "priority": priority,
-        "probability": probability,
-        "business_impact": None,
-        "remediation": None,
-    }
-
-
-def _priority_from_cvss_and_criticality(cvss: float | None, criticality: str | None) -> str:
-    """Heuristic priority used as a fallback before AI enrichment."""
-    if cvss is None:
-        return "medium"
-    crit = (criticality or "").strip().lower()
-    high_crit = crit in ("missioncritical", "mission_critical", "critical", "high")
-    if cvss >= 9.0:
-        return "critical"
-    if cvss >= 7.0:
-        return "critical" if high_crit else "high"
-    if cvss >= 4.0:
-        return "high" if high_crit else "medium"
-    return "low"
-
-
-async def _fetch_raw_cves(
-    cards: list[ScanCard],
-    progress_cb: ProgressCallback | None = None,
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Query NVD per card and return a list of base-finding dicts.
-
-    De-duplicates by ``(card_id, cve_id)`` — NVD can return the same CVE
-    several times across CPE variants.
-    """
-    findings: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    skipped: list[str] = []
-    total = len(cards)
-
-    for idx, card in enumerate(cards, 1):
-        if progress_cb:
-            await progress_cb("cve_nvd", idx, total, card.name)
-        if not card.vendor and not card.product:
-            skipped.append(card.id)
-            continue
-        try:
-            records = await search_cves(
-                card.vendor, card.product, card.version, max_results=CVE_PER_CARD_LIMIT
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "NVD lookup failed for %s (%s/%s): %s",
-                card.name,
-                card.vendor,
-                card.product,
-                exc,
-            )
-            continue
-        for rec in records:
-            key = _dedupe_key(card.id, rec.cve_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            findings.append(_base_finding(card, rec))
-    return findings, skipped
-
-
-def _cvss_sort_key(f: dict[str, Any]) -> float:
-    return float(f.get("cvss_score") or 0.0)
-
-
-async def enrich_with_ai(
-    db: AsyncSession,
-    cards_by_id: dict[str, ScanCard],
-    findings: list[dict[str, Any]],
-    progress_cb: ProgressCallback | None = None,
-) -> None:
-    """Mutate findings in-place, filling ``business_impact``,
-    ``remediation``, and refining ``priority`` / ``probability`` using
-    the configured LLM. Silently leaves fallback values in place if AI
-    is unavailable or a batch call fails.
-    """
-    ai_config = await get_ai_config(db)
-    if not is_ai_configured(ai_config):
-        logger.info("AI not configured — skipping CVE enrichment")
-        return
-
-    findings.sort(key=_cvss_sort_key, reverse=True)
-    total_batches = max(1, (len(findings) + AI_BATCH_SIZE - 1) // AI_BATCH_SIZE)
-
-    for start in range(0, len(findings), AI_BATCH_SIZE):
-        batch_index = start // AI_BATCH_SIZE + 1
-        if progress_cb:
-            await progress_cb(
-                "cve_ai_enrichment",
-                batch_index,
-                total_batches,
-                f"{len(findings)} finding(s)",
-            )
-        batch = findings[start : start + AI_BATCH_SIZE]
-        payload = []
-        for f in batch:
-            card = cards_by_id.get(f["card_id"])
-            if not card:
-                continue
-            payload.append(
-                {
-                    "cve_id": f["cve_id"],
-                    "cvss": f.get("cvss_score"),
-                    "severity": f.get("severity"),
-                    "attack_vector": f.get("attack_vector"),
-                    "patch": f.get("patch_available"),
-                    "description": (f.get("description") or "")[:600],
-                    "card": {
-                        "name": card.name,
-                        "type": card.type,
-                        "subtype": card.subtype,
-                        "criticality": card.business_criticality,
-                        "lifecycle": card.lifecycle_phase,
-                        "product": card.product,
-                        "vendor": card.vendor,
-                    },
-                }
-            )
-
-        prompt = (
-            "You are a senior security architect. For each CVE below, "
-            "using the attached card context, output JSON:\n"
-            '[{"cve_id":"CVE-YYYY-NNNN","priority":"critical|high|medium|low",'
-            '"probability":"very_high|high|medium|low",'
-            '"business_impact":"<1-2 sentence impact statement referencing the card\'s role>",'
-            '"remediation":"<single concrete next step>"}]\n\n'
-            "Rules:\n"
-            "- Raise priority when the card is mission-critical or in live "
-            "operations; lower it for retired or unused systems.\n"
-            "- Probability reflects exploitability in context (reachability, "
-            "patch availability).\n"
-            "- Keep business_impact grounded in the card — no generic text.\n"
-            "- Remediation is one concrete action (e.g., upgrade to X, apply "
-            "advisory Y, restrict network access).\n\n"
-            f"CVEs:\n{json.dumps(payload)}"
-        )
-        try:
-            result = await call_ai(
-                db,
-                prompt,
-                max_tokens=3000,
-                system_prompt=(
-                    "You are a security analyst. Return only valid JSON — no "
-                    "markdown, no commentary."
-                ),
-            )
-            parsed = parse_json(result["text"])
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("CVE AI enrichment batch failed: %s", exc)
-            continue
-
-        if not isinstance(parsed, list):
-            continue
-        by_cve: dict[str, dict[str, Any]] = {}
-        for item in parsed:
-            if isinstance(item, dict) and item.get("cve_id"):
-                by_cve[item["cve_id"]] = item
-
-        for f in batch:
-            enrich = by_cve.get(f["cve_id"])
-            if not enrich:
-                continue
-            for key in ("priority", "probability", "business_impact", "remediation"):
-                value = enrich.get(key)
-                if value:
-                    f[key] = value
 
 
 # ---------------------------------------------------------------------------
@@ -840,147 +621,6 @@ async def assess_regulation(
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator
-# ---------------------------------------------------------------------------
-
-
-async def run_cve_scan(
-    db: AsyncSession,
-    run_id: uuid_mod.UUID | str,
-    user_id: uuid_mod.UUID | str | None,
-    *,
-    include_itc: bool = True,
-) -> dict[str, Any]:
-    """CVE pipeline only: query NVD + AI prioritisation.
-
-    Replaces any existing CVE findings in-place (compliance findings are
-    left untouched). Reports progress via ``run.results["progress"]``
-    so the UI can render a phase-aware progress bar.
-    """
-    run_uuid = uuid_mod.UUID(str(run_id))
-    progress_cb = _progress_cb(db, run_uuid)
-
-    await progress_cb("loading_cards", 0, 0, "")
-    cards = await load_scan_targets(db, include_itc=include_itc)
-    cards_by_id = {c.id: c for c in cards}
-
-    raw_findings, skipped = await _fetch_raw_cves(cards, progress_cb=progress_cb)
-    await enrich_with_ai(db, cards_by_id, raw_findings, progress_cb=progress_cb)
-
-    await progress_cb("persisting_cve_findings", 0, len(raw_findings), "")
-
-    # Upsert by (card_id, cve_id) so user-set fields — ``status`` and
-    # the promoted-Risk back-link ``risk_id`` — survive re-scans. The
-    # parallel regression on the compliance side was fixed in PR #536;
-    # CVE was missed at the time and used to blanket-DELETE every row.
-    existing_rows = (await db.execute(select(TurboLensCveFinding))).scalars().all()
-    existing_by_key: dict[tuple[uuid_mod.UUID, str], TurboLensCveFinding] = {
-        (row.card_id, row.cve_id): row for row in existing_rows
-    }
-
-    seen_keys: set[tuple[uuid_mod.UUID, str]] = set()
-    for f in raw_findings:
-        card_uuid = uuid_mod.UUID(f["card_id"])
-        cve_id = f["cve_id"]
-        key = (card_uuid, cve_id)
-        seen_keys.add(key)
-        row = existing_by_key.get(key)
-        if row is None:
-            db.add(
-                TurboLensCveFinding(
-                    id=uuid_mod.uuid4(),
-                    run_id=run_uuid,
-                    card_id=card_uuid,
-                    card_type=f["card_type"],
-                    cve_id=cve_id,
-                    vendor=f.get("vendor") or "",
-                    product=f.get("product") or "",
-                    version=f.get("version"),
-                    cvss_score=f.get("cvss_score"),
-                    cvss_vector=f.get("cvss_vector"),
-                    severity=f.get("severity") or "unknown",
-                    attack_vector=f.get("attack_vector"),
-                    exploitability_score=f.get("exploitability_score"),
-                    impact_score=f.get("impact_score"),
-                    patch_available=bool(f.get("patch_available")),
-                    published_date=f.get("published_date"),
-                    last_modified_date=f.get("last_modified_date"),
-                    description=f.get("description") or "",
-                    nvd_references=f.get("nvd_references") or [],
-                    priority=f.get("priority") or "medium",
-                    probability=f.get("probability") or "medium",
-                    business_impact=f.get("business_impact"),
-                    remediation=f.get("remediation"),
-                    status="open",
-                )
-            )
-        else:
-            # Refresh scanner-side fields from NVD; never touch
-            # user-owned ``status`` or ``risk_id``.
-            row.run_id = run_uuid
-            row.card_type = f["card_type"]
-            row.vendor = f.get("vendor") or ""
-            row.product = f.get("product") or ""
-            row.version = f.get("version")
-            row.cvss_score = f.get("cvss_score")
-            row.cvss_vector = f.get("cvss_vector")
-            row.severity = f.get("severity") or "unknown"
-            row.attack_vector = f.get("attack_vector")
-            row.exploitability_score = f.get("exploitability_score")
-            row.impact_score = f.get("impact_score")
-            row.patch_available = bool(f.get("patch_available"))
-            row.published_date = f.get("published_date")
-            row.last_modified_date = f.get("last_modified_date")
-            row.description = f.get("description") or ""
-            row.nvd_references = f.get("nvd_references") or []
-            row.priority = f.get("priority") or "medium"
-            row.probability = f.get("probability") or "medium"
-            row.business_impact = f.get("business_impact")
-            row.remediation = f.get("remediation")
-
-    # Vanished rows — NVD didn't re-emit this (card, CVE) pair on this
-    # run. Delete only the untouched ones (``status="open"`` and no
-    # promoted Risk). Anything the user has triaged or escalated is
-    # preserved so the audit trail and any open Risks stay intact.
-    for key, row in existing_by_key.items():
-        if key in seen_keys:
-            continue
-        if row.status == "open" and row.risk_id is None:
-            await db.delete(row)
-
-    await db.flush()
-
-    if user_id:
-        try:
-            await notification_service.create_notification(
-                db,
-                user_id=uuid_mod.UUID(str(user_id)),
-                notif_type="security_scan_complete",
-                title="CVE scan finished",
-                message=(
-                    f"{len(raw_findings)} CVE finding(s) across "
-                    f"{len(cards) - len(skipped)} scanned card(s)."
-                ),
-                link="/turbolens?tab=security",
-                data={"cve_count": len(raw_findings), "scan": "cve"},
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("CVE scan notification failed: %s", exc)
-
-    summary = {
-        "scan": "cve",
-        "cve_findings": len(raw_findings),
-        "cards_scanned": len(cards),
-        "cards_skipped": len(skipped),
-        "completed_at": datetime.now(timezone.utc).isoformat(),
-    }
-    run = await db.get(TurboLensAnalysisRun, run_uuid)
-    if run is not None:
-        run.results = summary
-    return summary
-
-
-# ---------------------------------------------------------------------------
 # Compliance finding lifecycle
 # ---------------------------------------------------------------------------
 #
@@ -1281,22 +921,6 @@ async def run_compliance_scan(
 # ---------------------------------------------------------------------------
 
 
-def build_risk_matrix(rows: list[TurboLensCveFinding]) -> list[list[int]]:
-    """5x5 matrix indexed by probability (row) x severity (col).
-
-    Rows: very_high, high, medium, low, unknown.
-    Cols: critical, high, medium, low, unknown.
-    """
-    prob_idx = {"very_high": 0, "high": 1, "medium": 2, "low": 3}
-    sev_idx = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    matrix = [[0 for _ in range(5)] for _ in range(5)]
-    for row in rows:
-        pi = prob_idx.get(row.probability, 4)
-        si = sev_idx.get(row.severity, 4)
-        matrix[pi][si] += 1
-    return matrix
-
-
 def compliance_score(rows: list[TurboLensComplianceFinding]) -> int:
     """0-100 compliance score.
 
@@ -1319,49 +943,6 @@ def compliance_score(rows: list[TurboLensComplianceFinding]) -> int:
     for r in rows:
         total += weights.get(r.status, 0.0)
     return int(round((total / len(rows)) * 100))
-
-
-def finding_to_dict(
-    row: TurboLensCveFinding,
-    card_name: str | None,
-    *,
-    risk_reference: str | None = None,
-) -> dict[str, Any]:
-    """Flatten a CVE row + joined card name + (optional) promoted risk ref."""
-    return {
-        "id": str(row.id),
-        "run_id": str(row.run_id),
-        "card_id": str(row.card_id),
-        "card_name": card_name,
-        "card_type": row.card_type,
-        "cve_id": row.cve_id,
-        "vendor": row.vendor,
-        "product": row.product,
-        "version": row.version,
-        "cvss_score": row.cvss_score,
-        "cvss_vector": row.cvss_vector,
-        "severity": row.severity,
-        "attack_vector": row.attack_vector,
-        "exploitability_score": row.exploitability_score,
-        "impact_score": row.impact_score,
-        "patch_available": row.patch_available,
-        "published_date": _date_or_none(row.published_date),
-        "last_modified_date": _date_or_none(row.last_modified_date),
-        "description": row.description,
-        "nvd_references": row.nvd_references or [],
-        "priority": row.priority,
-        "probability": row.probability,
-        "business_impact": row.business_impact,
-        "remediation": row.remediation,
-        "status": row.status,
-        "risk_id": str(row.risk_id) if row.risk_id else None,
-        "risk_reference": risk_reference,
-        "created_at": row.created_at.isoformat() if row.created_at else None,
-    }
-
-
-def _date_or_none(value: date | None) -> str | None:
-    return value.isoformat() if value else None
 
 
 def compliance_to_dict(

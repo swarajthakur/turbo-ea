@@ -217,47 +217,40 @@ A draft ADR is automatically created alongside the initiative with:
 
 Click **Choose Different** to return to the solution options and select a different approach. All your Phase 1 and Phase 2 answers are preserved — only the downstream data (gap analysis, dependencies, target architecture) is reset. After selecting a new option, the wizard proceeds through gap analysis and dependency analysis again. You can save the updated assessment or commit when ready.
 
-## Security & Compliance
+## Compliance
 
-> The Security & Compliance scanner now lives under [**GRC → Compliance**](grc.md#compliance) at `/grc?tab=compliance`. The scan engine, finding lifecycle and APIs are unchanged — only the navigation moved.
+> The Compliance scanner now lives under [**GRC → Compliance**](grc.md#compliance) at `/grc?tab=compliance`. The scan engine, finding lifecycle and APIs are unchanged — only the navigation moved.
 
-The Security & Compliance scanner runs on-demand against the live landscape and produces a standards-compliant risk report plus a regulatory gap analysis.
+The Compliance scanner runs on-demand against the live landscape and produces a regulatory gap analysis.
 
 ### What it scans
 
-- **CVEs** — every non-archived Application and IT Component is looked up in the [NIST National Vulnerability Database](https://nvd.nist.gov/) using the card's `vendor`, `productName` / `version` attributes. Results are contextualised by an AI pass that rates **priority** (critical / high / medium / low) and **probability** (very high / high / medium / low) using the card's business criticality, lifecycle phase, attack vector, exploitability and patch availability.
-- **Compliance** — the same landscape is checked against **EU AI Act**, **GDPR**, **NIS2**, **DORA**, **SOC 2** and **ISO/IEC 27001** by the configured LLM. Each regulation has a dedicated checklist; findings are either **card-scoped** (one specific card is the source of the gap) or **landscape-wide** (systemic issue).
+The landscape is checked against **EU AI Act**, **GDPR**, **NIS2**, **DORA**, **SOC 2** and **ISO/IEC 27001** by the configured LLM. Each regulation has a dedicated checklist; findings are either **card-scoped** (one specific card is the source of the gap) or **landscape-wide** (systemic issue).
 
 ### Running a scan
 
-Only users with `security_compliance.manage` can trigger scans (admin by default). The Overview tab shows **two independent scan cards**:
+Only users with `security_compliance.manage` can trigger scans (admin by default). Tick the regulations to include in the scan and click **Run compliance scan** — AI gap analysis runs against the regulations you scoped, replacing compliance findings for those regulations only.
 
-- **CVE scan** — queries NVD + AI prioritisation. Safe to re-run often; leaves compliance findings untouched.
-- **Compliance scan** — AI gap analysis against the regulations you tick. Replaces compliance findings for the regulations you scoped in this run.
-
-Each scan reports its own phase-aware progress bar (loading cards → querying NVD → AI prioritisation → saving, or loading cards → semantic AI detection → per-regulation check). The two can run concurrently.
+The scan reports a phase-aware progress bar (loading cards → semantic AI detection → per-regulation check).
 
 Refreshing the page **does not interrupt a running scan** — the background task keeps going server-side, and the UI automatically reattaches the progress poll on reload.
 
-### Risk report structure
+### Report structure
 
-- **Overview** — KPI strip (total findings, critical / high / medium counts, overall compliance score), a 5×5 **probability × severity risk matrix**, the top five critical findings, and a compact compliance heatmap you can click through to the details. The matrix itself is **clickable**: click a cell and the CVEs sub-tab opens filtered to that bucket, with a dismissible chip above the table so you can see (and clear) the active filter.
-- **CVEs** — filterable table showing card, CVE ID (linked to the NVD detail page), CVSS base score, severity, priority, probability, patch availability, and status. Each row opens a detail drawer with the description, CVSS vector, attack vector, exploitability / impact scores, references, AI-generated business impact and remediation, and a status action bar (**Acknowledge → Mark in progress → Mark mitigated / Accept risk / Reopen**).
+- **Overview** — overall compliance KPI and a compact compliance heatmap you can click through to the details.
 - **Compliance** — an AG Grid that mirrors the Inventory grid: filter sidebar, persistent column visibility and sort, full-text search, plus a detail drawer per finding. Rows carry status, article, category, requirement, gap description, remediation and evidence. A small **AI-detected** chip highlights cards flagged as AI-bearing by the semantic detector even though they are not tagged as AI subtypes.
-- **Export CSV** — downloads the CVE findings in OWASP/NIST-style column order (Card, Type, CVE, CVSS, Severity, Attack Vector, Probability, Priority, Patch, Published, Last Modified, Status, Vendor, Product, Version, Business Impact, Remediation, Description).
 
 ### Findings persist across re-scans
 
 User decisions and reviewer metadata are **durable across re-scans**:
 
-- CVE findings upsert by `(card_id, cve_id)`. A user-set status (`acknowledged`, `mitigated`, `accepted`) and any promoted-risk back-link survive the next scan.
 - Compliance findings upsert by `(scope, card, regulation, normalised_article)`. Article identifiers like *Art. 6 / Article 6 / § 6* collapse to the same row so LLM re-phrasing no longer mints duplicates.
 - A finding that the next pass no longer reports is **not deleted** — it is flagged `auto_resolved=true` and hidden by default, so its history (and the promoted Risk linked to it) stays intact.
 - The user's **AI verdict** on a card (`hasAiFeatures = true / false`) also sticks. If you confirm or reject the LLM's AI-bearing classification, that decision overrides the detector on subsequent scans — LLM drift cannot silently change scope.
 
 ### Promote a finding to the Risk Register
 
-Every CVE drawer and every compliance finding card includes a **Create risk** primary action. Clicking it opens the shared create-risk dialog with the title, description, category, probability, impact, mitigation and affected card **prefilled from the finding**. You can edit any field before submitting, assign an **owner**, and pick a **target resolution date**. On submit, the finding's row flips to **Open risk R-000123** so the link stays visible — promotions are idempotent server-side. See [Risk Register](risks.md) for the full TOGAF-aligned lifecycle and how owner assignment creates a follow-up Todo + bell notification.
+Every compliance finding card includes a **Create risk** primary action. Clicking it opens the shared create-risk dialog with the title, description, category, probability, impact, mitigation and affected card **prefilled from the finding**. You can edit any field before submitting, assign an **owner**, and pick a **target resolution date**. On submit, the finding's row flips to **Open risk R-000123** so the link stays visible — promotions are idempotent server-side. See [Risk Register](risks.md) for the full TOGAF-aligned lifecycle and how owner assignment creates a follow-up Todo + bell notification.
 
 When the linked Risk later reaches `mitigated`, `monitoring`, `closed` or `accepted` (or is deleted), the back-propagation engine automatically moves every linked compliance finding to the matching state (`mitigated`, `verified`, `accepted`, or back to `in_review`). The acceptance rationale captured on the Risk is mirrored into the finding's review note so the audit trail stays consistent.
 
@@ -276,25 +269,11 @@ AI features are frequently embedded inside general-purpose applications. The EU 
 
 ### Progress and resume
 
-Each scan writes phase-aware progress (loading cards → querying NVD → AI prioritisation → saving, or loading cards → semantic AI detection → per-regulation check) into its analysis-run record. The UI renders a live progress bar per scan. **Refreshing the page does not interrupt a scan** — the background task keeps running server-side, and on mount the Security tab queries `/turbolens/security/active-runs` and reattaches the poll loop.
-
-### NVD API key (optional)
-
-Without a key, NVD allows only 5 requests / 30 seconds, which can make large-landscape scans slow. Request a free key at <https://nvd.nist.gov/developers/request-an-api-key> and set it via the `NVD_API_KEY` environment variable to raise the limit to 50 requests / 30 seconds.
+The scan writes phase-aware progress (loading cards → semantic AI detection → per-regulation check) into its analysis-run record. The UI renders a live progress bar. **Refreshing the page does not interrupt a scan** — the background task keeps running server-side, and on mount the Compliance tab queries `/turbolens/security/active-runs` and reattaches the poll loop.
 
 ### Status workflow
 
-CVE and Compliance findings have **distinct lifecycles**, each rendered as a horizontal phase timeline in the finding drawer. Both are restricted to users with `security_compliance.manage`; the engine enforces transitions server-side and rejects illegal moves with a clear error.
-
-**CVE findings**
-
-```
-open → acknowledged → in progress → mitigated
-                                  ↘ accepted (formal risk acceptance)
-                                  ↘ reopen → open
-```
-
-**Compliance findings** (redesigned in v1.11.0)
+Compliance findings have a 4-state main path with 3 side branches, rendered as a horizontal phase timeline in the finding drawer. Transitions are restricted to users with `security_compliance.manage`; the engine enforces transitions server-side and rejects illegal moves with a clear error.
 
 ```
 new → in_review → mitigated → verified
@@ -322,5 +301,5 @@ All analysis runs are tracked in **TurboLens > History**, showing:
 |------------|-------------|
 | `turbolens.view` | View analysis results (granted to admin, bpm_admin, member) |
 | `turbolens.manage` | Trigger analyses (granted to admin) |
-| `security_compliance.view` | View CVE and compliance findings (granted to admin, bpm_admin, member, viewer) |
-| `security_compliance.manage` | Trigger security scans and update finding status (granted to admin) |
+| `security_compliance.view` | View compliance findings (granted to admin, bpm_admin, member, viewer) |
+| `security_compliance.manage` | Trigger compliance scans and update finding status (granted to admin) |

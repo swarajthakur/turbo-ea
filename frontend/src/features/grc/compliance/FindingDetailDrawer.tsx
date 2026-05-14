@@ -11,8 +11,6 @@
  *      category / reviewed-by
  *   6. AI verdict panel (only when ai_detected=true)
  *   7. Action bar: Create Risk / Open Risk + Open impacted card
- *
- * Mirrors ``SecurityFindingDrawer`` (CVE drawer) for visual consistency.
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,7 +31,7 @@ import { useComplianceRegulations } from "@/hooks/useComplianceRegulations";
 import type { TurboLensComplianceFinding } from "@/types";
 import {
   complianceStatusColor,
-  cveSeverityColor,
+  severityChipColor,
 } from "@/features/turbolens/utils";
 import ComplianceLifecycleTimeline from "./ComplianceLifecycleTimeline";
 
@@ -128,7 +126,7 @@ export default function FindingDetailDrawer({
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Chip
               size="small"
-              color={cveSeverityColor(finding.severity)}
+              color={severityChipColor(finding.severity)}
               label={t(`turbolens_security_severity_${finding.severity}`)}
             />
             <Chip

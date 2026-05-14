@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.card import Card
 from app.models.risk import Risk, RiskCard
-from app.models.turbolens import TurboLensComplianceFinding, TurboLensCveFinding
+from app.models.turbolens import TurboLensComplianceFinding
 
 logger = logging.getLogger("turboea.risk_service")
 
@@ -150,14 +150,6 @@ async def link_cards(
 # ---------------------------------------------------------------------------
 
 
-_CVSS_TO_IMPACT: dict[str, str] = {
-    "critical": "critical",
-    "high": "high",
-    "medium": "medium",
-    "low": "low",
-}
-
-
 _COMPLIANCE_SEVERITY_TO_IMPACT: dict[str, str] = {
     "critical": "critical",
     "high": "high",
@@ -175,71 +167,6 @@ def _safe_impact(value: str | None) -> str:
     return value if value in IMPACT_VALUES else "medium"
 
 
-async def promote_cve_finding(
-    db: AsyncSession,
-    finding_id: uuid.UUID,
-    user_id: uuid.UUID | None,
-    *,
-    overrides: dict[str, Any] | None = None,
-) -> Risk:
-    """Create a Risk from a CVE finding, or return the already-promoted one.
-
-    Seeds:
-    * category = ``security``
-    * source_type = ``security_cve`` / source_ref = CVE id
-    * title = ``"<cve_id> on <card_name or product>"``
-    * description = finding description + business impact
-    * mitigation = finding remediation
-    * initial_probability/impact = finding.probability / CVSS severity
-    * links the finding's affected card
-    * writes ``risk_id`` back on the finding so the UI can route to it
-    """
-    finding = await db.get(TurboLensCveFinding, finding_id)
-    if finding is None:
-        raise LookupError("Finding not found")
-
-    if finding.risk_id is not None:
-        existing = await db.get(Risk, finding.risk_id)
-        if existing is not None:
-            return existing
-
-    card = await db.get(Card, finding.card_id)
-    card_label = card.name if card else finding.product or str(finding.card_id)
-
-    overrides = overrides or {}
-    probability = _safe_probability(overrides.get("initial_probability") or finding.probability)
-    impact = _safe_impact(
-        overrides.get("initial_impact") or _CVSS_TO_IMPACT.get(finding.severity, "medium")
-    )
-    title = overrides.get("title") or f"{finding.cve_id} on {card_label}"
-    description = overrides.get("description") or _compose_cve_description(finding)
-
-    risk = Risk(
-        id=uuid.uuid4(),
-        reference=await next_reference(db),
-        title=title[:500],
-        description=description,
-        category=overrides.get("category", "security"),
-        source_type="security_cve",
-        source_ref=finding.cve_id,
-        initial_probability=probability,
-        initial_impact=impact,
-        initial_level=derive_level(probability, impact) or "medium",
-        mitigation=overrides.get("mitigation") or finding.remediation,
-        owner_id=overrides.get("owner_id"),
-        target_resolution_date=overrides.get("target_resolution_date"),
-        status="identified",
-        created_by=user_id,
-    )
-    db.add(risk)
-    await db.flush()
-    if finding.card_id:
-        await link_cards(db, risk.id, [finding.card_id])
-    finding.risk_id = risk.id
-    await db.flush()
-    return risk
-
-
 async def promote_compliance_finding(
     db: AsyncSession,
     finding_id: uuid.UUID,
@@ -247,7 +174,17 @@ async def promote_compliance_finding(
     *,
     overrides: dict[str, Any] | None = None,
 ) -> Risk:
-    """Create a Risk from a compliance finding (see :func:`promote_cve_finding`)."""
+    """Create a Risk from a compliance finding, or return the already-promoted one.
+
+    Seeds:
+    * category = ``compliance``
+    * source_type = ``security_compliance`` / source_ref = regulation key
+    * title = ``"<article>: <card or 'landscape'>"``
+    * description = requirement + gap description
+    * mitigation = finding remediation
+    * links the finding's affected card (if any)
+    * writes ``risk_id`` back on the finding so the UI can route to it
+    """
     finding = await db.get(TurboLensComplianceFinding, finding_id)
     if finding is None:
         raise LookupError("Finding not found")
@@ -307,20 +244,6 @@ async def promote_compliance_finding(
     finding.reviewed_at = datetime.now(timezone.utc)
     await db.flush()
     return risk
-
-
-def _compose_cve_description(finding: TurboLensCveFinding) -> str:
-    blocks: list[str] = []
-    if finding.description:
-        blocks.append(finding.description)
-    if finding.business_impact:
-        blocks.append(f"Business impact: {finding.business_impact}")
-    if finding.cvss_score is not None:
-        blocks.append(
-            f"CVSS {finding.cvss_score:.1f} ({finding.severity}), "
-            f"attack vector: {finding.attack_vector or 'unknown'}."
-        )
-    return "\n\n".join(blocks)
 
 
 # ---------------------------------------------------------------------------

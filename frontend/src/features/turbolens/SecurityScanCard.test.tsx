@@ -6,7 +6,7 @@ import type { SecurityScanRun } from "@/types";
 
 function renderCard(props: Partial<Parameters<typeof SecurityScanCard>[0]>) {
   const defaults: Parameters<typeof SecurityScanCard>[0] = {
-    title: "CVE scan",
+    title: "Compliance scan",
     description: "Scan description",
     icon: "shield",
     run: null,
@@ -35,19 +35,19 @@ describe("SecurityScanCard", () => {
       completed_at: null,
       error: null,
       progress: {
-        phase: "cve_nvd",
+        phase: "compliance_assess",
         current: 7,
         total: 20,
-        note: "nginx",
+        note: "GDPR",
       },
       summary: null,
     };
     renderCard({ running: true, run });
     expect(screen.getByRole("button")).toBeDisabled();
-    expect(screen.getByText("cve_nvd")).toBeInTheDocument();
-    // "7 / 20" + " · nginx" are rendered in one span.
+    expect(screen.getByText("compliance_assess")).toBeInTheDocument();
+    // "7 / 20" + " · GDPR" are rendered in one span.
     expect(screen.getByText(/7\s*\/\s*20/)).toBeInTheDocument();
-    expect(screen.getByText(/nginx/)).toBeInTheDocument();
+    expect(screen.getByText(/GDPR/)).toBeInTheDocument();
     // There are two progressbars — the button spinner and the LinearProgress.
     expect(screen.getAllByRole("progressbar").length).toBeGreaterThanOrEqual(1);
   });
@@ -60,15 +60,15 @@ describe("SecurityScanCard", () => {
       completed_at: "2026-04-21T09:10:00Z",
       error: null,
       progress: null,
-      summary: { cve_findings: 12, cards_scanned: 45 },
+      summary: { compliance_findings: 12, regulations_assessed: 6 },
     };
     renderCard({
       run,
       summaryLabel: (s) =>
-        `${s.cve_findings} findings across ${s.cards_scanned} cards`,
+        `${s.compliance_findings} findings across ${s.regulations_assessed} regulations`,
     });
     expect(
-      screen.getByText(/12 findings across 45 cards/),
+      screen.getByText(/12 findings across 6 regulations/),
     ).toBeInTheDocument();
     // Timestamp — locale-formatted, so just assert the year appears.
     expect(screen.getByText(/2026/)).toBeInTheDocument();

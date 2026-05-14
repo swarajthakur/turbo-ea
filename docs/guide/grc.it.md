@@ -4,10 +4,6 @@ Il modulo **GRC** riunisce Governance, Rischio e Conformità in un unico spazio 
 
 GRC ha tre schede:
 
-- **Governance** — Principi EA e Architecture Decision Records (ADR).
-- **Rischio** — il [Registro dei rischi](risks.md) secondo TOGAF Fase G.
-- **Conformità** — lo scanner on-demand (CVE + analisi degli scostamenti normativi) che prima si trovava in TurboLens.
-
 Puoi puntare direttamente a una scheda con `/grc?tab=governance`, `/grc?tab=risk` o `/grc?tab=compliance`.
 
 ![GRC — scheda Governance](../assets/img/it/52_grc_governance.png)
@@ -97,20 +93,11 @@ Cliccate sull'icona di anteprima per visualizzare una versione in sola lettura e
 
 Incorpora il **Registro dei rischi** TOGAF Fase G. Ciclo di vita completo, workflow degli stati, interruttori della matrice e comportamento dei proprietari sono documentati nella [guida del Registro dei rischi](risks.md). I punti più rilevanti:
 
-- Il registro vive a `/grc?tab=risk` (prima era sotto Consegna EA).
-- I rischi possono essere creati manualmente o **promossi** da un riscontro CVE o di conformità nella scheda Conformità.
-- La promozione è idempotente — una volta promosso un riscontro, il suo pulsante diventa **Apri rischio R-000123**.
-
 ## Conformità
 
 ![GRC — scanner di conformità](../assets/img/it/54_grc_conformita.png)
 
 Lo scanner di sicurezza on-demand, con due metà indipendenti:
-
-- **Scansione CVE** — interroga NIST NVD per i fornitori / prodotti / versioni del paesaggio vivo, poi chiede all'LLM di prioritizzare i riscontri.
-- **Scansione di conformità** — analisi degli scostamenti per regolamento, basata su IA, contro i regolamenti abilitati. Sei framework sono abilitati per default (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001); gli amministratori possono abilitarli o disabilitarli — e aggiungere regolamenti personalizzati come HIPAA o policy interne — da [**Amministrazione → Metamodello → Regolamenti**](../admin/metamodel.md#compliance-regulations).
-
-`SEED_DEMO=true` popola un insieme curato di riscontri CVE e di conformità di esempio (su tutti e sei i regolamenti integrati e con un mix di stati del ciclo di vita) sulle card demo NexaTech — la scheda è utilizzabile subito senza un provider AI configurato.
 
 I riscontri sono **durevoli tra re-scansioni** — decisioni utente, note di revisione, il verdetto AI dell'utente su una card e il rimando a un Rischio promosso sopravvivono alle scansioni successive. Un riscontro che la passata seguente non riporta più viene marcato `auto_resolved` e nascosto per default; il Rischio promosso in precedenza resta intatto per non rompere il percorso di audit.
 

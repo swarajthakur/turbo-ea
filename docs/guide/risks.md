@@ -17,13 +17,12 @@ The register implements the Architecture Risk Management process from **TOGAF AD
 
 ## Creating a risk
 
-Three paths all land in the same **Create risk** dialog — each variant prefills different fields so you can edit and submit:
+Two paths both land in the same **Create risk** dialog — each variant prefills different fields so you can edit and submit:
 
 1. **Manual** — Risks tab → **+ New risk**. Blank form.
-2. **From a CVE finding** — GRC → Compliance → CVE drawer → **Create risk**. Pre-fills title (CVE ID on card), description (NVD text + business impact + CVSS), category `security`, probability/impact from the CVE, mitigation from the finding's remediation, and links the affected card.
-3. **From a compliance finding** — GRC → Compliance → **Create risk** on a non-compliant finding. Pre-fills category `compliance`, probability/impact from regulation severity + status, description from requirement + gap.
+2. **From a compliance finding** — GRC → Compliance → **Create risk** on a non-compliant finding. Pre-fills category `compliance`, probability/impact from regulation severity + status, description from requirement + gap.
 
-All three variants include **Owner**, **Category**, and **Target resolution date** fields so you can assign accountability at creation time — no need to re-open the risk to add them.
+Both variants include **Owner**, **Category**, and **Target resolution date** fields so you can assign accountability at creation time — no need to re-open the risk to add them.
 
 Promotion is **idempotent** — once a finding has been promoted its button flips to **Open risk R-000123** and navigates straight to the risk detail page.
 

@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
-    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -127,59 +126,6 @@ class TurboLensAnalysisRun(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
-    )
-
-
-class TurboLensCveFinding(UUIDMixin, TimestampMixin, Base):
-    """A single CVE affecting a specific card (Application or ITComponent)."""
-
-    __tablename__ = "turbolens_cve_findings"
-
-    run_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("turbolens_analysis_runs.id", ondelete="CASCADE"),
-    )
-    card_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("cards.id", ondelete="CASCADE"),
-    )
-    card_type: Mapped[str] = mapped_column(String(64))
-    cve_id: Mapped[str] = mapped_column(String(32))
-    vendor: Mapped[str] = mapped_column(String(255), default="")
-    product: Mapped[str] = mapped_column(String(255), default="")
-    version: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    cvss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    cvss_vector: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    severity: Mapped[str] = mapped_column(String(16), default="unknown")
-    attack_vector: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    exploitability_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    impact_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    patch_available: Mapped[bool] = mapped_column(Boolean, default=False)
-    published_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    last_modified_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    description: Mapped[str] = mapped_column(Text, default="")
-    nvd_references: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    priority: Mapped[str] = mapped_column(String(16), default="medium")
-    probability: Mapped[str] = mapped_column(String(16), default="medium")
-    business_impact: Mapped[str | None] = mapped_column(Text, nullable=True)
-    remediation: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="open")
-    # Back-link to a promoted Risk. Null until the user clicks
-    # "Create risk" on this finding.
-    risk_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("risks.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-
-    __table_args__ = (
-        Index("ix_turbolens_cve_findings_card_id_severity", "card_id", "severity"),
-        Index("ix_turbolens_cve_findings_run_id", "run_id"),
-        Index("ix_turbolens_cve_findings_status", "status"),
-        Index("ix_turbolens_cve_findings_cve_id", "cve_id"),
-        Index("ix_turbolens_cve_findings_severity", "severity"),
-        Index("ix_turbolens_cve_findings_priority", "priority"),
-        Index("ix_turbolens_cve_findings_risk_id", "risk_id"),
     )
 
 
