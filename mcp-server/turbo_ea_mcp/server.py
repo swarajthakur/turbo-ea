@@ -103,7 +103,7 @@ async def search_cards(
         page: Page number (default 1).
         page_size: Results per page (default 20, max 100).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -125,7 +125,7 @@ async def get_card(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -140,7 +140,7 @@ async def get_card_relations(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -155,7 +155,7 @@ async def get_card_hierarchy(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -166,7 +166,7 @@ async def get_card_hierarchy(card_id: str) -> str:
 @mcp.tool()
 async def list_card_types() -> str:
     """List all card types in the metamodel with their fields and configuration."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -181,7 +181,7 @@ async def get_relation_types(type_key: str = "") -> str:
     Args:
         type_key: Filter to relations involving this card type (optional).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -196,7 +196,7 @@ async def get_relation_types(type_key: str = "") -> str:
 async def get_dashboard() -> str:
     """Get the EA dashboard with KPIs: card counts by type, average data quality,
     approval status distribution, and recent activity."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -212,7 +212,7 @@ async def get_landscape(type_key: str, group_by: str) -> str:
         type_key: The card type to list (e.g. 'Application').
         group_by: The related type to group by (e.g. 'BusinessCapability').
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -258,7 +258,7 @@ async def list_risks(
         page: Page number (default 1).
         page_size: Results per page (default 50, max 1000).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -290,7 +290,7 @@ async def get_risk(risk_id: str) -> str:
         risk_id: The risk's UUID (or its reference number like 'R-000123' —
             the backend resolves both).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -302,7 +302,7 @@ async def get_risk(risk_id: str) -> str:
 async def get_risk_metrics() -> str:
     """KPIs for the Risk Register: counts by status / category / level plus
     the 4×4 initial and residual probability × impact matrices."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -317,7 +317,7 @@ async def get_card_risks(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -351,7 +351,7 @@ async def list_cve_findings(
         page: Page number (default 1).
         page_size: Results per page (default 50, max 200).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -388,7 +388,7 @@ async def list_compliance_findings(
         include_auto_resolved: Include findings a later re-scan no longer
             reports (hidden by default for noise reduction).
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -409,7 +409,7 @@ async def list_compliance_findings(
 async def get_security_overview() -> str:
     """KPIs + risk matrix + top critical findings for the Security &
     Compliance dashboard (CVE side + compliance side)."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -424,7 +424,7 @@ async def get_security_overview() -> str:
 async def list_principles() -> str:
     """List the EA principles published in the metamodel (statement,
     rationale, implications), ordered by sort order."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -447,7 +447,7 @@ async def list_adrs(
         status: 'draft', 'in_review', or 'signed'.
         search: Free-text search across title, reference and section content.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -473,7 +473,7 @@ async def get_adr(adr_id: str) -> str:
     Args:
         adr_id: The ADR's UUID.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -488,7 +488,7 @@ async def list_soaws(initiative_id: str = "") -> str:
     Args:
         initiative_id: Filter to SoAWs linked to a specific Initiative UUID.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -521,7 +521,7 @@ async def get_portfolio_report(
         size_field: Field key driving bubble size.
         color_field: Field key driving bubble colour.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -552,7 +552,7 @@ async def get_cost_treemap(
         group_by: Optional related card type key to group spend by
             (e.g. 'BusinessCapability', 'Organization').
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -576,7 +576,7 @@ async def get_capability_heatmap(metric: str = "app_count") -> str:
     Args:
         metric: What to colour by — 'app_count', 'cost', 'data_quality'.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -591,7 +591,7 @@ async def get_capability_heatmap(metric: str = "app_count") -> str:
 async def get_data_quality_report() -> str:
     """Per-card-type data quality / completeness breakdown — surfaces
     which inventory rows have missing required fields."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -609,7 +609,7 @@ async def get_card_stakeholders(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -624,7 +624,7 @@ async def get_card_comments(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -640,7 +640,7 @@ async def get_card_documents(card_id: str) -> str:
     Args:
         card_id: The UUID of the card.
     """
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated. Please reconnect."
     client = TurboEAClient(token)
@@ -654,7 +654,7 @@ async def get_card_documents(card_id: str) -> str:
 @mcp.resource("turbo-ea://types")
 async def resource_types() -> str:
     """All card types in the metamodel."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated."
     client = TurboEAClient(token)
@@ -665,7 +665,7 @@ async def resource_types() -> str:
 @mcp.resource("turbo-ea://relation-types")
 async def resource_relation_types() -> str:
     """All relation types in the metamodel."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated."
     client = TurboEAClient(token)
@@ -676,7 +676,7 @@ async def resource_relation_types() -> str:
 @mcp.resource("turbo-ea://dashboard")
 async def resource_dashboard() -> str:
     """Dashboard KPIs and summary statistics."""
-    token = _get_current_token()
+    token = await _get_current_token()
     if not token:
         return "Error: Not authenticated."
     client = TurboEAClient(token)
@@ -732,46 +732,42 @@ def explore_dependencies(card_name: str) -> str:
 # ── Token context ──────────────────────────────────────────────────────────
 
 import asyncio
-import contextvars
 import os
 
-_current_token: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "_current_token", default=None
-)
+from mcp.server.lowlevel.server import request_ctx as _mcp_request_ctx
 
 # In stdio mode a single user is logged in — store their token here.
 _stdio_token: str | None = None
 
 
-def _get_current_token() -> str | None:
+async def _get_current_token() -> str | None:
+    """Resolve the authenticated Turbo EA JWT for the current call.
+
+    In stdio mode, returns the long-lived JWT obtained at login.
+
+    In HTTP mode, reads the Bearer header from the MCP request_ctx — which
+    the low-level MCP server sets on the session task right before invoking
+    a tool handler, with the HTTP Starlette ``Request`` attached. We can't
+    rely on a contextvar set in an ASGI middleware because tool handlers
+    run in a long-lived session task that doesn't inherit the request
+    task's context updates.
+    """
     if _stdio_token is not None:
         return _stdio_token
-    return _current_token.get()
+    try:
+        ctx = _mcp_request_ctx.get()
+    except LookupError:
+        return None
+    request = getattr(ctx, "request", None)
+    if request is None:
+        return None
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    return await oauth.resolve_token(auth[7:])
 
 
 # ── ASGI application ───────────────────────────────────────────────────────
-
-
-class AuthMiddleware:
-    """Extract Bearer token from MCP requests and resolve to Turbo EA JWT."""
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            auth = headers.get(b"authorization", b"").decode()
-            if auth.startswith("Bearer "):
-                mcp_token = auth[7:]
-                turbo_jwt = await oauth.resolve_token(mcp_token)
-                if turbo_jwt:
-                    _current_token.set(turbo_jwt)
-                else:
-                    _current_token.set(None)
-            else:
-                _current_token.set(None)
-        await self.app(scope, receive, send)
 
 
 def create_app() -> Starlette:
@@ -808,7 +804,6 @@ def create_app() -> Starlette:
     # redirect for clients hitting /mcp without a trailing slash).
     app = mcp.streamable_http_app()
     app.router.routes.extend(oauth_routes)
-    app.add_middleware(AuthMiddleware)
 
     return app
 
