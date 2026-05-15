@@ -33,12 +33,14 @@ import MaterialSymbol from "@/components/MaterialSymbol";
 import MetricCard from "@/features/reports/MetricCard";
 import { api, ApiError } from "@/api/client";
 import type {
+  MitigationTask,
   Risk,
   RiskCardLink,
   RiskLevel,
   RiskListPage,
   RiskMetrics,
 } from "@/types";
+import { exportRegister } from "./mitigation/taskHistoryExport";
 import Tooltip from "@mui/material/Tooltip";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { useDateFormat } from "@/hooks/useDateFormat";
@@ -52,66 +54,26 @@ import RiskMatrix, { RiskMatrixSelection } from "./RiskMatrix";
 import { emptySeed, RiskDialogSeed, riskLevelChipColor } from "./riskDefaults";
 
 // ---------------------------------------------------------------------------
-// CSV export
+// Register export — XLSX with two sheets (risks + mitigation tasks).
 // ---------------------------------------------------------------------------
 
-function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  const s = String(value);
-  // Quote when the value contains a comma, quote, newline, or leading/trailing
-  // whitespace; double up any embedded quote.
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function exportRisksToCsv(
+async function exportRisksToXlsx(
   rows: Risk[],
-  t: (k: string, opts?: Record<string, unknown>) => string,
-  formatDate: (d: string | null | undefined) => string,
-): void {
-  const header = [
-    t("risks.col.reference"),
-    t("risks.col.title"),
-    t("risks.col.category"),
-    t("risks.col.initialLevel"),
-    t("risks.col.residualLevel"),
-    t("risks.col.status"),
-    t("risks.col.owner"),
-    t("risks.col.target"),
-    t("risks.col.cards"),
-    t("risks.col.updatedAt"),
-  ];
-  const lines = [header.map(csvCell).join(",")];
-  for (const r of rows) {
-    lines.push(
-      [
-        r.reference,
-        r.title,
-        r.category ? t(`risks.category.${r.category}`) : "",
-        r.initial_level ? t(`risks.level.${r.initial_level}`) : "",
-        r.residual_level ? t(`risks.level.${r.residual_level}`) : "",
-        r.status ? t(`risks.status.${r.status}`) : "",
-        r.owner_name ?? "",
-        formatDate(r.target_resolution_date),
-        (r.cards ?? []).map((c) => c.card_name).join("; "),
-        formatDate(r.updated_at),
-      ]
-        .map(csvCell)
-        .join(","),
+  filterQuery: string,
+  onError: (msg: string) => void,
+): Promise<void> {
+  // Fetch every mitigation task across the on-screen filtered risks so
+  // sheet 2 always matches what the user sees in sheet 1.
+  let tasks: MitigationTask[] = [];
+  try {
+    tasks = await api.get<MitigationTask[]>(
+      `/risks/mitigation-tasks/export${filterQuery}`,
     );
+  } catch (e) {
+    onError(e instanceof ApiError ? e.message : "Export failed");
+    return;
   }
-  const blob = new Blob(["﻿" + lines.join("\r\n")], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const stamp = new Date().toISOString().slice(0, 10);
-  a.download = `risks-${stamp}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  exportRegister(rows, tasks);
 }
 
 // ---------------------------------------------------------------------------
@@ -725,7 +687,14 @@ export default function RiskRegisterPage() {
                 variant="outlined"
                 color="inherit"
                 startIcon={<MaterialSymbol icon="download" size={18} />}
-                onClick={() => exportRisksToCsv(filteredRows, t, formatDate)}
+                onClick={() => {
+                  const qs = buildFilterParams().toString();
+                  void exportRisksToXlsx(
+                    filteredRows,
+                    qs ? `?${qs}` : "",
+                    (msg) => setError(msg),
+                  );
+                }}
                 disabled={filteredRows.length === 0}
                 sx={{ textTransform: "none" }}
               >

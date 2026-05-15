@@ -40,6 +40,7 @@ _PURGE_INTERVAL_SECONDS = 3600  # Run once per hour
 _PURGE_RETENTION_DAYS = 30
 _OLLAMA_PULL_TIMEOUT = 600  # 10 minutes max for model pull
 _KPI_SNAPSHOT_HOUR_UTC = 2  # Capture daily snapshot at 02:00 UTC
+_TASK_PROMOTION_HOUR_UTC = 3  # Promote scheduled task occurrences at 03:00 UTC
 
 
 async def _purge_archived_cards_loop() -> None:
@@ -147,6 +148,47 @@ async def _kpi_snapshot_loop() -> None:
         except Exception:
             logger.exception("Error in KPI snapshot loop")
             # Avoid tight retry loop if something is broken.
+            await asyncio.sleep(3600)
+
+
+async def _promote_recurring_tasks_loop() -> None:
+    """Daily background loop that flips eligible ``scheduled`` task
+    occurrences to ``open`` once their lead-time window opens.
+
+    Runs once per UTC day at ``_TASK_PROMOTION_HOUR_UTC`` (03:00). Each
+    promotion creates the assignee's system Todo, fires the
+    ``task_assigned`` notification, and emits a
+    ``risk_mitigation_task.activated`` event onto the per-card history
+    timeline. The promotion service is idempotent on already-open
+    occurrences, so a transient restart that doubles a tick is safe.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from app.database import async_session
+    from app.services.risk_mitigation_task_service import promote_scheduled_occurrences
+
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            next_run = now.replace(hour=_TASK_PROMOTION_HOUR_UTC, minute=0, second=0, microsecond=0)
+            if next_run <= now:
+                next_run += timedelta(days=1)
+            await asyncio.sleep((next_run - now).total_seconds())
+
+            async with async_session() as db:
+                promoted = await promote_scheduled_occurrences(db)
+                await db.commit()
+                if promoted:
+                    logger.info(
+                        "Promoted %d scheduled mitigation task occurrence(s) to open",
+                        promoted,
+                    )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Error in mitigation task promotion loop")
+            # Same backoff pattern as the KPI loop — avoid a tight retry
+            # spiral if the DB is unavailable.
             await asyncio.sleep(3600)
 
 
@@ -540,6 +582,10 @@ async def lifespan(app: FastAPI):
     await _ensure_initial_kpi_snapshot()
     kpi_task = asyncio.create_task(_kpi_snapshot_loop())
 
+    # Start the daily mitigation-task promotion loop that lifts
+    # scheduled cycles to open once their lead window opens.
+    promote_task = asyncio.create_task(_promote_recurring_tasks_loop())
+
     yield
 
     # Cancel background tasks on shutdown
@@ -551,6 +597,11 @@ async def lifespan(app: FastAPI):
     kpi_task.cancel()
     try:
         await kpi_task
+    except asyncio.CancelledError:
+        pass
+    promote_task.cancel()
+    try:
+        await promote_task
     except asyncio.CancelledError:
         pass
     if ollama_task and not ollama_task.done():

@@ -181,9 +181,13 @@ async def promote_compliance_finding(
     * source_type = ``security_compliance`` / source_ref = regulation key
     * title = ``"<article>: <card or 'landscape'>"``
     * description = requirement + gap description
-    * mitigation = finding remediation
     * links the finding's affected card (if any)
     * writes ``risk_id`` back on the finding so the UI can route to it
+
+    When the finding carries a ``remediation`` string, it is spawned as a
+    one-shot mitigation task on the new risk (description = remediation,
+    title = "Remediate: <article>") so the guidance becomes actionable
+    work owned by the risk owner rather than inert text.
     """
     finding = await db.get(TurboLensComplianceFinding, finding_id)
     if finding is None:
@@ -228,7 +232,6 @@ async def promote_compliance_finding(
         initial_probability=probability,
         initial_impact=impact,
         initial_level=derive_level(probability, impact) or "medium",
-        mitigation=overrides.get("mitigation") or finding.remediation,
         owner_id=overrides.get("owner_id"),
         target_resolution_date=overrides.get("target_resolution_date"),
         status="identified",
@@ -243,6 +246,31 @@ async def promote_compliance_finding(
     finding.reviewed_by = user_id
     finding.reviewed_at = datetime.now(timezone.utc)
     await db.flush()
+
+    # Seed a one-shot mitigation task from the finding's remediation
+    # guidance, if present. Imported lazily to avoid a circular import
+    # between risk_service and risk_mitigation_task_service.
+    remediation = (finding.remediation or "").strip()
+    if remediation and user_id is not None:
+        from app.services.risk_mitigation_task_service import (
+            create_task_with_first_occurrence,
+        )
+
+        task_title = (
+            f"Remediate: {article}" if article else f"Remediate {finding.regulation.upper()}"
+        )
+        await create_task_with_first_occurrence(
+            db,
+            risk=risk,
+            title=task_title[:500],
+            description=remediation,
+            owner_id=overrides.get("owner_id"),
+            due_date=overrides.get("target_resolution_date"),
+            recurrence_unit="none",
+            recurrence_interval=1,
+            actor_id=user_id,
+        )
+
     return risk
 
 
@@ -288,7 +316,6 @@ async def risk_to_dict(db: AsyncSession, risk: Risk) -> dict[str, Any]:
         "initial_probability": risk.initial_probability,
         "initial_impact": risk.initial_impact,
         "initial_level": risk.initial_level,
-        "mitigation": risk.mitigation,
         "residual_probability": risk.residual_probability,
         "residual_impact": risk.residual_impact,
         "residual_level": risk.residual_level,

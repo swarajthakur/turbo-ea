@@ -27,7 +27,6 @@ export interface RiskDialogSeed {
   category: RiskCategory;
   initial_probability: RiskProbability;
   initial_impact: RiskImpact;
-  mitigation: string;
   cardIds: string[];
   /** If set, CreateRiskDialog calls the promote endpoint with this finding id. */
   findingId?: string;
@@ -49,7 +48,6 @@ export function seedFromCompliance(finding: TurboLensComplianceFinding): RiskDia
     category: "compliance",
     initial_probability: finding.status === "non_compliant" ? "high" : "medium",
     initial_impact: safeImpact(COMPLIANCE_SEVERITY_TO_IMPACT[finding.severity]),
-    mitigation: finding.remediation ?? "",
     cardIds: finding.card_id ? [finding.card_id] : [],
   };
 }
@@ -62,7 +60,6 @@ export function emptySeed(cardIds: string[] = []): RiskDialogSeed {
     category: "operational",
     initial_probability: "medium",
     initial_impact: "medium",
-    mitigation: "",
     cardIds,
   };
 }

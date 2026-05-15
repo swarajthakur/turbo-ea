@@ -5742,6 +5742,11 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
     """
     try:
         from app.models.risk import Risk, RiskCard
+        from app.models.risk_mitigation_task import (
+            RiskMitigationTask,
+            RiskMitigationTaskOccurrence,
+        )
+        from app.models.todo import Todo
         from app.services.risk_service import derive_level
     except ImportError:
         return 0
@@ -5800,6 +5805,22 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "Sign updated SCCs, enable EU-only data residency on the "
                 "HubSpot tenant, record DPIA in the compliance portal."
             ),
+            "recurring_tasks": [
+                {
+                    "title": "Re-attest cross-border transfer documentation",
+                    "description": (
+                        "Annual GDPR review: confirm SCCs still cover all sub-processors "
+                        "and DPIA reflects current data flows."
+                    ),
+                    "recurrence_unit": "months",
+                    "recurrence_interval": 12,
+                    # 14-day lead so the assignee sees this on their
+                    # Todo list two weeks before the annual re-attest
+                    # is due, not 12 months out.
+                    "lead_time_days": 14,
+                    "due": today + timedelta(days=365),
+                },
+            ],
             "cards": ["app_hubspot"],
         },
         {
@@ -5839,6 +5860,27 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "Rotate all secrets; move to Key Vault; enforce via the "
                 "shared build-pipeline template."
             ),
+            "recurring_tasks": [
+                {
+                    "title": "Weekly Jenkins build credential audit",
+                    "description": (
+                        "Scan active Jenkins build jobs for plain-text secrets; "
+                        "rotate anything new, push back the build template if a "
+                        "pipeline drifted."
+                    ),
+                    "recurrence_unit": "weeks",
+                    "recurrence_interval": 1,
+                    # 2-day lead — fits the cadence (capped at half of 7
+                    # days) and gives the on-call engineer a Monday-prep
+                    # window for a Wednesday-due audit.
+                    "lead_time_days": 2,
+                    # Inside the 2-day window so the cycle is OPEN on a
+                    # fresh seed — showcases the live-work state with a
+                    # Todo on the admin's /todos list (in contrast to
+                    # the NIS2 / GDPR demos, which sit in `scheduled`).
+                    "due": today + timedelta(days=1),
+                },
+            ],
             "cards": ["app_jenkins", "app_github_actions"],
         },
         {
@@ -5876,6 +5918,43 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
             ),
             "residual_probability": "low",
             "residual_impact": "medium",
+            "recurring_tasks": [
+                {
+                    "title": "Quarterly OT incident response tabletop",
+                    "description": (
+                        "Run the NIS2-aligned playbook with the OT SOC team; capture lessons "
+                        "learned and update runbooks."
+                    ),
+                    "recurrence_unit": "months",
+                    "recurrence_interval": 3,
+                    # 7-day lead — the OT SOC team gets the prep
+                    # reminder a week before each quarterly tabletop.
+                    "lead_time_days": 7,
+                    "due": today + timedelta(days=30),
+                    # Backfill two historical cycles so the audit panel
+                    # has content from cycle one — shows the
+                    # owner-at-completion snapshot and populates the
+                    # admin's Done tab on /todos.
+                    "completed_cycles": [
+                        {
+                            "due_offset_days": -180,
+                            "completed_offset_days": -178,
+                            "notes": (
+                                "Two MFA-bypass scenarios; runbook updated; "
+                                "no incidents detected post-drill."
+                            ),
+                        },
+                        {
+                            "due_offset_days": -90,
+                            "completed_offset_days": -85,
+                            "notes": (
+                                "Vendor-side outage scenario; identified "
+                                "missing escalation path to OEM, ticketed."
+                            ),
+                        },
+                    ],
+                },
+            ],
             "cards": ["app_nexascada", "app_opcenter"],
         },
         {
@@ -5940,6 +6019,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
 
     now = datetime.now(timezone.utc)
     count = 0
+    task_seq = 0
     for idx, r in enumerate(demo, 1):
         risk = Risk(
             id=__import__("uuid").uuid4(),
@@ -5952,7 +6032,6 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
             initial_probability=r["initial_probability"],
             initial_impact=r["initial_impact"],
             initial_level=derive_level(r["initial_probability"], r["initial_impact"]) or "medium",
-            mitigation=r.get("mitigation"),
             residual_probability=r.get("residual_probability"),
             residual_impact=r.get("residual_impact"),
             residual_level=derive_level(r.get("residual_probability"), r.get("residual_impact")),
@@ -5970,6 +6049,166 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
             cid = card(ref)
             if cid:
                 db.add(RiskCard(risk_id=risk.id, card_id=cid))
+        # Seed a one-shot mitigation task from the legacy mitigation
+        # text so a fresh SEED_DEMO install shows the task-driven
+        # mitigation panel populated rather than empty. The recurring
+        # GDPR / NIS2 entries below get an extra recurring control review
+        # task so the recurrence UI has demo data too.
+        mitigation_text = r.get("mitigation")
+        if mitigation_text:
+            task_seq += 1
+            task = RiskMitigationTask(
+                id=__import__("uuid").uuid4(),
+                reference=f"T-{task_seq:06d}",
+                risk_id=risk.id,
+                title="Initial mitigation plan",
+                description=mitigation_text,
+                owner_id=r.get("owner"),
+                recurrence_unit="none",
+                recurrence_interval=1,
+                is_active=r["status"] not in ("mitigated", "monitoring", "closed", "accepted"),
+                created_by=admin_id,
+            )
+            db.add(task)
+            await db.flush()
+            occurrence = RiskMitigationTaskOccurrence(
+                id=__import__("uuid").uuid4(),
+                task_id=task.id,
+                sequence=1,
+                assigned_owner_id=r.get("owner"),
+                due_date=r.get("target"),
+                status=(
+                    "done"
+                    if r["status"] in ("mitigated", "monitoring", "closed", "accepted")
+                    else "open"
+                ),
+                completed_at=(
+                    now
+                    if r["status"] in ("mitigated", "monitoring", "closed", "accepted")
+                    else None
+                ),
+                completed_by=(
+                    admin_id
+                    if r["status"] in ("mitigated", "monitoring", "closed", "accepted")
+                    else None
+                ),
+                owner_at_completion=(
+                    r.get("owner")
+                    if r["status"] in ("mitigated", "monitoring", "closed", "accepted")
+                    else None
+                ),
+            )
+            db.add(occurrence)
+        # Showcase recurring tasks on a couple of risks. Each recurring
+        # task can carry an optional ``completed_cycles`` list of
+        # historical done cycles so the demo's audit-trail panel and
+        # Done tab have realistic content from cycle one — not just an
+        # empty placeholder waiting on the user to complete something.
+        recurring_tasks = r.get("recurring_tasks") or []
+        for rt in recurring_tasks:
+            task_seq += 1
+            rt_lead = int(rt.get("lead_time_days") or 0)
+            rtask = RiskMitigationTask(
+                id=__import__("uuid").uuid4(),
+                reference=f"T-{task_seq:06d}",
+                risk_id=risk.id,
+                title=rt["title"],
+                description=rt.get("description"),
+                owner_id=r.get("owner"),
+                recurrence_unit=rt["recurrence_unit"],
+                recurrence_interval=rt["recurrence_interval"],
+                lead_time_days=rt_lead,
+                is_active=True,
+                created_by=admin_id,
+            )
+            db.add(rtask)
+            await db.flush()
+
+            # Backfill historical cycles first so the active cycle gets
+            # the right sequence number (= len(completed) + 1).
+            completed_cycles = rt.get("completed_cycles") or []
+            for seq_offset, cc in enumerate(completed_cycles, start=1):
+                cc_due = today + timedelta(days=int(cc.get("due_offset_days", 0)))
+                cc_completed_at = now + timedelta(days=int(cc.get("completed_offset_days", 0)))
+                cc_id = __import__("uuid").uuid4()
+                db.add(
+                    RiskMitigationTaskOccurrence(
+                        id=cc_id,
+                        task_id=rtask.id,
+                        sequence=seq_offset,
+                        assigned_owner_id=r.get("owner"),
+                        due_date=cc_due,
+                        status="done",
+                        completed_at=cc_completed_at,
+                        completed_by=admin_id,
+                        owner_at_completion=r.get("owner"),
+                        completion_notes=cc.get("notes"),
+                    )
+                )
+                # Drop a matching system Todo marked done so the
+                # assignee's Done tab on /todos carries this cycle's
+                # closure record — same row the API path produces when
+                # the user marks a cycle done at runtime.
+                if r.get("owner"):
+                    db.add(
+                        Todo(
+                            id=__import__("uuid").uuid4(),
+                            card_id=None,
+                            description=f"[Risk R-{idx:06d}] {rt['title']}",
+                            status="done",
+                            link=(
+                                f"/ea-delivery/risks/{risk.id}?task={rtask.id}#occurrence-{cc_id}"
+                            ),
+                            is_system=True,
+                            assigned_to=r.get("owner"),
+                            created_by=admin_id,
+                            due_date=cc_due,
+                        )
+                    )
+
+            # Mirror the lead-time gate that the service layer applies
+            # to freshly-created tasks: scheduled when today is outside
+            # the window, open otherwise. Seeded recurring tasks span
+            # both states — see ``recurring_tasks`` entries in the demo
+            # list for the spread.
+            rt_due = rt.get("due")
+            within_window = rt_due is None or today >= rt_due - timedelta(days=rt_lead)
+            active_sequence = len(completed_cycles) + 1
+            active_status = "open" if within_window else "scheduled"
+            active_id = __import__("uuid").uuid4()
+            db.add(
+                RiskMitigationTaskOccurrence(
+                    id=active_id,
+                    task_id=rtask.id,
+                    sequence=active_sequence,
+                    assigned_owner_id=r.get("owner"),
+                    due_date=rt_due,
+                    status=active_status,
+                    # Stamp activated_at on cycles that opened directly
+                    # so the audit trail can distinguish "always open"
+                    # from "promoted from scheduled". Demo opens are
+                    # the former — leave activated_at NULL.
+                )
+            )
+            # The active cycle gets its system Todo iff it's open. A
+            # scheduled cycle deliberately owns no Todo (it's dormant
+            # until the daily promotion loop activates it).
+            if active_status == "open" and r.get("owner"):
+                db.add(
+                    Todo(
+                        id=__import__("uuid").uuid4(),
+                        card_id=None,
+                        description=f"[Risk R-{idx:06d}] {rt['title']}",
+                        status="open",
+                        link=(
+                            f"/ea-delivery/risks/{risk.id}?task={rtask.id}#occurrence-{active_id}"
+                        ),
+                        is_system=True,
+                        assigned_to=r.get("owner"),
+                        created_by=admin_id,
+                        due_date=rt_due,
+                    )
+                )
         count += 1
     await db.flush()
     return count

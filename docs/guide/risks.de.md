@@ -11,8 +11,8 @@ Das Register setzt den Architektur-Risikomanagement-Prozess aus **TOGAF ADM Phas
 | Risiko-Klassifizierung | `Kategorie` (security, compliance, operational, technology, financial, reputational, strategic) |
 | Risiko-Identifikation | `Titel`, `Beschreibung`, `Quelle` (manuell oder aus einem TurboLens-Befund übernommen) |
 | Initial-Bewertung | `Initial-Wahrscheinlichkeit × Initial-Auswirkung → Initial-Level` (automatisch abgeleitet) |
-| Minderung | `Minderungsplan`, `Eigentümer`, `Ziel-Erledigungsdatum` |
-| Rest-Bewertung | `Rest-Wahrscheinlichkeit × Rest-Auswirkung → Rest-Level` (editierbar, sobald Minderung geplant ist) |
+| Minderung | Eine oder mehrere **Minderungsmaßnahmen** — verantwortete Arbeitsaufgaben, einmalig oder wiederkehrend (siehe [Minderungsmaßnahmen](#mitigation-tasks) unten). Das Risiko trägt außerdem einen `Eigentümer` und ein `Ziel-Erledigungsdatum`. |
+| Rest-Bewertung | `Rest-Wahrscheinlichkeit × Rest-Auswirkung → Rest-Level` (editierbar, sobald Minderung geplant ist). Bleibt eine **manuelle** Bewertung — Aufgabenabschluss passt sie nicht automatisch an. Die Detailseite zeigt neben dem Rest-Block eine Zusammenfassung «X/Y offen · Z überfällig» als Kontext für die menschliche Beurteilung (an ISO 31000 ausgerichtet). |
 | Überwachung / Akzeptanz | `Status`-Workflow: identified → analysed → mitigation_planned → in_progress → mitigated → monitoring → closed (mit einem Seitenzweig `accepted`, der eine explizite Begründung verlangt) |
 
 ## Ein Risiko anlegen
@@ -32,6 +32,8 @@ Einem Risiko einen **Eigentümer** zuzuweisen (sei es beim Anlegen oder später)
 
 Eigentümer entfernen oder neu zuweisen hält das Todo synchron — das alte wird entfernt/neu zugewiesen.
 
+Dieselbe Logik greift unabhängig für **jede Minderungsmaßnahme** des Risikos, damit ein Mitwirkender nur die Arbeit sieht, die ihm zugewiesen ist — siehe [Minderungsmaßnahmen](#mitigation-tasks) unten.
+
 ## Risiken mit Karten verknüpfen
 
 Risiken stehen in einer **M:N-Beziehung** mit Karten. Ein Risiko kann mehrere Anwendungen oder IT-Komponenten betreffen, und eine Karte kann mehrere Risiken verknüpft haben:
@@ -39,13 +41,64 @@ Risiken stehen in einer **M:N-Beziehung** mit Karten. Ein Risiko kann mehrere An
 - Von der Risikodetailseite aus: Panel **Betroffene Karten** → suchen und hinzufügen. Klicken Sie auf ein `×`, um die Verknüpfung zu lösen.
 - Von jeder Kartendetailseite aus: ein neuer **Risiken**-Tab listet jedes mit dieser Karte verknüpfte Risiko, mit einem Ein-Klick-Weg zurück ins Register.
 
+## Minderungsmaßnahmen {: #mitigation-tasks }
+
+Minderung wird als **verantwortete Arbeitsaufgaben** erfasst, nicht als Freitext. Auf der Risikodetailseite ersetzt das Panel **Minderungsmaßnahmen** das frühere einzelne «Minderungsplan»-Feld — jede Zeile ist eine reale Aufgabe mit eigenem Eigentümer, Fälligkeitsdatum, Verlauf und (optional) einer Wiederholungsregel.
+
+### Einmalig vs. wiederkehrend
+
+Eine Minderungsmaßnahme ist standardmäßig **einmalig** — passend für «MFA ausrollen», «Aktualisierte SCC unterzeichnen» oder jede projektartige Arbeit. Aktiviert man **Wiederholt sich** im Aufgabendialog, entsteht eine **wiederkehrende Kontrollprüfung**: z. B. «Dokumentation grenzüberschreitender Übermittlungen alle 12 Monate neu attestieren», «OT-Notfallübung alle 3 Monate durchführen», «Jenkins-Anmeldedaten wöchentlich prüfen».
+
+Wiederkehrende Aufgaben sammeln einen **Zyklus** (`occurrence`) pro Periode. Der nächste Zyklus wird automatisch beim Abschluss des aktuellen angelegt — kalenderkorrekt, sodass eine monatliche Aufgabe mit Fälligkeit 31. Januar zum 28. Februar rollt, nicht zum 3. März.
+
+### Das Vorlaufzeit-Fenster
+
+Der Sinn einer wiederkehrenden Kontrollprüfung ist, dass der Zuständige **kurz vor dem Fälligkeitsdatum** erinnert wird — nicht in dem Moment, in dem der vorherige Zyklus geschlossen wurde. Jede wiederkehrende Aufgabe trägt daher eine **Vorlaufzeit** (Tage) — wie viele Tage vor `due_date` der Zyklus aktiv wird und auf der `/todos`-Liste der zuständigen Person landet.
+
+Jeder Zyklus durchläuft drei sichtbare Zustände:
+
+| Status | Bedeutung | Auf /todos sichtbar? |
+|--------|-----------|----------------------|
+| **Geplant** | Der nächste Zyklus existiert für den Audit-Verlauf («Nächste Prüfung: fällig am 15.11.2026»), ist aber inaktiv. Heute liegt noch außerhalb des Vorlauffensters. | Nein |
+| **Offen** | Das Vorlauffenster hat sich geöffnet. Ein System-Todo `[Risk R-000123] <Aufgabentitel>` liegt auf der Liste der zuständigen Person; eine `task_assigned`-Benachrichtigung wurde ausgelöst. | Ja (Tab «Offen») |
+| **Erledigt** / **Übersprungen** | Der Zyklus wurde geschlossen. Das Todo wird auf `done` umgeschaltet und bleibt im Tab **Erledigt** der zuständigen Person als Historieneintrag erhalten. | Ja (Tab «Erledigt») |
+
+Der Aufgabendialog schlägt pro Wiederholungseinheit eine sinnvolle Vorlaufzeit vor (1 Tag täglich, 2 Tage wöchentlich, 7 Tage monatlich, 14 Tage jährlich — gedeckelt auf die Hälfte des Zyklus, damit das Fenster nie den vorherigen Zyklus überlappt). Der Vorschlag aktualisiert sich automatisch, solange Sie das Feld nicht selbst bearbeiten.
+
+Einmal täglich um **03:00 UTC** scannt ein Hintergrundprozess alle geplanten Zyklen und befördert jene, deren Vorlauffenster sich geöffnet hat. Müssen Sie eine Prüfung früher starten? Klicken Sie auf **Jetzt aktivieren** (Blitz-Symbol in der Aufgabenzeile), um einen geplanten Zyklus sofort auf offen umzuschalten — gleiche Todo- und Benachrichtigungslogik, nur ohne Wartezeit.
+
+### Audit-Verlauf pro Zyklus
+
+Klicken Sie auf den Aufklappen-Pfeil in der Aufgabenzeile, um den vollständigen Zyklus-Verlauf zu sehen. Jeder Zyklus erfasst:
+
+- Das **Ziel-Fälligkeitsdatum** zum Zeitpunkt der Planung.
+- Wer beim Öffnen des Zyklus **zugewiesen** war (`assigned_owner_id`), damit historische Prüfungen ihren ursprünglichen Eigentümer behalten, auch wenn die Rolle später wechselt.
+- Für abgeschlossene Zyklen: wer den Zyklus **abgeschlossen** hat (`completed_by`), den Zeitstempel, den **Eigentümer-zur-Abschlusszeit**-Schnappschuss (kann sich vom zugewiesenen Eigentümer unterscheiden, falls mitten im Zyklus rotiert wurde) und freitextliche Abschlussnotizen.
+- Für aktivierte Zyklen: den **Aktivierungszeitstempel** (damit Audit verifizieren kann, dass die tägliche Beförderung am richtigen Tag lief).
+
+Das übersteht Jahre an Eigentümerrotation sauber — die Audit-Antwort auf «Wer hat die Prüfung im Januar 2024 unterzeichnet?» liegt nur einen Klick neben der Aufgabe und geht nicht durch Rollenänderungen verloren.
+
+### Berechtigungen & Zuständigkeit
+
+- **Aufgaben anlegen / bearbeiten / löschen** — benötigt `risks.manage` (standardmäßig admin / bpm_admin / member).
+- **Offenen Zyklus abschließen** — `risks.manage` **oder** die aktuell zugewiesene Person. So kann eine Viewer-Person, die einer Kontrollprüfung zugewiesen ist, den eigenen Zyklus ohne Eskalation schließen.
+- **Zyklus überspringen / Jetzt aktivieren** — benötigt immer `risks.manage`. Überspringen rollt die Wiederholung weiter, ohne den Abschluss zu behaupten; Aktivieren zieht einen geplanten Zyklus vor und ist eine Planungsaktion.
+
+### Übernahme aus einem TurboLens Compliance-Befund
+
+Wenn Sie auf einem nicht konformen Befund auf **Risiko anlegen** klicken (siehe [TurboLens](turbolens.md#promote-a-finding-to-the-risk-register)), erhält das neue Risiko zusätzlich eine **einmalige Minderungsmaßnahme**, vorbefüllt aus dem Sanierungstext des Befunds — die Lücken-Analyse wird so direkt zu verantworteter, umsetzbarer Arbeit.
+
+### Export {: #export }
+
+Die Schaltfläche **Exportieren** auf der Risikoregister-Seite schreibt eine zweiteilige `.xlsx`: Blatt 1 enthält das gefilterte Risiko-Grid, Blatt 2 eine Zeile pro Zyklus über alle Aufgaben aller Risiken im gleichen Filter-Set, inklusive Vorlaufzeit und Aktivierungszeitstempel. Nutzen Sie sie für Audit-Pakete oder zur Weitergabe an Stakeholder ohne Turbo-EA-Login. Jede Aufgabenzeile im Detail-Panel verfügt zudem über eine eigene Schaltfläche **Verlauf exportieren** für eine aufgabenbezogene Arbeitsmappe.
+
 ## Risikomatrix
 
 Sowohl die Sicherheits-Übersicht von TurboLens als auch die Risikoregister-Seite rendern eine 4×4-Heatmap Wahrscheinlichkeit × Auswirkung. Zellen sind **klickbar** — ein Klick filtert die Liste darunter auf diesen Bucket, ein weiterer Klick (oder das × des Chips) löscht den Filter. Im Risikoregister können Sie die Matrix zwischen **Initial**- und **Rest**-Ansicht umschalten, damit sich der Fortschritt der Minderung visuell zeigt.
 
 ## Register-Grid
 
-Das Register ist ein AG-Grid, das den Standards der [Inventar](inventory.md)-Seite folgt: sortierbare, filterbare und in der Breite anpassbare Spalten mit persistierten Nutzereinstellungen (sichtbare Spalten, Sortierung, Sidebar-Zustand). Über die Symbolleiste öffnest du mit **+ Neues Risiko** den manuellen Anlage-Dialog. **CSV exportieren** lädt die gefilterte Menge in derselben Spaltenreihenfolge herunter, die auf dem Bildschirm sichtbar ist — nützlich für Audit-Pakete oder für die Weitergabe an Stakeholder ohne Turbo-EA-Login.
+Das Register ist ein AG-Grid, das den Standards der [Inventar](inventory.md)-Seite folgt: sortierbare, filterbare und in der Breite anpassbare Spalten mit persistierten Nutzereinstellungen (sichtbare Spalten, Sortierung, Sidebar-Zustand). Über die Symbolleiste öffnest du mit **+ Neues Risiko** den manuellen Anlage-Dialog. Die Symbolleisten-Schaltfläche **Exportieren** schreibt eine zweiteilige `.xlsx` mit dem gefilterten Risiko-Grid auf Blatt 1 und einer Zeile pro Aufgabenzyklus auf Blatt 2 — siehe [Minderungsmaßnahmen → Export](#export) für die Spaltenstruktur.
 
 ## Risiko ↔ Befund-Propagation
 

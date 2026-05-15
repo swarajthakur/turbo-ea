@@ -69,7 +69,6 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
   const [category, setCategory] = useState<RiskCategory>("operational");
   const [probability, setProbability] = useState<RiskProbability>("medium");
   const [impact, setImpact] = useState<RiskImpact>("medium");
-  const [mitigation, setMitigation] = useState("");
   const [target, setTarget] = useState<string>("");
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -93,7 +92,6 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
     setCategory(seed.category);
     setProbability(seed.initial_probability);
     setImpact(seed.initial_impact);
-    setMitigation(seed.mitigation);
     setTarget("");
     setOwnerId(null);
     setError(null);
@@ -120,7 +118,6 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
         category,
         initial_probability: probability,
         initial_impact: impact,
-        mitigation: mitigation || null,
         target_resolution_date: target || null,
         owner_id: ownerId || null,
       };
@@ -235,16 +232,6 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
               </Select>
             </FormControl>
           </Stack>
-
-          <TextField
-            label={t("risks.field.mitigation")}
-            value={mitigation}
-            onChange={(e) => setMitigation(e.target.value)}
-            disabled={submitting}
-            multiline
-            minRows={2}
-            fullWidth
-          />
 
           <Autocomplete
             size="small"

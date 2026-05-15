@@ -40,7 +40,6 @@ describe("seedFromCompliance", () => {
     expect(seed.initial_probability).toBe("high");
     expect(seed.initial_impact).toBe("high");
     expect(seed.title.startsWith("Art. 6")).toBe(true);
-    expect(seed.mitigation).toBe("Create and maintain the registry.");
     expect(seed.cardIds).toEqual(["card-1"]);
     expect(seed.description).toContain("Maintain a registry");
     expect(seed.description).toContain("No registry exists.");

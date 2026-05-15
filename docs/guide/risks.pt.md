@@ -11,8 +11,8 @@ O registo implementa o processo de Gestão de Riscos de Arquitetura da **TOGAF A
 | Classificação do risco | `Categoria` (security, compliance, operational, technology, financial, reputational, strategic) |
 | Identificação do risco | `Título`, `Descrição`, `Origem` (manual ou promovida a partir de um achado TurboLens) |
 | Avaliação inicial | `Probabilidade inicial × Impacto inicial → Nível inicial` (derivado automaticamente) |
-| Mitigação | `Plano de mitigação`, `Proprietário`, `Data-alvo de resolução` |
-| Avaliação residual | `Probabilidade residual × Impacto residual → Nível residual` (editável assim que a mitigação é planeada) |
+| Mitigação | Uma ou mais **tarefas de mitigação** — itens de trabalho atribuídos, únicos ou recorrentes (ver [Tarefas de mitigação](#mitigation-tasks) abaixo). O risco também tem um `Proprietário` e uma `Data-alvo de resolução`. |
+| Avaliação residual | `Probabilidade residual × Impacto residual → Nível residual` (editável assim que a mitigação é planeada). Continua a ser uma avaliação **manual** — concluir uma tarefa não a ajusta automaticamente. A página de detalhe mostra ao lado do bloco residual um resumo «X/Y abertas · Z em atraso» como contexto para o juízo humano (alinhado com ISO 31000). |
 | Monitorização / aceitação | Fluxo de `Estado`: identified → analysed → mitigation_planned → in_progress → mitigated → monitoring → closed (com um ramo lateral `accepted` que requer uma justificação explícita) |
 
 ## Criar um risco
@@ -32,6 +32,8 @@ Atribuir um **proprietário** (na criação ou mais tarde) gera automaticamente:
 
 Limpar ou reatribuir o proprietário mantém o Todo sincronizado — o antigo é removido / reatribuído.
 
+A mesma mecânica é acionada de forma independente para **cada tarefa de mitigação** do risco, de modo que um colaborador só vê o trabalho que lhe está atribuído — ver [Tarefas de mitigação](#mitigation-tasks) abaixo.
+
 ## Ligar riscos a cards
 
 Os riscos são **muitos-para-muitos** com os cards. Um risco pode afetar várias Aplicações ou Componentes de TI, e um card pode ter vários riscos ligados:
@@ -39,13 +41,64 @@ Os riscos são **muitos-para-muitos** com os cards. Um risco pode afetar várias
 - A partir da página de detalhe do risco: painel **Cards afetados** → procurar e adicionar. Clique num `×` para desligar.
 - A partir de qualquer página de detalhe de card: o novo separador **Riscos** lista cada risco ligado a esse card, com um regresso em um clique ao registo.
 
+## Tarefas de mitigação {: #mitigation-tasks }
+
+A mitigação é capturada como **itens de trabalho atribuídos**, não como texto livre. Na página de detalhe do risco, o painel **Tarefas de mitigação** substitui o antigo campo único «plano de mitigação» — cada linha é uma tarefa real com o próprio proprietário, data-limite, histórico e (opcionalmente) regra de recorrência.
+
+### Única vs. recorrente
+
+Uma tarefa de mitigação é **única** por defeito — adequada para «Implementar MFA», «Assinar SCC atualizadas» ou qualquer trabalho com formato de projeto. Ative **Repete-se** no diálogo da tarefa e obtém uma **revisão de controlo recorrente**: por ex. «Re-atestar a documentação de transferência transfronteiriça a cada 12 meses», «Executar o tabletop de resposta a incidentes OT a cada 3 meses», «Auditar credenciais Jenkins semanalmente».
+
+As tarefas recorrentes acumulam um **ciclo** (`occurrence`) por período. O próximo ciclo é criado automaticamente ao fechar o atual — com aritmética de calendário correta: uma tarefa mensal com vencimento a 31 de janeiro avança para 28 de fevereiro, não para 3 de março.
+
+### A janela de antecedência
+
+O sentido de uma revisão de controlo recorrente é que a pessoa responsável seja lembrada **mesmo antes do prazo** — não no momento em que o ciclo anterior foi fechado. Por isso cada tarefa recorrente tem um **Tempo de antecedência** (dias) — quantos dias antes de `due_date` o ciclo se ativa e aparece na lista `/todos` da pessoa atribuída.
+
+Cada ciclo atravessa três estados visíveis:
+
+| Estado | Significado | Visível em /todos? |
+|--------|-------------|--------------------|
+| **Agendada** | O próximo ciclo existe para a trilha de auditoria («próxima revisão: prazo 15/11/2026») mas está dormente. Hoje ainda está fora da janela de antecedência. | Não |
+| **Aberta** | A janela de antecedência abriu-se. Um Todo de sistema `[Risk R-000123] <título da tarefa>` aparece na lista da pessoa atribuída; é disparada uma notificação `task_assigned`. | Sim (separador Abertas) |
+| **Concluída** / **Saltada** | A pessoa atribuída fechou o ciclo. O Todo passa para `done` e permanece no separador **Concluídas** como registo histórico. | Sim (separador Concluídas) |
+
+O diálogo sugere uma antecedência razoável por unidade de recorrência (1 dia diária, 2 semanal, 7 mensal, 14 anual — limitada a metade do ciclo, para que a janela nunca se sobreponha ao ciclo anterior). A sugestão atualiza-se à medida que muda a unidade ou o intervalo, até que edite o campo manualmente.
+
+Uma vez por dia às **03:00 UTC** um processo de fundo varre todos os ciclos agendados e promove aqueles cuja janela se abriu. Precisa iniciar uma revisão mais cedo? Clique **Ativar agora** (ícone raio na linha da tarefa) para mudar um ciclo agendado para aberto imediatamente — mesma mecânica de Todo e notificação, sem espera.
+
+### Histórico de auditoria por ciclo
+
+Clique na seta de expansão de uma linha de tarefa para ver o histórico completo de ciclos. Cada ocorrência regista:
+
+- A **data-alvo** no momento do agendamento.
+- Quem estava **atribuído** quando o ciclo foi aberto (`assigned_owner_id`), para que as revisões históricas mantenham o seu proprietário original mesmo que o papel mude depois.
+- Para ciclos fechados: quem o **concluiu** (`completed_by`), o carimbo temporal, o **instantâneo proprietário-no-fecho** (pode diferir do atribuído se houve rotação a meio do ciclo) e quaisquer notas livres de fecho.
+- Para ciclos ativados: o **carimbo temporal de ativação** (para que a auditoria possa verificar que a promoção diária ocorreu no dia certo).
+
+Isto sobrevive limpamente a anos de rotação de proprietários — a resposta de auditoria a «Quem assinou a revisão de janeiro de 2024?» fica a um clique da tarefa e não se perde com reequilíbrios de responsabilidade.
+
+### Permissões e pessoas atribuídas
+
+- **Adicionar / editar / eliminar tarefas** — requer `risks.manage` (admin / bpm_admin / member por defeito).
+- **Concluir o ciclo aberto** — `risks.manage` **ou** o utilizador atualmente atribuído a esse ciclo. Assim um Viewer atribuído a uma revisão de controlo pode fechar o seu próprio ciclo sem escalar.
+- **Saltar um ciclo / Ativar agora** — exigem sempre `risks.manage`. Saltar avança a recorrência sem afirmar que o trabalho foi feito; ativar adianta um ciclo agendado e é uma ação de planeamento.
+
+### Promoção a partir de uma constatação de conformidade TurboLens
+
+Quando clica em **Criar risco** numa constatação não conforme (ver [TurboLens](turbolens.md#promote-a-finding-to-the-risk-register)), o novo risco recebe também uma **tarefa de mitigação única** inicializada a partir do texto de remediação da constatação — a análise de lacuna passa assim diretamente a trabalho atribuído e acionável.
+
+### Exportação {: #export }
+
+O botão **Exportar** do Registo de Riscos escreve um `.xlsx` de duas folhas: a folha 1 é a grelha de riscos filtrada, a folha 2 é uma linha por ciclo de cada tarefa de cada risco no mesmo filtro, incluindo tempo de antecedência e carimbo de ativação. Use-o para pacotes de auditoria ou para partes interessadas sem acesso ao Turbo EA. Cada linha de tarefa no painel de detalhe dispõe também do próprio botão **Exportar histórico** para um livro por tarefa.
+
 ## Matriz de riscos
 
 Tanto a Visão Geral de Segurança do TurboLens como a página do Registo de Riscos apresentam um mapa de calor probabilidade × impacto 4×4. As células são **clicáveis** — clique numa para filtrar a lista abaixo por esse compartimento, clique novamente (ou no × do chip) para limpar. No Registo de Riscos pode alternar a matriz entre as vistas **Inicial** e **Residual** para que o progresso da mitigação apareça visualmente.
 
 ## Grelha do registo
 
-O registo é um AG Grid que segue os padrões da página [Inventário](inventory.md): colunas ordenáveis, filtráveis e redimensionáveis com preferências por utilizador persistidas (colunas visíveis, ordenação, estado da barra lateral). Um botão **+ Novo risco** na barra de ferramentas abre o diálogo de criação manual. **Exportar CSV** transfere o conjunto filtrado na mesma ordem de colunas apresentada no ecrã — útil para pacotes de auditoria ou para partilhar o registo com partes interessadas sem conta Turbo EA.
+O registo é um AG Grid que segue os padrões da página [Inventário](inventory.md): colunas ordenáveis, filtráveis e redimensionáveis com preferências por utilizador persistidas (colunas visíveis, ordenação, estado da barra lateral). Um botão **+ Novo risco** na barra de ferramentas abre o diálogo de criação manual. O botão **Exportar** da barra de ferramentas escreve um `.xlsx` de duas folhas com a grelha de riscos filtrada na folha 1 e uma linha por ciclo de tarefa de mitigação na folha 2 — ver [Tarefas de mitigação → Exportação](#export) para o formato de colunas.
 
 ## Propagação Risco ↔ Constatação
 

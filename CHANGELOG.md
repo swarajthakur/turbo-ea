@@ -5,7 +5,7 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.13.0] - 2026-05-14
+## [1.14.0] - 2026-05-15
 
 Admins can now toggle the GRC (Governance, Risk, Compliance) module on or off, mirroring the existing BPM, PPM and TurboLens toggles.
 
@@ -14,6 +14,53 @@ Admins can now toggle the GRC (Governance, Risk, Compliance) module on or off, m
 
 ### Changed
 - **Card-level Risks and Compliance tabs auto-hide when empty.** Card Detail now fetches the per-card risk list and compliance-finding list on mount and only renders the corresponding tab when the count is greater than zero. Cards with no GRC content no longer carry empty tabs that take up tab-strip space. Manage users who need to seed the first risk on a card can do so from the GRC Risk Register's **+ Create Risk** flow with the card linked.
+
+## [1.13.2] - 2026-05-15
+
+Lead-time gated recurrence for mitigation tasks. Recurring control reviews stop landing in the assignee's Todo list the moment the previous cycle closes — instead, each new cycle sits in a dormant `scheduled` state until the daily promotion loop activates it close to the due date. Auditors still see the future cycle ("next review: due 2026-11-15"), but the assignee only gets the reminder when it actually matters.
+
+### Added
+- **Per-task lead time (`lead_time_days`).** New column on `risk_mitigation_tasks` with smart defaults per recurrence unit — 1 day for daily, 2 days for weekly, 7 days for monthly, 14 days for yearly (capped at half the cycle so the window never overlaps the previous occurrence). Configurable per task in the mitigation task dialog; the field auto-updates as you change unit/interval until you touch it yourself. Migration 087 backfills existing recurring tasks with the smart per-unit default; one-shot tasks stay at 0 (no roll-forward to gate).
+- **`scheduled` occurrence status.** A new pre-state in the cycle lifecycle (`scheduled → open → done/skipped`). Scheduled cycles own no Todo and fire no notification — they exist for audit ("Next: due 2026-11-15 · activates 2026-11-01") and are promoted to `open` when `today >= due_date - lead_time_days`. The Risk Detail page renders them as a muted "Next scheduled" chip with a `bolt`-icon **Activate now** action for `risks.manage` holders who want to pull a cycle forward without waiting for the daily loop.
+- **Daily promotion loop.** New `_promote_recurring_tasks_loop()` background task in the FastAPI lifespan runs once per UTC day at 03:00, calls `promote_scheduled_occurrences()`, and flips every eligible scheduled cycle to `open` — creating the assignee's system Todo, firing the `task_assigned` notification, and emitting a new `risk_mitigation_task.activated` event onto the per-card history timeline. Promotion is idempotent on already-open cycles, so a transient restart doubling a tick is safe.
+- **Manual `Activate now` endpoint.** New `POST /api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/promote` (permission `risks.manage`) short-circuits the daily wait. Idempotent.
+- **`activated_at` audit timestamp.** Stamped on every scheduled→open promotion. Surfaces in the occurrence history list as "Activated on {timestamp}" so auditors can verify the daily loop actually fired on the right day. Pre-feature occurrences stay NULL on purpose — they were never gated.
+
+### Changed
+- **PATCH on a mitigation task re-evaluates the active cycle.** Shortening the lead time or pulling the due date forward now promotes a `scheduled` cycle on the spot instead of forcing the user to wait for the next daily run.
+- **Demo seed showcases the gated behaviour.** The NIS2 OT tabletop (quarterly) and GDPR re-attest (annual) demo tasks carry explicit `lead_time_days` of 7 and 14 respectively. With due dates 30+ days out, they land as `scheduled` on a fresh `SEED_DEMO=true` install — no spurious Todo on the demo admin's list.
+- **Completing or skipping a `scheduled` cycle now returns a clearer 409 error** ("Occurrence is still scheduled — activate it before completing or skipping.") instead of the generic "already scheduled".
+
+### Fixed
+- **Completed mitigation cycles now stay visible in the assignee's Done tab.** Previously, marking an occurrence done (or skipping it) hard-deleted the linked system Todo, which made the work vanish from `/todos` entirely. The Todo is now flipped to `status="done"` instead — falls out of the open-todos badge but remains in the user's "Done" tab, matching the lifecycle of a regular manually-completed Todo. Task deletion still wipes every linked Todo (open and done) to avoid stranded references.
+
+### Documentation
+- **Risk Register user guide rewritten** for the task-driven mitigation model and the new lead-time gating. The TOGAF alignment table now points to mitigation tasks instead of the dropped free-text plan; a new top-level **Mitigation tasks** section covers one-shot vs. recurring tasks, the `scheduled` / `open` / `done` cycle states, the lead-time window with smart defaults, the daily promotion loop, the manual **Activate now** action, the per-cycle audit history (including `owner_at_completion` and `activated_at`), the permission model, promotion-from-finding seeding, and the two-sheet `.xlsx` export. Mirrored in all 8 supported locales (`en`, `de`, `fr`, `es`, `it`, `pt`, `zh`, `ru`) with explicit `{: #mitigation-tasks }` / `{: #export }` anchors so the cross-page links stay stable regardless of non-ASCII heading slugification.
+- **Demo seed showcases all three cycle states.** `seed_demo.py` now plants three recurring control-review tasks across NIS2, GDPR and Jenkins risks: a 3-month OT tabletop with two backfilled completed cycles + a third **scheduled** cycle (audit-trail showcase + the new "scheduled" UI state), an annual GDPR re-attest also **scheduled** (no Todo spam 365 days ahead), and a weekly Jenkins credential audit that lands **open** immediately (Todo on `/todos` from cycle one). The seed loop now optionally backfills `completed_cycles` for any recurring task and creates matching `is_system` Todos (`status="done"` for historical cycles, `status="open"` for the active in-window cycle) so a fresh `SEED_DEMO=true` install lights up every panel — Mitigation tasks list, per-cycle audit history, Done tab on `/todos`.
+
+## [1.13.1] - 2026-05-15
+
+Iteration polish on the task-driven mitigation feature: human-readable task IDs, both target and completion dates visible per cycle, bounded inline history with full-history export, and a true XLSX register export carrying mitigation tasks on a second sheet.
+
+### Added
+- **Human-readable mitigation task IDs.** Every `risk_mitigation_tasks` row now carries a `T-NNNNNN` reference paralleling the risk register's `R-NNNNNN` pattern. Migration 086 adds the column, backfills existing rows by `created_at`, and locks in a unique constraint. Rendered as a monospaced chip next to the task title on the Risk Detail page. Format auto-widens past `T-999999` (column is `String(16)`, headroom to 14 digits ≈ 10¹⁴ tasks).
+- **Two-line per-cycle history.** Each occurrence in the history list now shows both `Target: {due_date}` and `Completed: {timestamp}` (or `Skipped: {timestamp}`) so auditors can compare scheduled vs. actual at a glance.
+- **Bounded inline history + escape hatch.** History renders the latest 5 cycles inline with a `"Show N older cycles"` toggle for the rest. A per-task **Export history (Excel)** button writes a single-sheet workbook (`mitigation-task-T-000042-{timestamp}.xlsx`) carrying every cycle.
+- **Register XLSX export with two sheets.** The Risk Register's existing Export button now writes `.xlsx` (was `.csv`). Sheet 1 keeps the existing risk columns; sheet 2 carries one row per mitigation-task occurrence, joined back to the parent risk via `risk_reference`/`task_reference`. New `GET /risks/mitigation-tasks/export` endpoint accepts the same filter shape as `GET /risks` so the workbook always matches what the user has on screen.
+
+### Changed
+- **`_load_filtered_risks` → `load_filtered_risks`** in `app/api/v1/risks.py` (public so the mitigation-task export endpoint can reuse the canonical filter pipeline).
+
+## [1.13.0] - 2026-05-14
+
+Mitigation on the EA Risk Register becomes task-driven. The legacy free-text `mitigation` field is replaced with owned, optionally recurring mitigation tasks that surface in the assignee's Todo list and capture per-occurrence completion history (including who owned the task at the time each cycle closed).
+
+### Added
+- **Mitigation tasks on every risk.** Each risk can carry multiple mitigation tasks attached via the new `/risks/{id}/mitigation-tasks` endpoint. Tasks are one-shot by default; toggling "Repeats" turns them into recurring control reviews (e.g. "Check access rights every 6 months") with calendar-correct date math — Jan 31 + 1 month → Feb 28. Each task accumulates one `risk_mitigation_task_occurrences` row per cycle, snapshotting both the assigned owner at occurrence open and the owner-at-completion when it closes, so the audit trail survives owner rotation across years. Tasks the user is assigned to land in `/todos` as `is_system` Todos with deep links back to the risk; on completion the Todo closes and (for recurring tasks) the next cycle's Todo opens automatically. Risk owner can complete their own occurrence without `risks.manage`; skip requires the full permission. Risk Detail page shows the new Mitigation tasks panel in place of the old text field, with per-task expandable cycle history and a "X/Y open · Z overdue" chip strip next to the residual block as context (residual stays manually set — ISO 31000-aligned, no auto-scoring). Promoting a TurboLens compliance finding now seeds a one-shot mitigation task from the finding's remediation text instead of writing it into the dropped `mitigation` column.
+- **`risk_mitigation_task.*` audit events.** `created`, `updated`, `completed`, `skipped`, and `deleted` events are fanned out to every linked card so the existing card-history timeline picks them up. Each completion event captures `completed_by`, `owner_at_completion`, and any free-text completion notes.
+
+### Removed
+- **`risks.mitigation` column.** Migration 085 drops the column outright (clean cut — no data migration). All `RiskCreate` / `RiskUpdate` / `RiskPromoteRequest` / `RiskOut` schemas, `risk_to_dict`, and the corresponding frontend `Risk.mitigation` field, `CreateRiskDialog` TextField, and `RiskDetailPage` TextField are gone. i18n keys `risks.field.mitigation` and `risks.section.mitigation` are removed from all eight locales; the residual section is now keyed as `risks.section.residual`.
 
 ## [1.12.0] - 2026-05-14
 

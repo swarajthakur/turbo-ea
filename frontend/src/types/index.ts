@@ -1454,7 +1454,6 @@ export interface Risk {
   initial_impact: RiskImpact;
   initial_level: RiskLevel;
 
-  mitigation: string | null;
   residual_probability: RiskProbability | null;
   residual_impact: RiskImpact | null;
   residual_level: RiskLevel | null;
@@ -1480,6 +1479,55 @@ export interface RiskListPage {
   total: number;
   page: number;
   page_size: number;
+}
+
+export type RecurrenceUnit = "none" | "days" | "weeks" | "months" | "years";
+// "scheduled" is the lead-time gated pre-state — the cycle exists for
+// audit but owns no Todo until the daily promotion loop (or a manual
+// "Activate now" click) flips it to "open".
+export type MitigationOccurrenceStatus = "scheduled" | "open" | "done" | "skipped";
+
+export interface MitigationTaskOccurrence {
+  id: string;
+  task_id: string;
+  sequence: number;
+  assigned_owner_id: string | null;
+  assigned_owner_name: string | null;
+  due_date: string | null;
+  status: MitigationOccurrenceStatus;
+  /** Stamped the moment a scheduled occurrence was promoted to open
+   *  (either by the daily loop or manually). NULL for cycles that were
+   *  never gated, including everything created before this feature shipped. */
+  activated_at: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
+  completed_by_name: string | null;
+  owner_at_completion: string | null;
+  owner_at_completion_name: string | null;
+  completion_notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface MitigationTask {
+  id: string;
+  reference: string;
+  risk_id: string;
+  title: string;
+  description: string | null;
+  owner_id: string | null;
+  owner_name: string | null;
+  recurrence_unit: RecurrenceUnit;
+  recurrence_interval: number;
+  /** How many days before due_date a cycle gets promoted from
+   *  scheduled to open. 0 means "open immediately". The dialog's
+   *  default is computed via {@link defaultLeadTimeDays}. */
+  lead_time_days: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  occurrences: MitigationTaskOccurrence[];
 }
 
 export interface RiskMetrics {

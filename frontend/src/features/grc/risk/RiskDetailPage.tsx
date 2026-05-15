@@ -42,6 +42,9 @@ import type {
   RiskStatus,
 } from "@/types";
 import RiskMatrix from "./RiskMatrix";
+import MitigationTasksPanel, {
+  type TaskSummary,
+} from "./mitigation/MitigationTasksPanel";
 import { riskLevelChipColor } from "./riskDefaults";
 
 const STATUS_STEPS: RiskStatus[] = [
@@ -186,6 +189,8 @@ export default function RiskDetailPage() {
   const [cardQuery, setCardQuery] = useState("");
   const [cardOptions, setCardOptions] = useState<CardOption[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
 
   useEffect(() => {
     // Users are read by any authenticated user (GET /users has no perm check).
@@ -193,6 +198,10 @@ export default function RiskDetailPage() {
       .get<UserOption[]>("/users")
       .then(setUsers)
       .catch(() => setUsers([]));
+    api
+      .get<{ id: string }>("/auth/me")
+      .then((res) => setCurrentUserId(res.id))
+      .catch(() => setCurrentUserId(null));
   }, []);
 
   const load = useCallback(async () => {
@@ -629,27 +638,59 @@ export default function RiskDetailPage() {
           </Stack>
         </Paper>
 
-        {/* Mitigation + Residual */}
+        {/* Mitigation tasks — owned, optionally recurring, with full
+            occurrence history. Replaces the legacy free-text mitigation
+            field. Surfaces summary chips alongside the residual block
+            below as context for the manual residual assessment. */}
+        <MitigationTasksPanel
+          riskId={risk.id}
+          riskReference={risk.reference}
+          riskClosed={isClosed}
+          users={users}
+          currentUserId={currentUserId}
+          onSummaryChange={setTaskSummary}
+        />
+
+        {/* Residual assessment — stays manual per the scoring decision. */}
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-            {t("risks.section.mitigation")}
-          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ sm: "center" }}
+            justifyContent="space-between"
+            spacing={1}
+            sx={{ mb: 1 }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              {t("risks.section.residual")}
+            </Typography>
+            {taskSummary && taskSummary.total > 0 && (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t("risks.tasks.summary.open", {
+                    open: taskSummary.open,
+                    total: taskSummary.total,
+                  })}
+                />
+                {taskSummary.overdue > 0 && (
+                  <Chip
+                    size="small"
+                    color="error"
+                    label={t("risks.tasks.summary.overdue", {
+                      count: taskSummary.overdue,
+                    })}
+                  />
+                )}
+              </Stack>
+            )}
+          </Stack>
           {residualLocked && (
             <Alert severity="info" sx={{ mb: 2 }}>
               {t("risks.residual.lockedUntilMitigation")}
             </Alert>
           )}
           <Stack spacing={2}>
-            <TextField
-              label={t("risks.field.mitigation")}
-              value={risk.mitigation ?? ""}
-              onChange={(e) => setRisk({ ...risk, mitigation: e.target.value })}
-              onBlur={() => patch({ mitigation: risk.mitigation })}
-              disabled={lockInput}
-              multiline
-              minRows={3}
-              fullWidth
-            />
             <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
               <FormControl size="small" sx={{ flex: 1 }} disabled={residualLocked}>
                 <InputLabel>{t("risks.field.probability")}</InputLabel>

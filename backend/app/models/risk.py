@@ -29,7 +29,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
@@ -50,7 +50,6 @@ class Risk(UUIDMixin, TimestampMixin, Base):
     initial_impact: Mapped[str] = mapped_column(String(16), default="medium")
     initial_level: Mapped[str] = mapped_column(String(16), default="medium")
 
-    mitigation: Mapped[str | None] = mapped_column(Text, nullable=True)
     residual_probability: Mapped[str | None] = mapped_column(String(16), nullable=True)
     residual_impact: Mapped[str | None] = mapped_column(String(16), nullable=True)
     residual_level: Mapped[str | None] = mapped_column(String(16), nullable=True)
@@ -75,6 +74,12 @@ class Risk(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+
+    mitigation_tasks = relationship(
+        "RiskMitigationTask",
+        cascade="all, delete-orphan",
+        lazy="raise",
     )
 
     __table_args__ = (

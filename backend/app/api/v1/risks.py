@@ -219,7 +219,7 @@ def _level_weight(level: str | None) -> int:
     return _LEVEL_WEIGHT.get(level or "", 9)
 
 
-async def _load_filtered_risks(
+async def load_filtered_risks(
     db: AsyncSession,
     *,
     status: list[str] | None,
@@ -309,7 +309,7 @@ async def list_risks(
     """
     await PermissionService.require_permission(db, user, "risks.view")
 
-    rows = await _load_filtered_risks(
+    rows = await load_filtered_risks(
         db,
         status=status,
         category=category,
@@ -354,7 +354,7 @@ async def risk_metrics(
     matrix + tiles follow the user's selected view.
     """
     await PermissionService.require_permission(db, user, "risks.view")
-    rows = await _load_filtered_risks(
+    rows = await load_filtered_risks(
         db,
         status=status,
         category=category,
@@ -410,7 +410,6 @@ async def create_risk(
         initial_probability=body.initial_probability,
         initial_impact=body.initial_impact,
         initial_level=derive_level(body.initial_probability, body.initial_impact) or "medium",
-        mitigation=body.mitigation,
         owner_id=owner_uid,
         target_resolution_date=body.target_resolution_date,
         status="identified",
@@ -473,7 +472,6 @@ async def update_risk(
         "category",
         "initial_probability",
         "initial_impact",
-        "mitigation",
         "residual_probability",
         "residual_impact",
         "target_resolution_date",

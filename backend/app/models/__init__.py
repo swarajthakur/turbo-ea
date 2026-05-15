@@ -29,6 +29,10 @@ from app.models.process_flow_version import ProcessFlowVersion
 from app.models.relation import Relation
 from app.models.relation_type import RelationType
 from app.models.risk import Risk, RiskCard
+from app.models.risk_mitigation_task import (
+    RiskMitigationTask,
+    RiskMitigationTaskOccurrence,
+)
 from app.models.role import Role
 from app.models.saved_report import SavedReport
 from app.models.servicenow import (
@@ -106,6 +110,8 @@ __all__ = [
     "AppSettings",
     "Risk",
     "RiskCard",
+    "RiskMitigationTask",
+    "RiskMitigationTaskOccurrence",
     "Survey",
     "SurveyResponse",
     "ProcessDiagram",

@@ -11,8 +11,8 @@ The register implements the Architecture Risk Management process from **TOGAF AD
 | Risk classification | `Category` (security, compliance, operational, technology, financial, reputational, strategic) |
 | Risk identification | `Title`, `Description`, `Source` (manual or promoted from a TurboLens finding) |
 | Initial assessment | `Initial probability × Initial impact → Initial level` (derived automatically) |
-| Mitigation | `Mitigation plan`, `Owner`, `Target resolution date` |
-| Residual assessment | `Residual probability × Residual impact → Residual level` (editable once mitigation is planned) |
+| Mitigation | One or more **Mitigation tasks** — owned work items, one-shot or recurring (see [Mitigation tasks](#mitigation-tasks) below). The risk also carries an `Owner` and a `Target resolution date`. |
+| Residual assessment | `Residual probability × Residual impact → Residual level` (editable once mitigation is planned). Stays a **manual** assessment — task completion does not auto-adjust it. The detail page surfaces a "X/Y open · Z overdue" task summary alongside the residual block as context for the human judgement (ISO 31000-aligned). |
 | Monitoring / acceptance | `Status` workflow: identified → analysed → mitigation_planned → in_progress → mitigated → monitoring → closed (with an `accepted` side-branch requiring an explicit rationale) |
 
 ## Creating a risk
@@ -28,12 +28,14 @@ Promotion is **idempotent** — once a finding has been promoted its button flip
 
 ## Ownership → Todo + notification
 
-Assigning an **owner** (either at create time or later) automatically:
+Assigning an **owner** to the risk (either at create time or later) automatically:
 
 - Creates a **system Todo** on the owner's Todos page. The description reads `[Risk R-000123] <title>`, the due date mirrors the risk's target resolution date, and the link jumps back to the risk detail. The Todo auto-marks as **done** when the risk reaches `mitigated` / `monitoring` / `accepted` / `closed`.
 - Fires a **bell notification** (`risk_assigned`) — shown in the bell dropdown and the notifications page, with optional email if the user has opted in. Self-assignment also fires the bell, so the trail is consistent across team and personal workflows.
 
 Clearing or reassigning the owner keeps the Todo in sync — the old one is removed / reassigned.
+
+The same plumbing fires independently for **each mitigation task** on the risk, so a contributor only sees the work they own — see [Mitigation tasks](#mitigation-tasks) below.
 
 ## Linking risks to cards
 
@@ -42,13 +44,64 @@ Risks are **many-to-many** with Cards. A risk can affect multiple Applications o
 - From the risk detail page: **Affected cards** panel → search and add. Click an `×` to unlink.
 - From any Card detail page: new **Risks** tab lists every risk linked to that card, with a one-click path back to the register.
 
+## Mitigation tasks
+
+Mitigation is captured as **owned work items**, not free-text. On the risk detail page the **Mitigation tasks** panel replaces the old single-field "mitigation plan" — each row is a real task with its own owner, due date, history and (optionally) a recurrence rule.
+
+### One-shot vs. recurring
+
+A mitigation task is **one-shot** by default — fitness-for-purpose for "Roll out MFA", "Sign updated SCCs", or any project-shaped piece of work. Toggle **Repeats** in the task dialog and you get a **recurring control review**: e.g. "Re-attest cross-border transfer documentation every 12 months", "Run the OT incident response tabletop every 3 months", "Audit Jenkins credentials every week".
+
+Recurring tasks accumulate one **cycle** (`occurrence`) per period. The next cycle is created automatically when you close the current one — calendar-correct, so a monthly task due Jan 31 rolls to Feb 28, not March 3.
+
+### The lead-time window
+
+The whole point of a recurring control review is that the assignee gets reminded **just before the due date**, not the moment the previous cycle closed. Each recurring task carries a **Lead time** (days) — how many days before `due_date` the cycle becomes active and lands on the assignee's `/todos` list.
+
+Each cycle therefore moves through three visible states:
+
+| Status | What it means | Visible on /todos? |
+|--------|---------------|--------------------|
+| **Scheduled** | The next cycle exists for audit ("next review: due 2026-11-15") but is dormant. Today is still outside the lead window. | No |
+| **Open** | The lead window has opened. A system Todo is on the assignee's list with `[Risk R-000123] <task title>`; a `task_assigned` notification fires. | Yes (Open tab) |
+| **Done** / **Skipped** | The assignee closed the cycle. The Todo flips to `done` so it stays in the assignee's **Done** tab as a history record. | Yes (Done tab) |
+
+The task dialog suggests a sensible lead time per recurrence unit (1 day for daily, 2 for weekly, 7 for monthly, 14 for yearly — capped at half the cycle so the window never overlaps the previous occurrence). The hint auto-updates as you change unit or interval, until you edit the field yourself.
+
+Once a day at **03:00 UTC** a background process scans every scheduled cycle and promotes the ones whose lead window has opened. Need to start a review early? Click **Activate now** (the lightning-bolt icon on the task row) to flip a scheduled cycle to open immediately — same Todo + notification machinery, just without the wait.
+
+### Per-cycle audit history
+
+Click the expand chevron on a task row to see its full cycle history. Every occurrence stamps:
+
+- The **target due date** at scheduling time.
+- Who was **assigned** at the moment the cycle opened (`assigned_owner_id`), so historical reviews keep their original owner even if you later rotate the role.
+- For closed cycles: who **completed** it (`completed_by`), the timestamp, the **owner-at-completion** snapshot (may differ from the assigned owner if you rotated mid-cycle), and any free-text closure notes.
+- For activated cycles: the **activation timestamp** (so audit can verify the daily promotion job fired on the right day).
+
+This survives years of owner rotation cleanly — the audit answer to "who signed off on the Jan 2024 review?" is a single row away from the task, not lost to ownership rebalancing.
+
+### Permissions & assignees
+
+- **Add / edit / delete tasks** — needs `risks.manage` (admin / bpm_admin / member by default).
+- **Complete the open cycle** — `risks.manage` **or** the user who is currently assigned to that cycle. So a Viewer assigned to a control review can close their own cycle without escalating.
+- **Skip a cycle / Activate now** — always needs `risks.manage`. Skipping advances recurrence without claiming the work was done; activation pulls a scheduled cycle forward and is a planning action.
+
+### Promoting from a TurboLens compliance finding
+
+When you click **Create risk** on a non-compliant finding (see [TurboLens](turbolens.md#promote-a-finding-to-the-risk-register)) the new risk also gets a **one-shot mitigation task** seeded from the finding's remediation text — so the gap analysis turns into actionable, owned work on the spot.
+
+### Export
+
+The Risk Register's **Export** button writes a two-sheet `.xlsx`: sheet 1 is the filtered risk grid, sheet 2 is one row per cycle across every task on every risk in the same filter set, including the lead-time and activation timestamps. Use it for audit packs or for hand-off to stakeholders who don't have a Turbo EA login. Each task row in the detail panel also has its own **Export history** button for a per-task workbook.
+
 ## Risk matrix
 
 Both the TurboLens Security Overview and the Risk Register page render a 4×4 probability × impact heatmap. Cells are **clickable** — click one to filter the list below to just that bucket, click again (or the chip's ×) to clear. On the Risk Register you can toggle the matrix between **Initial** and **Residual** views so mitigation progress shows up visually.
 
 ## Register grid
 
-The register is an AG Grid that mirrors the [Inventory](inventory.md) standards: sortable, filterable, resizable columns with per-user persistent preferences (visible columns, sort order, sidebar state). A toolbar **+ New risk** opens the manual create dialog. Use **Export CSV** to download the filtered set in the same column order shown on screen — useful for audit packs or for sharing the register with stakeholders who don't have a Turbo EA login.
+The register is an AG Grid that mirrors the [Inventory](inventory.md) standards: sortable, filterable, resizable columns with per-user persistent preferences (visible columns, sort order, sidebar state). A toolbar **+ New risk** opens the manual create dialog. The toolbar **Export** button writes a two-sheet `.xlsx` carrying the filtered risk grid on sheet 1 and one row per mitigation-task cycle on sheet 2 — see [Mitigation tasks → Export](#export) for the column shape.
 
 ## Risk ↔ Finding propagation
 

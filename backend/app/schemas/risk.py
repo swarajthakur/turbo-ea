@@ -53,7 +53,6 @@ class RiskCreate(BaseModel):
     category: CategoryLiteral = "operational"
     initial_probability: ProbabilityLiteral = "medium"
     initial_impact: ImpactLiteral = "medium"
-    mitigation: str | None = None
     owner_id: str | None = None
     target_resolution_date: date | None = None
     card_ids: list[str] = Field(default_factory=list)
@@ -71,7 +70,6 @@ class RiskUpdate(BaseModel):
     initial_probability: ProbabilityLiteral | None = None
     initial_impact: ImpactLiteral | None = None
 
-    mitigation: str | None = None
     residual_probability: ProbabilityLiteral | None = None
     residual_impact: ImpactLiteral | None = None
 
@@ -89,7 +87,6 @@ class RiskPromoteRequest(BaseModel):
     category: CategoryLiteral | None = None
     initial_probability: ProbabilityLiteral | None = None
     initial_impact: ImpactLiteral | None = None
-    mitigation: str | None = None
     owner_id: str | None = None
     target_resolution_date: date | None = None
 
@@ -124,7 +121,6 @@ class RiskOut(BaseModel):
     initial_impact: ImpactLiteral
     initial_level: LevelLiteral
 
-    mitigation: str | None = None
     residual_probability: ProbabilityLiteral | None = None
     residual_impact: ImpactLiteral | None = None
     residual_level: LevelLiteral | None = None

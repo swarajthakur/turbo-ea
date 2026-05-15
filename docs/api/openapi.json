@@ -4222,6 +4222,497 @@
         "title": "McpSettingsPayload",
         "type": "object"
       },
+      "MitigationTaskCreate": {
+        "description": "Payload for ``POST /risks/{risk_id}/mitigation-tasks``.\n\n``lead_time_days`` is optional on create \u2014 when omitted the service\nlayer picks a smart default per ``recurrence_unit`` (1 / 2 / 7 / 14\nfor daily / weekly / monthly / yearly, capped at half the cycle so\nthe lead window never overlaps the previous occurrence). One-shot\ntasks default to 0 because there is no roll-forward to gate.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "recurrence_interval": {
+            "default": 1,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Recurrence Interval",
+            "type": "integer"
+          },
+          "recurrence_unit": {
+            "default": "none",
+            "enum": [
+              "none",
+              "days",
+              "weeks",
+              "months",
+              "years"
+            ],
+            "title": "Recurrence Unit",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "MitigationTaskCreate",
+        "type": "object"
+      },
+      "MitigationTaskOccurrenceOut": {
+        "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "assigned_owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Owner Id"
+          },
+          "assigned_owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Owner Name"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "completed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed By"
+          },
+          "completed_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed By Name"
+          },
+          "completion_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Notes"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner_at_completion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner At Completion"
+          },
+          "owner_at_completion_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner At Completion Name"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "scheduled",
+              "open",
+              "done",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "sequence",
+          "status"
+        ],
+        "title": "MitigationTaskOccurrenceOut",
+        "type": "object"
+      },
+      "MitigationTaskOut": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "lead_time_days": {
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/MitigationTaskOccurrenceOut"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
+          "recurrence_interval": {
+            "title": "Recurrence Interval",
+            "type": "integer"
+          },
+          "recurrence_unit": {
+            "enum": [
+              "none",
+              "days",
+              "weeks",
+              "months",
+              "years"
+            ],
+            "title": "Recurrence Unit",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "risk_id": {
+            "title": "Risk Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "reference",
+          "risk_id",
+          "title",
+          "recurrence_unit",
+          "recurrence_interval",
+          "lead_time_days",
+          "is_active"
+        ],
+        "title": "MitigationTaskOut",
+        "type": "object"
+      },
+      "MitigationTaskUpdate": {
+        "description": "Partial update for ``PATCH /mitigation-tasks/{task_id}``.\n\n``owner_id`` changes propagate to the **current open occurrence** (its\n``assigned_owner_id``) so the Todo + notification flow reflects the\nnew assignee immediately. Past completed occurrences keep their\nhistorical owner snapshots and are not modified.\n\nRecurrence changes apply to **future** occurrences only \u2014 the current\nopen occurrence keeps its scheduled ``due_date``. Lead-time changes\ntake effect on future cycles too, but the API re-evaluates any\ncurrently-scheduled cycle against the new window so shortening the\nlead time can promote a cycle immediately instead of waiting for the\nnext daily promotion run.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "recurrence_interval": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Interval"
+          },
+          "recurrence_unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "days",
+                  "weeks",
+                  "months",
+                  "years"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Unit"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "MitigationTaskUpdate",
+        "type": "object"
+      },
       "ModernizationOut": {
         "properties": {
           "analysed_at": {
@@ -4347,6 +4838,24 @@
           }
         },
         "title": "NotificationPreferencesUpdate",
+        "type": "object"
+      },
+      "OccurrenceCompleteRequest": {
+        "description": "Optional notes when marking an occurrence done or skipped.",
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "OccurrenceCompleteRequest",
         "type": "object"
       },
       "PortfolioInsightsRequest": {
@@ -7130,17 +7639,6 @@
             "title": "Initial Probability",
             "type": "string"
           },
-          "mitigation": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mitigation"
-          },
           "owner_id": {
             "anyOf": [
               {
@@ -7387,17 +7885,6 @@
             "title": "Initial Probability",
             "type": "string"
           },
-          "mitigation": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mitigation"
-          },
           "owner_id": {
             "anyOf": [
               {
@@ -7622,17 +8109,6 @@
             ],
             "title": "Initial Probability"
           },
-          "mitigation": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mitigation"
-          },
           "owner_id": {
             "anyOf": [
               {
@@ -7749,17 +8225,6 @@
               }
             ],
             "title": "Initial Probability"
-          },
-          "mitigation": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mitigation"
           },
           "owner_id": {
             "anyOf": [
@@ -18011,6 +18476,336 @@
         ]
       }
     },
+    "/api/v1/mitigation-tasks/{task_id}": {
+      "delete": {
+        "operationId": "delete_mitigation_task_api_v1_mitigation_tasks__task_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete Mitigation Task Api V1 Mitigation Tasks  Task Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Mitigation Task",
+        "tags": [
+          "Risks"
+        ]
+      },
+      "patch": {
+        "operationId": "update_mitigation_task_api_v1_mitigation_tasks__task_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MitigationTaskUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Mitigation Task",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/mitigation-tasks/{task_id}/occurrences": {
+      "get": {
+        "operationId": "list_task_occurrences_api_v1_mitigation_tasks__task_id__occurrences_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MitigationTaskOccurrenceOut"
+                  },
+                  "title": "Response List Task Occurrences Api V1 Mitigation Tasks  Task Id  Occurrences Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Task Occurrences",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/complete": {
+      "post": {
+        "operationId": "complete_task_occurrence_api_v1_mitigation_tasks__task_id__occurrences__occurrence_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OccurrenceCompleteRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Task Occurrence",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/promote": {
+      "post": {
+        "description": "Manually promote a ``scheduled`` occurrence to ``open`` immediately.\n\nMirrors what the daily background loop will do automatically when\nthe lead window opens \u2014 but lets a ``risks.manage`` holder pull a\ncycle forward (e.g. to run an access review early).\n\nIdempotent: promoting an already-open occurrence is a 200 no-op.\nPromoting a terminal occurrence (done / skipped) returns 409 since\nthose are immutable per the audit contract.",
+        "operationId": "promote_task_occurrence_api_v1_mitigation_tasks__task_id__occurrences__occurrence_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote Task Occurrence",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/skip": {
+      "post": {
+        "operationId": "skip_task_occurrence_api_v1_mitigation_tasks__task_id__occurrences__occurrence_id__skip_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OccurrenceCompleteRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skip Task Occurrence",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "description": "List notifications for the current user.",
@@ -21359,6 +22154,178 @@
         ]
       }
     },
+    "/api/v1/risks/mitigation-tasks/export": {
+      "get": {
+        "description": "Flat list of every mitigation task on every risk matching the filters.\n\nMirrors the filter shape of ``GET /risks`` so the workbook export on\nthe Risk Register page can call once and produce a second sheet that\nalways matches what the user has on screen. Each task includes its\nfull occurrence history so the frontend can flatten cycles into\nspreadsheet rows.",
+        "operationId": "export_mitigation_tasks_api_v1_risks_mitigation_tasks_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Level"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "card_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Overdue",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MitigationTaskOut"
+                  },
+                  "title": "Response Export Mitigation Tasks Api V1 Risks Mitigation Tasks Export Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Mitigation Tasks",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
     "/api/v1/risks/promote/compliance/{finding_id}": {
       "post": {
         "operationId": "promote_compliance_api_v1_risks_promote_compliance__finding_id__post",
@@ -21652,6 +22619,102 @@
           }
         },
         "summary": "Unlink Risk Card",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/risks/{risk_id}/mitigation-tasks": {
+      "get": {
+        "operationId": "list_mitigation_tasks_api_v1_risks__risk_id__mitigation_tasks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "risk_id",
+            "required": true,
+            "schema": {
+              "title": "Risk Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MitigationTaskOut"
+                  },
+                  "title": "Response List Mitigation Tasks Api V1 Risks  Risk Id  Mitigation Tasks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Mitigation Tasks",
+        "tags": [
+          "Risks"
+        ]
+      },
+      "post": {
+        "operationId": "create_mitigation_task_api_v1_risks__risk_id__mitigation_tasks_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "risk_id",
+            "required": true,
+            "schema": {
+              "title": "Risk Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MitigationTaskCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Mitigation Task",
         "tags": [
           "Risks"
         ]
