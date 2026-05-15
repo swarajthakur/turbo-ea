@@ -15,10 +15,20 @@ Each terminal transition snapshots ``task.owner_id`` into the occurrence's
 ``owner_at_completion`` column — that snapshot is the auditable answer to
 "who signed off on the Jan 2024 review?" even after years of owner rotation.
 
+**Lead-time gated visibility.** A new cycle lands as ``scheduled`` if the
+current date is outside the task's lead-time window (``due_date -
+lead_time_days``). Scheduled occurrences carry zero side effects — no
+Todo, no notification — they exist purely for audit ("next review: due
+2026-11-15"). The daily promotion loop in ``app.main`` calls
+``promote_scheduled_occurrences`` to flip them to ``open`` when the
+window opens, at which point the standard Todo + ``task_assigned``
+notification fire. Users with ``risks.manage`` can also short-circuit
+the wait via ``promote_single_occurrence``.
+
 Todo synchronization mirrors the risk-owner pattern in
 ``api/v1/risks.py::sync_owner_todo``: one ``is_system`` Todo per **open**
 occurrence keyed by a deep link, recreated for each new cycle of a
-recurring task.
+recurring task. Scheduled occurrences own no Todo.
 """
 
 from __future__ import annotations
@@ -45,7 +55,28 @@ from app.services.event_bus import event_bus
 logger = logging.getLogger(__name__)
 
 RECURRENCE_UNITS = ("none", "days", "weeks", "months", "years")
-OCCURRENCE_STATUSES = ("open", "done", "skipped")
+OCCURRENCE_STATUSES = ("scheduled", "open", "done", "skipped")
+
+# Smart lead-time defaults per recurrence unit. Picked so the assignee
+# gets a useful reminder window without sitting on an open Todo for the
+# bulk of the cycle. See ``default_lead_time_days`` for the cap logic.
+_LEAD_TIME_DEFAULT_BY_UNIT: dict[str, int] = {
+    "none": 0,
+    "days": 1,
+    "weeks": 2,
+    "months": 7,
+    "years": 14,
+}
+
+# Approximate day length per unit, used for the "cap at half the cycle"
+# rule so a 2-week cycle doesn't end up with a 7-day lead window
+# overlapping the previous cycle.
+_DAYS_IN_UNIT: dict[str, int] = {
+    "days": 1,
+    "weeks": 7,
+    "months": 30,
+    "years": 365,
+}
 
 _TASK_REFERENCE_RE = re.compile(r"^T-(\d+)$")
 
@@ -107,6 +138,39 @@ def is_recurring(task: RiskMitigationTask) -> bool:
     return task.recurrence_unit != "none"
 
 
+def default_lead_time_days(unit: str, interval: int) -> int:
+    """Return the recommended lead-time (in days) for a given recurrence.
+
+    Returns ``0`` for one-shot tasks (no roll-forward to gate). For
+    recurring tasks the per-unit default is capped at half the cycle in
+    days, so a fortnightly task never gets a lead window large enough to
+    overlap the previous cycle. The frontend ``leadTime.ts`` helper
+    mirrors this exact computation so the UI's suggested default matches
+    what the server picks when no value is supplied.
+    """
+    if unit == "none" or interval < 1:
+        return 0
+    base = _LEAD_TIME_DEFAULT_BY_UNIT.get(unit, 0)
+    days_per_unit = _DAYS_IN_UNIT.get(unit, 0)
+    if days_per_unit == 0:
+        return 0
+    cap = max(1 if unit != "days" else 0, (interval * days_per_unit) // 2)
+    return min(base, cap)
+
+
+def is_within_lead_window(due_date: date | None, lead_time_days: int, today: date) -> bool:
+    """Return True if ``today`` is on or after ``due_date - lead_time_days``.
+
+    A NULL ``due_date`` is treated as "no scheduled deadline" — the
+    cycle is always in window (and therefore always opens immediately).
+    Negative ``lead_time_days`` clamp to 0 to match the column constraint.
+    """
+    if due_date is None:
+        return True
+    lead = max(0, lead_time_days)
+    return today >= due_date - timedelta(days=lead)
+
+
 def _occurrence_link(risk_id: uuid.UUID, task_id: uuid.UUID, occurrence_id: uuid.UUID) -> str:
     return f"/ea-delivery/risks/{risk_id}?task={task_id}#occurrence-{occurrence_id}"
 
@@ -131,7 +195,7 @@ async def publish_task_event(
     risk: Risk,
     task: RiskMitigationTask,
     event_type: str,
-    actor_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
     occurrence: RiskMitigationTaskOccurrence | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
@@ -195,7 +259,7 @@ async def _fire_task_assigned_notification(
     risk: Risk,
     task: RiskMitigationTask,
     link: str,
-    actor_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
 ) -> None:
     try:
         await notification_service.create_notification(
@@ -222,13 +286,15 @@ async def sync_occurrence_todo(
     risk: Risk,
     task: RiskMitigationTask,
     occurrence: RiskMitigationTaskOccurrence,
-    actor_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
     previous_assigned_owner: uuid.UUID | None,
     notify_on_change: bool = True,
 ) -> None:
     """Keep one ``is_system`` Todo per open occurrence.
 
     * Occurrence status ``open`` + assignee set → upsert a Todo.
+    * Occurrence status ``scheduled`` → delete any Todo (cycle is dormant
+      and must not show up in the assignee's Todo list yet).
     * Occurrence status terminal (``done`` / ``skipped``) → delete the Todo.
     * Occurrence open + no assignee → delete the Todo (no recipient).
     * When ``assigned_owner_id`` changes, fire a ``task_assigned``
@@ -290,15 +356,32 @@ async def create_task_with_first_occurrence(
     recurrence_unit: str,
     recurrence_interval: int,
     actor_id: uuid.UUID,
+    lead_time_days: int | None = None,
 ) -> tuple[RiskMitigationTask, RiskMitigationTaskOccurrence]:
     """Create the task + occurrence #1 in a single transaction.
 
     Caller is responsible for ``db.commit()``.
+
+    The first occurrence lands as ``"open"`` when today is already inside
+    the lead-time window (or there's no due date), and ``"scheduled"``
+    otherwise — same rule as recurrence roll-forwards in
+    ``_terminate_occurrence``. When ``lead_time_days`` is ``None`` the
+    smart per-unit default is applied; one-shot tasks naturally get 0
+    and behave the same as before this feature shipped.
     """
     if recurrence_unit not in RECURRENCE_UNITS:
         raise ValueError(f"Invalid recurrence_unit: {recurrence_unit}")
     if recurrence_interval < 1:
         raise ValueError("recurrence_interval must be >= 1")
+
+    if lead_time_days is None:
+        lead_time_days = default_lead_time_days(recurrence_unit, recurrence_interval)
+    lead_time_days = max(0, int(lead_time_days))
+
+    today = datetime.now(timezone.utc).date()
+    initial_status = (
+        "open" if is_within_lead_window(due_date, lead_time_days, today) else "scheduled"
+    )
 
     reference = await next_task_reference(db)
     task = RiskMitigationTask(
@@ -310,6 +393,7 @@ async def create_task_with_first_occurrence(
         owner_id=owner_id,
         recurrence_unit=recurrence_unit,
         recurrence_interval=recurrence_interval,
+        lead_time_days=lead_time_days,
         is_active=True,
         created_by=actor_id,
     )
@@ -322,11 +406,13 @@ async def create_task_with_first_occurrence(
         sequence=1,
         assigned_owner_id=owner_id,
         due_date=due_date,
-        status="open",
+        status=initial_status,
     )
     db.add(occurrence)
     await db.flush()
 
+    # Todo + notification fire only for the open path; sync_occurrence_todo
+    # is a no-op on scheduled occurrences (they own no Todo).
     await sync_occurrence_todo(
         db,
         risk=risk,
@@ -361,11 +447,40 @@ async def latest_occurrence(
 async def open_occurrence(
     db: AsyncSession, task_id: uuid.UUID
 ) -> RiskMitigationTaskOccurrence | None:
+    """Return the single currently-open occurrence, if any.
+
+    Excludes scheduled cycles by design — callers that want "the live
+    cycle regardless of whether it's been activated yet" should use
+    :func:`current_active_occurrence` instead.
+    """
     res = await db.execute(
         select(RiskMitigationTaskOccurrence)
         .where(
             RiskMitigationTaskOccurrence.task_id == task_id,
             RiskMitigationTaskOccurrence.status == "open",
+        )
+        .order_by(RiskMitigationTaskOccurrence.sequence.desc())
+        .limit(1)
+    )
+    return res.scalar_one_or_none()
+
+
+async def current_active_occurrence(
+    db: AsyncSession, task_id: uuid.UUID
+) -> RiskMitigationTaskOccurrence | None:
+    """Return the live cycle for a task — scheduled or open.
+
+    There is at most one non-terminal occurrence per task at any time
+    (the next cycle is only created when the previous one terminates),
+    so the latest-sequence row with a non-terminal status is the live
+    cycle. Used by owner-change propagation and due-date edits so they
+    operate on the right row whether the cycle is dormant or active.
+    """
+    res = await db.execute(
+        select(RiskMitigationTaskOccurrence)
+        .where(
+            RiskMitigationTaskOccurrence.task_id == task_id,
+            RiskMitigationTaskOccurrence.status.in_(("scheduled", "open")),
         )
         .order_by(RiskMitigationTaskOccurrence.sequence.desc())
         .limit(1)
@@ -453,17 +568,32 @@ async def _terminate_occurrence(
     if next_due is None:
         return None
 
+    # Lead-time gate: the next cycle lands as ``scheduled`` if today is
+    # still outside the window, ``open`` otherwise. Scheduled cycles
+    # carry no Todo and fire no notification — they exist for audit
+    # ("next review: due 2026-11-15") and become live when the daily
+    # promotion loop flips them on the right day.
+    today = datetime.now(timezone.utc).date()
+    next_status = (
+        "open" if is_within_lead_window(next_due, task.lead_time_days, today) else "scheduled"
+    )
+
     next_occurrence = RiskMitigationTaskOccurrence(
         id=uuid.uuid4(),
         task_id=task.id,
         sequence=occurrence.sequence + 1,
         assigned_owner_id=task.owner_id,
         due_date=next_due,
-        status="open",
+        status=next_status,
     )
     db.add(next_occurrence)
     await db.flush()
 
+    # sync_occurrence_todo no-ops on scheduled cycles, so the Todo only
+    # lands once the cycle is promoted. The "fresh assignment" semantic
+    # below (previous_assigned_owner=None) still drives a notification
+    # exactly once per cycle — either now (if directly opened) or at
+    # promotion time.
     await sync_occurrence_todo(
         db,
         risk=risk,
@@ -543,7 +673,7 @@ async def apply_task_owner_change(
     """
     if task.owner_id == previous_owner:
         return
-    current = await open_occurrence(db, task.id)
+    current = await current_active_occurrence(db, task.id)
     if current is None:
         return
     previous_assignee = current.assigned_owner_id
@@ -557,6 +687,117 @@ async def apply_task_owner_change(
         actor_id=actor_id,
         previous_assigned_owner=previous_assignee,
     )
+
+
+async def promote_single_occurrence(
+    db: AsyncSession,
+    *,
+    risk: Risk,
+    task: RiskMitigationTask,
+    occurrence: RiskMitigationTaskOccurrence,
+    actor_id: uuid.UUID | None,
+) -> bool:
+    """Promote a single ``scheduled`` occurrence to ``open`` immediately.
+
+    Returns ``True`` if the occurrence was promoted, ``False`` if it was
+    already open (idempotent — re-calling on an already-open cycle is a
+    no-op so a double-click on "Activate now" can't double-fire side
+    effects). Raises ``ValueError`` for terminal cycles, which would be
+    a programmer error to promote.
+    """
+    if occurrence.status == "open":
+        return False
+    if occurrence.status != "scheduled":
+        raise ValueError(f"Cannot promote occurrence with status={occurrence.status!r}")
+
+    occurrence.status = "open"
+    occurrence.activated_at = datetime.now(timezone.utc)
+    # Sync assigned_owner_id to the task's current owner — between
+    # scheduling and activation the owner may have rotated, and the
+    # cycle should land on the current owner's Todo.
+    if occurrence.assigned_owner_id != task.owner_id:
+        occurrence.assigned_owner_id = task.owner_id
+    await db.flush()
+
+    await sync_occurrence_todo(
+        db,
+        risk=risk,
+        task=task,
+        occurrence=occurrence,
+        actor_id=actor_id,
+        previous_assigned_owner=None,
+    )
+    await publish_task_event(
+        db,
+        risk=risk,
+        task=task,
+        event_type="risk_mitigation_task.activated",
+        actor_id=actor_id,
+        occurrence=occurrence,
+        extra={"activated_at": occurrence.activated_at.isoformat()},
+    )
+    return True
+
+
+async def promote_scheduled_occurrences(
+    db: AsyncSession,
+    *,
+    actor_id: uuid.UUID | None = None,
+    today: date | None = None,
+) -> int:
+    """Promote every ``scheduled`` occurrence whose lead window has opened.
+
+    Called daily by the background loop in :mod:`app.main` and also
+    available for manual / test invocation. Returns the number of
+    occurrences promoted so the caller can log it.
+
+    ``actor_id`` is the user id stamped on the resulting events and Todo
+    rows. The background loop passes ``None`` so the system-driven
+    activation is attributable to "the system" — Todo.created_by accepts
+    NULL via its FK SET NULL clause.
+    """
+    if today is None:
+        today = datetime.now(timezone.utc).date()
+
+    # Pull every scheduled occurrence alongside its task (lead_time_days
+    # lives on the task row, not the occurrence). Volume is tiny in
+    # practice — a few per active recurring task — so a join + Python
+    # filter on the window predicate is simpler than encoding the date
+    # arithmetic in SQL.
+    res = await db.execute(
+        select(RiskMitigationTaskOccurrence, RiskMitigationTask)
+        .join(
+            RiskMitigationTask,
+            RiskMitigationTask.id == RiskMitigationTaskOccurrence.task_id,
+        )
+        .where(RiskMitigationTaskOccurrence.status == "scheduled")
+    )
+    rows = list(res.all())
+    if not rows:
+        return 0
+
+    promoted = 0
+    for occurrence, task in rows:
+        if not is_within_lead_window(occurrence.due_date, task.lead_time_days, today):
+            continue
+        risk = await db.get(Risk, task.risk_id)
+        if risk is None:
+            # Parent risk gone (cascade would have deleted the task too,
+            # so this is a no-op safety net rather than an expected path).
+            continue
+        await promote_single_occurrence(
+            db,
+            risk=risk,
+            task=task,
+            occurrence=occurrence,
+            # The daily loop has no real-user context, so attribute the
+            # promotion to the task creator when known (falls back to
+            # NULL — system Todo.created_by + event.user_id both accept
+            # NULL via their SET NULL FK clauses).
+            actor_id=actor_id or task.created_by,
+        )
+        promoted += 1
+    return promoted
 
 
 async def delete_task_todo(
@@ -606,6 +847,7 @@ async def occurrence_to_dict(
         "assigned_owner_name": await _user_name(db, occurrence.assigned_owner_id),
         "due_date": occurrence.due_date,
         "status": occurrence.status,
+        "activated_at": occurrence.activated_at,
         "completed_at": occurrence.completed_at,
         "completed_by": (str(occurrence.completed_by) if occurrence.completed_by else None),
         "completed_by_name": await _user_name(db, occurrence.completed_by),
@@ -641,6 +883,7 @@ async def task_to_dict(
         "owner_name": await _user_name(db, task.owner_id),
         "recurrence_unit": task.recurrence_unit,
         "recurrence_interval": task.recurrence_interval,
+        "lead_time_days": task.lead_time_days,
         "is_active": task.is_active,
         "created_by": str(task.created_by) if task.created_by else None,
         "created_at": task.created_at,

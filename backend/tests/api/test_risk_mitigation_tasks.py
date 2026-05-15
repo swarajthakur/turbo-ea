@@ -581,6 +581,390 @@ async def test_delete_task_cascades_occurrences_and_removes_todo(client, db, env
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Lead-time gating + scheduled occurrences + promotion
+# ---------------------------------------------------------------------------
+
+
+async def test_recurring_task_creates_with_smart_default_lead_time(client, db, env):
+    """Server picks the smart per-unit lead time when none is supplied."""
+    risk = env["risk"]
+    resp = await client.post(
+        _api(risk),
+        json={
+            "title": "Quarterly review",
+            "owner_id": str(env["admin"].id),
+            "due_date": "2026-09-15",
+            "recurrence_unit": "months",
+            "recurrence_interval": 3,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # Monthly + 3-month cap = floor(3 × 30 / 2) = 45 → default of 7
+    # wins. The frontend hint MUST match this.
+    assert body["lead_time_days"] == 7
+
+
+async def test_one_shot_task_lead_time_defaults_to_zero(client, db, env):
+    risk = env["risk"]
+    resp = await client.post(
+        _api(risk),
+        json={"title": "One-shot", "owner_id": str(env["admin"].id)},
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["lead_time_days"] == 0
+
+
+async def test_recurring_far_out_due_date_lands_as_scheduled_with_no_todo(client, db, env):
+    """Due 6 months out + 14-day lead → first occurrence is scheduled.
+
+    The whole point of the iteration: an assignee should NOT see the
+    yearly re-attest in their Todo list 364 days in advance.
+    """
+    from datetime import date, timedelta
+
+    far_future = (date.today() + timedelta(days=180)).isoformat()
+    risk = env["risk"]
+    resp = await client.post(
+        _api(risk),
+        json={
+            "title": "Annual re-attest",
+            "owner_id": str(env["member"].id),
+            "due_date": far_future,
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    occ = body["occurrences"][0]
+    assert occ["status"] == "scheduled"
+    assert occ["activated_at"] is None
+
+    # No Todo on the assignee — the cycle is dormant.
+    todos = (
+        (
+            await db.execute(
+                select(Todo).where(
+                    Todo.is_system.is_(True),
+                    Todo.assigned_to == env["member"].id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert todos == []
+
+
+async def test_zero_lead_time_with_due_today_lands_as_open(client, db, env):
+    from datetime import date
+
+    risk = env["risk"]
+    resp = await client.post(
+        _api(risk),
+        json={
+            "title": "Due now",
+            "owner_id": str(env["admin"].id),
+            "due_date": date.today().isoformat(),
+            "lead_time_days": 0,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    occ = resp.json()["occurrences"][0]
+    assert occ["status"] == "open"
+
+
+async def test_complete_recurring_when_next_cycle_outside_window_yields_scheduled(client, db, env):
+    """The roll-forward applies the same lead-time gate as initial create.
+
+    Complete a cycle whose next due date is six months out with a 7-day
+    lead → next cycle lands as ``scheduled``, no Todo created.
+    """
+    from datetime import date, timedelta
+
+    soon = (date.today() + timedelta(days=2)).isoformat()
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Quarterly review",
+            "owner_id": str(env["admin"].id),
+            "due_date": soon,
+            "recurrence_unit": "months",
+            "recurrence_interval": 6,
+            "lead_time_days": 7,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    first = task["occurrences"][0]
+    # The first cycle is within the 7-day window (due in 2 days), so it
+    # opened normally — confirm the precondition before completing.
+    assert first["status"] == "open"
+
+    resp = await client.post(
+        f"/api/v1/mitigation-tasks/{task['id']}/occurrences/{first['id']}/complete",
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    by_seq = sorted(body["occurrences"], key=lambda o: o["sequence"])
+    # Cycle 2 is now ~6 months out, well outside the 7-day window.
+    assert by_seq[1]["status"] == "scheduled"
+    assert by_seq[1]["activated_at"] is None
+
+    # Only the closed Todo remains — no Todo for the scheduled cycle.
+    todos = (await db.execute(select(Todo).where(Todo.is_system.is_(True)))).scalars().all()
+    assert todos == []
+
+
+async def test_cannot_complete_scheduled_occurrence(client, db, env):
+    """Scheduled cycles must be activated first — the error message is
+    clearer than the generic "already {status}" the other terminals get.
+    """
+    from datetime import date, timedelta
+
+    far = (date.today() + timedelta(days=180)).isoformat()
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Far future task",
+            "owner_id": str(env["admin"].id),
+            "due_date": far,
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    occ = task["occurrences"][0]
+    assert occ["status"] == "scheduled"
+
+    resp = await client.post(
+        f"/api/v1/mitigation-tasks/{task['id']}/occurrences/{occ['id']}/complete",
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 409
+    assert "activate" in resp.json()["detail"].lower()
+
+
+async def test_promote_endpoint_flips_scheduled_to_open(client, db, env):
+    """Manual ``Activate now`` short-circuits the daily promotion loop."""
+    from datetime import date, timedelta
+
+    far = (date.today() + timedelta(days=180)).isoformat()
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Annual re-attest",
+            "owner_id": str(env["member"].id),
+            "due_date": far,
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    occ = task["occurrences"][0]
+    assert occ["status"] == "scheduled"
+
+    resp = await client.post(
+        f"/api/v1/mitigation-tasks/{task['id']}/occurrences/{occ['id']}/promote",
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    activated = body["occurrences"][0]
+    assert activated["status"] == "open"
+    assert activated["activated_at"] is not None
+
+    # Todo now lands on the assignee (member, not admin).
+    todos = (
+        (
+            await db.execute(
+                select(Todo).where(
+                    Todo.is_system.is_(True),
+                    Todo.assigned_to == env["member"].id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(todos) == 1
+
+
+async def test_promote_endpoint_requires_manage_permission(client, db, env):
+    from datetime import date, timedelta
+
+    far = (date.today() + timedelta(days=180)).isoformat()
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Annual re-attest",
+            "owner_id": str(env["viewer"].id),
+            "due_date": far,
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    occ = task["occurrences"][0]
+    # The viewer is the assignee but still can't promote — promotion
+    # is a planning action, not a closure action like complete.
+    resp = await client.post(
+        f"/api/v1/mitigation-tasks/{task['id']}/occurrences/{occ['id']}/promote",
+        headers=auth_headers(env["viewer"]),
+    )
+    assert resp.status_code == 403
+
+
+async def test_promote_is_idempotent_on_already_open_occurrence(client, db, env):
+    """Double-clicking ``Activate now`` must not double-fire side effects."""
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={"title": "Already open", "owner_id": str(env["admin"].id)},
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    occ = task["occurrences"][0]
+    assert occ["status"] == "open"
+
+    resp = await client.post(
+        f"/api/v1/mitigation-tasks/{task['id']}/occurrences/{occ['id']}/promote",
+        headers=auth_headers(env["admin"]),
+    )
+    assert resp.status_code == 200
+    occ_after = resp.json()["occurrences"][0]
+    assert occ_after["status"] == "open"
+    # activated_at stays NULL — the cycle was never gated.
+    assert occ_after["activated_at"] is None
+
+
+async def test_shortening_lead_time_promotes_scheduled_cycle_immediately(client, db, env):
+    """PATCH that widens the window should not require waiting for the daily loop."""
+    from datetime import date, timedelta
+
+    # Due in 20 days, 7-day lead → outside window today.
+    near = (date.today() + timedelta(days=20)).isoformat()
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Quarterly review",
+            "owner_id": str(env["admin"].id),
+            "due_date": near,
+            "recurrence_unit": "months",
+            "recurrence_interval": 3,
+            "lead_time_days": 7,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task = create.json()
+    occ = task["occurrences"][0]
+    assert occ["status"] == "scheduled"
+
+    # Bump lead time to 30 days — now today >= due - 30 → in window.
+    patch = await client.patch(
+        f"/api/v1/mitigation-tasks/{task['id']}",
+        json={"lead_time_days": 30},
+        headers=auth_headers(env["admin"]),
+    )
+    assert patch.status_code == 200
+    promoted = patch.json()["occurrences"][0]
+    assert promoted["status"] == "open"
+    assert promoted["activated_at"] is not None
+
+
+async def test_background_promotion_lifts_eligible_scheduled_cycles(client, db, env):
+    """``promote_scheduled_occurrences`` is what the daily loop calls."""
+    from datetime import date, timedelta
+
+    from app.services.risk_mitigation_task_service import promote_scheduled_occurrences
+
+    risk = env["risk"]
+    create = await client.post(
+        _api(risk),
+        json={
+            "title": "Annual re-attest",
+            "owner_id": str(env["member"].id),
+            "due_date": (date.today() + timedelta(days=180)).isoformat(),
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    task_id = create.json()["id"]
+
+    # Simulate the daily loop running on a future day inside the window.
+    future_today = date.today() + timedelta(days=170)
+    promoted = await promote_scheduled_occurrences(db, today=future_today)
+    await db.commit()
+    assert promoted == 1
+
+    # Re-fetch — the cycle is now open and carries activated_at.
+    refreshed = await client.get(_api(risk), headers=auth_headers(env["admin"]))
+    body = refreshed.json()
+    occ = next(t for t in body if t["id"] == task_id)["occurrences"][0]
+    assert occ["status"] == "open"
+    assert occ["activated_at"] is not None
+
+    # The promotion creates the assignee's Todo.
+    todos = (
+        (
+            await db.execute(
+                select(Todo).where(
+                    Todo.is_system.is_(True),
+                    Todo.assigned_to == env["member"].id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(todos) == 1
+
+
+async def test_background_promotion_skips_cycles_outside_window(client, db, env):
+    """A daily run that fires before any cycle's window has opened is a no-op."""
+    from datetime import date, timedelta
+
+    from app.services.risk_mitigation_task_service import promote_scheduled_occurrences
+
+    risk = env["risk"]
+    await client.post(
+        _api(risk),
+        json={
+            "title": "Annual re-attest",
+            "owner_id": str(env["member"].id),
+            "due_date": (date.today() + timedelta(days=365)).isoformat(),
+            "recurrence_unit": "years",
+            "recurrence_interval": 1,
+            "lead_time_days": 14,
+        },
+        headers=auth_headers(env["admin"]),
+    )
+    promoted = await promote_scheduled_occurrences(db, today=date.today())
+    await db.commit()
+    assert promoted == 0
+
+
 async def test_risk_delete_cascades_to_mitigation_tasks(client, db, env):
     risk = env["risk"]
     create = await client.post(

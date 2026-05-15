@@ -13,6 +13,7 @@ function task(overrides: Partial<MitigationTask> = {}): MitigationTask {
     owner_name: "Jane Smith",
     recurrence_unit: "none",
     recurrence_interval: 1,
+    lead_time_days: 0,
     is_active: true,
     created_by: "u1",
     created_at: "2026-05-14T10:00:00Z",
@@ -34,6 +35,7 @@ describe("flattenTasksForExport", () => {
           assigned_owner_name: "Jane Smith",
           due_date: "2026-01-15",
           status: "done",
+          activated_at: null,
           completed_at: "2026-01-14T09:00:00Z",
           completed_by: "u1",
           completed_by_name: "Jane Smith",
@@ -51,6 +53,7 @@ describe("flattenTasksForExport", () => {
           assigned_owner_name: "Jane Smith",
           due_date: "2026-04-15",
           status: "open",
+          activated_at: "2026-04-08T03:00:00Z",
           completed_at: null,
           completed_by: null,
           completed_by_name: null,
@@ -72,6 +75,53 @@ describe("flattenTasksForExport", () => {
     expect(rows[1].cycle).toBe(2);
     expect(rows[1].status).toBe("open");
     expect(rows[1].completed_at).toBe("");
+    // The completed (cycle 1) row was never gated, so activated_at is empty.
+    expect(rows[0].activated_at).toBe("");
+    // The newly-promoted open cycle carries its activation timestamp
+    // through to the audit export.
+    expect(rows[1].activated_at).toBe("2026-04-08T03:00:00Z");
+  });
+
+  it("flattens scheduled cycles with empty completion columns", () => {
+    // A "scheduled" cycle is the dormant pre-state — it has a due_date
+    // but no completion data; the export must still render it (audit
+    // needs to see "next review: due 2026-11-15") without crashing on
+    // missing fields.
+    const t = task({
+      recurrence_unit: "years",
+      recurrence_interval: 1,
+      lead_time_days: 14,
+      occurrences: [
+        {
+          id: "scheduled-1",
+          task_id: "task-1",
+          sequence: 1,
+          assigned_owner_id: "u1",
+          assigned_owner_name: "Jane Smith",
+          due_date: "2026-11-15",
+          status: "scheduled",
+          activated_at: null,
+          completed_at: null,
+          completed_by: null,
+          completed_by_name: null,
+          owner_at_completion: null,
+          owner_at_completion_name: null,
+          completion_notes: null,
+          created_at: "2026-01-14T09:00:00Z",
+          updated_at: "2026-01-14T09:00:00Z",
+        },
+      ],
+    });
+    const rows = flattenTasksForExport([t], new Map([["risk-1", "R-1"]]));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("scheduled");
+    expect(rows[0].due_date).toBe("2026-11-15");
+    expect(rows[0].activated_at).toBe("");
+    expect(rows[0].completed_at).toBe("");
+    expect(rows[0].owner_at_completion).toBe("");
+    // Lead time travels into the export — auditors can see "this
+    // scheduled cycle was supposed to open Nov 1 (Nov 15 minus 14 days)".
+    expect(rows[0].lead_time_days).toBe(14);
   });
 
   it("emits zero rows for a task with no occurrences", () => {
@@ -111,6 +161,7 @@ function openOccurrence() {
     assigned_owner_name: null,
     due_date: null,
     status: "open" as const,
+    activated_at: null,
     completed_at: null,
     completed_by: null,
     completed_by_name: null,

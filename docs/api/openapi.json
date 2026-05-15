@@ -4210,7 +4210,7 @@
         "type": "object"
       },
       "MitigationTaskCreate": {
-        "description": "Payload for ``POST /risks/{risk_id}/mitigation-tasks``.",
+        "description": "Payload for ``POST /risks/{risk_id}/mitigation-tasks``.\n\n``lead_time_days`` is optional on create \u2014 when omitted the service\nlayer picks a smart default per ``recurrence_unit`` (1 / 2 / 7 / 14\nfor daily / weekly / monthly / yearly, capped at half the cycle so\nthe lead window never overlaps the previous occurrence). One-shot\ntasks default to 0 because there is no roll-forward to gate.",
         "properties": {
           "description": {
             "anyOf": [
@@ -4234,6 +4234,19 @@
               }
             ],
             "title": "Due Date"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
           },
           "owner_id": {
             "anyOf": [
@@ -4280,6 +4293,18 @@
       },
       "MitigationTaskOccurrenceOut": {
         "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
           "assigned_owner_id": {
             "anyOf": [
               {
@@ -4403,6 +4428,7 @@
           },
           "status": {
             "enum": [
+              "scheduled",
               "open",
               "done",
               "skipped"
@@ -4480,6 +4506,10 @@
             "title": "Is Active",
             "type": "boolean"
           },
+          "lead_time_days": {
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
           "occurrences": {
             "items": {
               "$ref": "#/components/schemas/MitigationTaskOccurrenceOut"
@@ -4556,13 +4586,14 @@
           "title",
           "recurrence_unit",
           "recurrence_interval",
+          "lead_time_days",
           "is_active"
         ],
         "title": "MitigationTaskOut",
         "type": "object"
       },
       "MitigationTaskUpdate": {
-        "description": "Partial update for ``PATCH /mitigation-tasks/{task_id}``.\n\n``owner_id`` changes propagate to the **current open occurrence** (its\n``assigned_owner_id``) so the Todo + notification flow reflects the\nnew assignee immediately. Past completed occurrences keep their\nhistorical owner snapshots and are not modified.\n\nRecurrence changes apply to **future** occurrences only \u2014 the current\nopen occurrence keeps its scheduled ``due_date``.",
+        "description": "Partial update for ``PATCH /mitigation-tasks/{task_id}``.\n\n``owner_id`` changes propagate to the **current open occurrence** (its\n``assigned_owner_id``) so the Todo + notification flow reflects the\nnew assignee immediately. Past completed occurrences keep their\nhistorical owner snapshots and are not modified.\n\nRecurrence changes apply to **future** occurrences only \u2014 the current\nopen occurrence keeps its scheduled ``due_date``. Lead-time changes\ntake effect on future cycles too, but the API re-evaluates any\ncurrently-scheduled cycle against the new window so shortening the\nlead time can promote a cycle immediately instead of waiting for the\nnext daily promotion run.",
         "properties": {
           "description": {
             "anyOf": [
@@ -4597,6 +4628,19 @@
               }
             ],
             "title": "Is Active"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
           },
           "owner_id": {
             "anyOf": [
@@ -18624,6 +18668,58 @@
           }
         },
         "summary": "Complete Task Occurrence",
+        "tags": [
+          "Risks"
+        ]
+      }
+    },
+    "/api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/promote": {
+      "post": {
+        "description": "Manually promote a ``scheduled`` occurrence to ``open`` immediately.\n\nMirrors what the daily background loop will do automatically when\nthe lead window opens \u2014 but lets a ``risks.manage`` holder pull a\ncycle forward (e.g. to run an access review early).\n\nIdempotent: promoting an already-open occurrence is a 200 no-op.\nPromoting a terminal occurrence (done / skipped) returns 409 since\nthose are immutable per the audit contract.",
+        "operationId": "promote_task_occurrence_api_v1_mitigation_tasks__task_id__occurrences__occurrence_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MitigationTaskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote Task Occurrence",
         "tags": [
           "Risks"
         ]

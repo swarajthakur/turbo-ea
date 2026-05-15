@@ -68,6 +68,14 @@ class RiskMitigationTask(Base, UUIDMixin, TimestampMixin):
     recurrence_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="none")
     recurrence_interval: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
+    # How many days before due_date the cycle should be promoted from
+    # "scheduled" to "open" (which is when the Todo + notification fire).
+    # 0 means "open immediately" — the historical iteration-1 behaviour
+    # and the right default for one-shot tasks where there is no roll
+    # forward. Recurring tasks default to a per-unit smart value via
+    # ``default_lead_time_days`` in the service layer.
+    lead_time_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     created_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -118,8 +126,18 @@ class RiskMitigationTaskOccurrence(Base, UUIDMixin):
     )
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
-    # "open" | "done" | "skipped". Terminal once not "open".
-    status: Mapped[str] = mapped_column(String(8), nullable=False, default="open")
+    # "scheduled" | "open" | "done" | "skipped". A "scheduled" occurrence
+    # exists for audit ("next review: due 2026-11-15") but does not
+    # produce a Todo or notification — the daily promotion loop flips it
+    # to "open" when ``today >= due_date - lead_time_days``. Terminal
+    # statuses ("done" / "skipped") are immutable.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+
+    # Stamped when a scheduled occurrence is promoted to open (either by
+    # the daily background loop or via the manual "Activate now" path).
+    # NULL for occurrences that were opened directly without ever sitting
+    # in the scheduled state — including all pre-feature data.
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_by: Mapped[uuid.UUID | None] = mapped_column(

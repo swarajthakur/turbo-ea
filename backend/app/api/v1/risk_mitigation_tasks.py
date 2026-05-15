@@ -46,9 +46,11 @@ from app.services.risk_mitigation_task_service import (
     apply_task_owner_change,
     complete_occurrence,
     create_task_with_first_occurrence,
+    current_active_occurrence,
     delete_task_todo,
+    is_within_lead_window,
     occurrence_to_dict,
-    open_occurrence,
+    promote_single_occurrence,
     publish_task_event,
     skip_occurrence,
     task_to_dict,
@@ -196,6 +198,7 @@ async def create_mitigation_task(
         recurrence_unit=body.recurrence_unit,
         recurrence_interval=body.recurrence_interval,
         actor_id=user.id,
+        lead_time_days=body.lead_time_days,
     )
     await db.commit()
     await db.refresh(task)
@@ -240,17 +243,40 @@ async def update_mitigation_task(
         task.recurrence_unit = data["recurrence_unit"]
     if "recurrence_interval" in data and data["recurrence_interval"] is not None:
         task.recurrence_interval = max(1, int(data["recurrence_interval"]))
+    if "lead_time_days" in data and data["lead_time_days"] is not None:
+        task.lead_time_days = max(0, int(data["lead_time_days"]))
     if "is_active" in data and data["is_active"] is not None:
         task.is_active = bool(data["is_active"])
 
     if "due_date" in data:
-        # Apply to the current open occurrence only — past occurrences
-        # are immutable per the audit contract.
-        current = await open_occurrence(db, task.id)
+        # Apply to the current active occurrence (scheduled or open) —
+        # terminal cycles are immutable per the audit contract.
+        current = await current_active_occurrence(db, task.id)
         if current is not None:
             current.due_date = data["due_date"]
 
     await db.flush()
+
+    # If the active cycle is scheduled and the new (due_date, lead_time)
+    # pair places it inside the window, promote it now instead of forcing
+    # the user to wait for the next daily promotion run. Common cases:
+    # shortening the lead time, or pulling the due date forward.
+    if "lead_time_days" in data or "due_date" in data:
+        from datetime import date as _date
+
+        active = await current_active_occurrence(db, task.id)
+        if (
+            active is not None
+            and active.status == "scheduled"
+            and is_within_lead_window(active.due_date, task.lead_time_days, _date.today())
+        ):
+            await promote_single_occurrence(
+                db,
+                risk=risk,
+                task=task,
+                occurrence=active,
+                actor_id=user.id,
+            )
 
     if "owner_id" in data:
         await apply_task_owner_change(
@@ -364,6 +390,11 @@ async def complete_task_occurrence(
 ) -> MitigationTaskOut:
     task = await _load_task(db, task_id)
     occurrence = await _load_occurrence(db, task, occurrence_id)
+    if occurrence.status == "scheduled":
+        raise HTTPException(
+            409,
+            "Occurrence is still scheduled — activate it before completing or skipping.",
+        )
     if occurrence.status != "open":
         raise HTTPException(409, f"Occurrence is already {occurrence.status}")
 
@@ -390,6 +421,50 @@ async def complete_task_occurrence(
 
 
 @tasks_router.post(
+    "/{task_id}/occurrences/{occurrence_id}/promote",
+    response_model=MitigationTaskOut,
+)
+async def promote_task_occurrence(
+    task_id: str,
+    occurrence_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> MitigationTaskOut:
+    """Manually promote a ``scheduled`` occurrence to ``open`` immediately.
+
+    Mirrors what the daily background loop will do automatically when
+    the lead window opens — but lets a ``risks.manage`` holder pull a
+    cycle forward (e.g. to run an access review early).
+
+    Idempotent: promoting an already-open occurrence is a 200 no-op.
+    Promoting a terminal occurrence (done / skipped) returns 409 since
+    those are immutable per the audit contract.
+    """
+    await PermissionService.require_permission(db, user, "risks.manage")
+    task = await _load_task(db, task_id)
+    occurrence = await _load_occurrence(db, task, occurrence_id)
+    if occurrence.status in ("done", "skipped"):
+        raise HTTPException(409, f"Occurrence is already {occurrence.status}")
+
+    risk = await db.get(Risk, task.risk_id)
+    if risk is None:
+        raise HTTPException(404, "Parent risk not found")
+    if risk.status == "closed":
+        raise HTTPException(409, "Risk is closed and read-only. Reopen it first to update tasks.")
+
+    await promote_single_occurrence(
+        db,
+        risk=risk,
+        task=task,
+        occurrence=occurrence,
+        actor_id=user.id,
+    )
+    await db.commit()
+    await db.refresh(task)
+    return MitigationTaskOut.model_validate(await task_to_dict(db, task))
+
+
+@tasks_router.post(
     "/{task_id}/occurrences/{occurrence_id}/skip",
     response_model=MitigationTaskOut,
 )
@@ -402,6 +477,11 @@ async def skip_task_occurrence(
 ) -> MitigationTaskOut:
     task = await _load_task(db, task_id)
     occurrence = await _load_occurrence(db, task, occurrence_id)
+    if occurrence.status == "scheduled":
+        raise HTTPException(
+            409,
+            "Occurrence is still scheduled — activate it before completing or skipping.",
+        )
     if occurrence.status != "open":
         raise HTTPException(409, f"Occurrence is already {occurrence.status}")
 

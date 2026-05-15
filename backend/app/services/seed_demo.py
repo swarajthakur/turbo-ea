@@ -5813,6 +5813,10 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                     ),
                     "recurrence_unit": "months",
                     "recurrence_interval": 12,
+                    # 14-day lead so the assignee sees this on their
+                    # Todo list two weeks before the annual re-attest
+                    # is due, not 12 months out.
+                    "lead_time_days": 14,
                     "due": today + timedelta(days=365),
                 },
             ],
@@ -5901,6 +5905,9 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                     ),
                     "recurrence_unit": "months",
                     "recurrence_interval": 3,
+                    # 7-day lead — the OT SOC team gets the prep
+                    # reminder a week before each quarterly tabletop.
+                    "lead_time_days": 7,
                     "due": today + timedelta(days=30),
                 },
             ],
@@ -6052,6 +6059,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
         recurring_tasks = r.get("recurring_tasks") or []
         for rt in recurring_tasks:
             task_seq += 1
+            rt_lead = int(rt.get("lead_time_days") or 0)
             rtask = RiskMitigationTask(
                 id=__import__("uuid").uuid4(),
                 reference=f"T-{task_seq:06d}",
@@ -6061,19 +6069,28 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 owner_id=r.get("owner"),
                 recurrence_unit=rt["recurrence_unit"],
                 recurrence_interval=rt["recurrence_interval"],
+                lead_time_days=rt_lead,
                 is_active=True,
                 created_by=admin_id,
             )
             db.add(rtask)
             await db.flush()
+            # Mirror the lead-time gate that the service layer applies to
+            # freshly-created tasks: scheduled when today is outside the
+            # window, open otherwise. The seeded recurring tasks have
+            # due dates 30+ days out so they land as ``scheduled`` and
+            # showcase the "no Todo spam for control reviews months
+            # ahead" behaviour.
+            rt_due = rt.get("due")
+            within_window = rt_due is None or today >= rt_due - timedelta(days=rt_lead)
             db.add(
                 RiskMitigationTaskOccurrence(
                     id=__import__("uuid").uuid4(),
                     task_id=rtask.id,
                     sequence=1,
                     assigned_owner_id=r.get("owner"),
-                    due_date=rt.get("due"),
-                    status="open",
+                    due_date=rt_due,
+                    status="open" if within_window else "scheduled",
                 )
             )
         count += 1

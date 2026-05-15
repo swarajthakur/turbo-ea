@@ -16,6 +16,8 @@ from app.services.risk_mitigation_task_service import (
     RECURRENCE_UNITS,
     _add_months,
     compute_next_due,
+    default_lead_time_days,
+    is_within_lead_window,
 )
 
 # ---------------------------------------------------------------------------
@@ -98,8 +100,10 @@ def test_recurrence_units_include_none_and_all_intervals():
     assert RECURRENCE_UNITS == ("none", "days", "weeks", "months", "years")
 
 
-def test_occurrence_statuses_have_three_terminals():
-    assert OCCURRENCE_STATUSES == ("open", "done", "skipped")
+def test_occurrence_statuses_include_scheduled_and_three_lifecycle_states():
+    # "scheduled" is the lead-time gated pre-state; "open" is the live
+    # workable state; "done" / "skipped" are the immutable terminals.
+    assert OCCURRENCE_STATUSES == ("scheduled", "open", "done", "skipped")
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +122,91 @@ def test_occurrence_statuses_have_three_terminals():
 )
 def test_compute_next_due_rejects_non_positive_intervals(unit: str, interval: int):
     assert compute_next_due(date(2026, 5, 14), unit, interval) is None
+
+
+# ---------------------------------------------------------------------------
+# default_lead_time_days — per-unit defaults capped at half the cycle
+# ---------------------------------------------------------------------------
+
+
+def test_default_lead_time_is_zero_for_one_shot_tasks():
+    # One-shot tasks have no roll-forward to gate, so the lead time is
+    # meaningless and defaults to 0.
+    assert default_lead_time_days("none", 1) == 0
+
+
+def test_default_lead_time_for_canonical_recurring_units():
+    # The canonical per-unit defaults: 1 / 2 / 7 / 14 days for daily /
+    # weekly / monthly / yearly tasks at interval=1. These are picked so
+    # the assignee gets a useful reminder window without sitting on an
+    # open Todo for the bulk of the cycle.
+    assert default_lead_time_days("days", 30) == 1
+    assert default_lead_time_days("weeks", 4) == 2
+    assert default_lead_time_days("months", 6) == 7
+    assert default_lead_time_days("years", 1) == 14
+
+
+def test_default_lead_time_caps_at_half_the_cycle():
+    # Daily (every 1 day) caps the lead at floor(1 / 2) = 0 so the lead
+    # window never overlaps the previous cycle.
+    assert default_lead_time_days("days", 1) == 0
+    # Every 2 days → cap = 1, default = 1 → result 1.
+    assert default_lead_time_days("days", 2) == 1
+    # Every 1 week → cap = floor(7 / 2) = 3, default = 2 → result 2.
+    assert default_lead_time_days("weeks", 1) == 2
+
+
+def test_default_lead_time_uses_per_unit_default_for_long_intervals():
+    # Yearly tasks always default to 14 days regardless of interval — the
+    # cap (interval × 365 / 2) is always far higher than the per-unit
+    # baseline, so the baseline always wins.
+    assert default_lead_time_days("years", 5) == 14
+    # Monthly tasks at interval 6 cap at (6 × 30 / 2) = 90, default 7 wins.
+    assert default_lead_time_days("months", 6) == 7
+
+
+def test_default_lead_time_rejects_unknown_unit_returns_zero():
+    assert default_lead_time_days("fortnights", 1) == 0
+    assert default_lead_time_days("", 1) == 0
+
+
+# ---------------------------------------------------------------------------
+# is_within_lead_window — boundary cases
+# ---------------------------------------------------------------------------
+
+
+def test_within_lead_window_exact_boundary_is_inside():
+    # today == due_date - lead_time_days is the first day in the window.
+    assert is_within_lead_window(date(2026, 6, 1), 7, date(2026, 5, 25)) is True
+
+
+def test_within_lead_window_one_day_before_boundary_is_outside():
+    assert is_within_lead_window(date(2026, 6, 1), 7, date(2026, 5, 24)) is False
+
+
+def test_within_lead_window_after_due_date_is_inside():
+    # Once the due date has passed, the cycle is well within the window
+    # (the assignee is now overdue but still owns the task).
+    assert is_within_lead_window(date(2026, 6, 1), 7, date(2026, 6, 30)) is True
+
+
+def test_within_lead_window_zero_lead_means_open_only_on_due_date():
+    # lead = 0 collapses the window to the due date itself — relevant
+    # for one-shot tasks created far ahead of time.
+    assert is_within_lead_window(date(2026, 6, 1), 0, date(2026, 5, 31)) is False
+    assert is_within_lead_window(date(2026, 6, 1), 0, date(2026, 6, 1)) is True
+
+
+def test_within_lead_window_null_due_date_is_always_inside():
+    # NULL due_date == "no deadline" — the cycle should always be live.
+    assert is_within_lead_window(None, 14, date(2026, 5, 14)) is True
+
+
+def test_within_lead_window_clamps_negative_lead_to_zero():
+    # Negative lead would be a programmer error — clamped to 0 so the
+    # window doesn't accidentally invert.
+    assert is_within_lead_window(date(2026, 6, 1), -10, date(2026, 5, 31)) is False
+    assert is_within_lead_window(date(2026, 6, 1), -10, date(2026, 6, 1)) is True
 
 
 # ---------------------------------------------------------------------------

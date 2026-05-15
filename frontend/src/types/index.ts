@@ -1482,7 +1482,10 @@ export interface RiskListPage {
 }
 
 export type RecurrenceUnit = "none" | "days" | "weeks" | "months" | "years";
-export type MitigationOccurrenceStatus = "open" | "done" | "skipped";
+// "scheduled" is the lead-time gated pre-state — the cycle exists for
+// audit but owns no Todo until the daily promotion loop (or a manual
+// "Activate now" click) flips it to "open".
+export type MitigationOccurrenceStatus = "scheduled" | "open" | "done" | "skipped";
 
 export interface MitigationTaskOccurrence {
   id: string;
@@ -1492,6 +1495,10 @@ export interface MitigationTaskOccurrence {
   assigned_owner_name: string | null;
   due_date: string | null;
   status: MitigationOccurrenceStatus;
+  /** Stamped the moment a scheduled occurrence was promoted to open
+   *  (either by the daily loop or manually). NULL for cycles that were
+   *  never gated, including everything created before this feature shipped. */
+  activated_at: string | null;
   completed_at: string | null;
   completed_by: string | null;
   completed_by_name: string | null;
@@ -1512,6 +1519,10 @@ export interface MitigationTask {
   owner_name: string | null;
   recurrence_unit: RecurrenceUnit;
   recurrence_interval: number;
+  /** How many days before due_date a cycle gets promoted from
+   *  scheduled to open. 0 means "open immediately". The dialog's
+   *  default is computed via {@link defaultLeadTimeDays}. */
+  lead_time_days: number;
   is_active: boolean;
   created_by: string | null;
   created_at: string | null;

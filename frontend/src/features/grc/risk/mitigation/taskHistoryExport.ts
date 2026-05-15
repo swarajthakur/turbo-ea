@@ -23,11 +23,13 @@ export interface OccurrenceRow {
   task_title: string;
   task_owner: string;
   recurrence: string;
+  lead_time_days: number;
   is_active: string;
   cycle: number;
   assigned_owner: string;
   due_date: string;
   status: string;
+  activated_at: string;
   completed_at: string;
   completed_by: string;
   owner_at_completion: string;
@@ -48,11 +50,13 @@ const OCCURRENCE_COLUMNS: readonly (keyof OccurrenceRow)[] = [
   "task_title",
   "task_owner",
   "recurrence",
+  "lead_time_days",
   "is_active",
   "cycle",
   "assigned_owner",
   "due_date",
   "status",
+  "activated_at",
   "completed_at",
   "completed_by",
   "owner_at_completion",
@@ -78,11 +82,13 @@ export function flattenTasksForExport(
         task_title: task.title ?? "",
         task_owner: task.owner_name ?? "",
         recurrence: recurrenceLabel(task),
+        lead_time_days: task.lead_time_days ?? 0,
         is_active: task.is_active ? "yes" : "no",
         cycle: occ.sequence,
         assigned_owner: occ.assigned_owner_name ?? "",
         due_date: occ.due_date ?? "",
         status: occ.status,
+        activated_at: occ.activated_at ?? "",
         completed_at: occ.completed_at ?? "",
         completed_by: occ.completed_by_name ?? "",
         owner_at_completion: occ.owner_at_completion_name ?? "",

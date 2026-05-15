@@ -8,7 +8,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 RecurrenceUnitLiteral = Literal["none", "days", "weeks", "months", "years"]
-OccurrenceStatusLiteral = Literal["open", "done", "skipped"]
+OccurrenceStatusLiteral = Literal["scheduled", "open", "done", "skipped"]
+
+# Upper bound mirrors the column's headroom — 365 × 10 years gives admins
+# room to schedule decade-out reviews without overflow, while preventing
+# nonsense like "open this task 100,000 days early".
+MAX_LEAD_TIME_DAYS = 3650
 
 
 # ---------------------------------------------------------------------------
@@ -17,7 +22,14 @@ OccurrenceStatusLiteral = Literal["open", "done", "skipped"]
 
 
 class MitigationTaskCreate(BaseModel):
-    """Payload for ``POST /risks/{risk_id}/mitigation-tasks``."""
+    """Payload for ``POST /risks/{risk_id}/mitigation-tasks``.
+
+    ``lead_time_days`` is optional on create — when omitted the service
+    layer picks a smart default per ``recurrence_unit`` (1 / 2 / 7 / 14
+    for daily / weekly / monthly / yearly, capped at half the cycle so
+    the lead window never overlaps the previous occurrence). One-shot
+    tasks default to 0 because there is no roll-forward to gate.
+    """
 
     title: str = Field(..., min_length=1, max_length=500)
     description: str | None = None
@@ -25,6 +37,7 @@ class MitigationTaskCreate(BaseModel):
     due_date: date | None = None
     recurrence_unit: RecurrenceUnitLiteral = "none"
     recurrence_interval: int = Field(default=1, ge=1, le=365)
+    lead_time_days: int | None = Field(default=None, ge=0, le=MAX_LEAD_TIME_DAYS)
 
 
 class MitigationTaskUpdate(BaseModel):
@@ -36,7 +49,11 @@ class MitigationTaskUpdate(BaseModel):
     historical owner snapshots and are not modified.
 
     Recurrence changes apply to **future** occurrences only — the current
-    open occurrence keeps its scheduled ``due_date``.
+    open occurrence keeps its scheduled ``due_date``. Lead-time changes
+    take effect on future cycles too, but the API re-evaluates any
+    currently-scheduled cycle against the new window so shortening the
+    lead time can promote a cycle immediately instead of waiting for the
+    next daily promotion run.
     """
 
     title: str | None = Field(default=None, max_length=500)
@@ -45,6 +62,7 @@ class MitigationTaskUpdate(BaseModel):
     due_date: date | None = None
     recurrence_unit: RecurrenceUnitLiteral | None = None
     recurrence_interval: int | None = Field(default=None, ge=1, le=365)
+    lead_time_days: int | None = Field(default=None, ge=0, le=MAX_LEAD_TIME_DAYS)
     is_active: bool | None = None
 
 
@@ -70,6 +88,11 @@ class MitigationTaskOccurrenceOut(BaseModel):
 
     status: OccurrenceStatusLiteral
 
+    # Set when a scheduled cycle was promoted to open (by the daily loop
+    # or via manual "Activate now"). NULL on cycles that were never
+    # gated, including everything created before the feature shipped.
+    activated_at: datetime | None = None
+
     completed_at: datetime | None = None
     completed_by: str | None = None
     completed_by_name: str | None = None
@@ -94,6 +117,7 @@ class MitigationTaskOut(BaseModel):
 
     recurrence_unit: RecurrenceUnitLiteral
     recurrence_interval: int
+    lead_time_days: int
     is_active: bool
 
     created_by: str | None = None

@@ -28,6 +28,7 @@ import type { MitigationTask, MitigationTaskOccurrence } from "@/types";
 import CompleteOccurrenceDialog, {
   type CompleteMode,
 } from "./CompleteOccurrenceDialog";
+import { activationDate } from "./leadTime";
 import MitigationTaskDialog, {
   type MitigationTaskDialogPayload,
 } from "./MitigationTaskDialog";
@@ -77,13 +78,22 @@ function deriveSummary(tasks: MitigationTask[]): TaskSummary {
       } else if (occ.status === "skipped") {
         skipped += 1;
       }
+      // Scheduled cycles are intentionally excluded from the open /
+      // overdue counts — they're dormant until the daily promotion
+      // loop activates them, and the residual context line ("X open ·
+      // Z overdue") should reflect "work the assignee can do today".
     }
   }
   return { total: open + done + skipped, open, done, skipped, overdue };
 }
 
-function openOccurrence(task: MitigationTask): MitigationTaskOccurrence | null {
-  return task.occurrences.find((o) => o.status === "open") ?? null;
+function liveOccurrence(task: MitigationTask): MitigationTaskOccurrence | null {
+  // The single non-terminal cycle, if any — scheduled or open. There
+  // is at most one such cycle per task at a time because the next
+  // cycle is only created when the previous one terminates.
+  return (
+    task.occurrences.find((o) => o.status === "open" || o.status === "scheduled") ?? null
+  );
 }
 
 export default function MitigationTasksPanel({
@@ -176,6 +186,21 @@ export default function MitigationTasksPanel({
     }
   };
 
+  const handlePromote = async (
+    task: MitigationTask,
+    occ: MitigationTaskOccurrence,
+  ) => {
+    try {
+      await api.post(
+        `/mitigation-tasks/${task.id}/occurrences/${occ.id}/promote`,
+        {},
+      );
+      await refresh();
+    } catch (e) {
+      if (e instanceof ApiError) setError(e.message);
+    }
+  };
+
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -221,11 +246,16 @@ export default function MitigationTasksPanel({
       ) : (
         <Stack spacing={1.5}>
           {tasks.map((task) => {
-            const open = openOccurrence(task);
-            const isOverdue = !!open?.due_date && open.due_date < today;
+            const live = liveOccurrence(task);
+            const isOpen = live?.status === "open";
+            const isScheduled = live?.status === "scheduled";
+            const isOverdue = isOpen && !!live?.due_date && live.due_date < today;
             const isExpanded = !!expanded[task.id];
             const canCompleteSelf =
-              !!open && open.assigned_owner_id === currentUserId;
+              isOpen && live?.assigned_owner_id === currentUserId;
+            const activatesOn = isScheduled
+              ? activationDate(live?.due_date ?? null, task.lead_time_days)
+              : null;
             return (
               <Box
                 key={task.id}
@@ -283,6 +313,22 @@ export default function MitigationTasksPanel({
                           label={t("risks.tasks.badge.overdue")}
                         />
                       )}
+                      {isScheduled && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          icon={<MaterialSymbol icon="event_upcoming" size={14} />}
+                          label={
+                            activatesOn
+                              ? t("risks.tasks.badge.nextScheduled", {
+                                  date: live?.due_date ?? "—",
+                                  activates: activatesOn,
+                                })
+                              : t("risks.tasks.status.scheduled")
+                          }
+                          sx={{ color: "text.secondary" }}
+                        />
+                      )}
                     </Stack>
                     {task.description && (
                       <Typography variant="body2" color="text.secondary">
@@ -299,15 +345,29 @@ export default function MitigationTasksPanel({
                         {t("risks.tasks.field.owner")}:{" "}
                         {task.owner_name ?? t("risks.tasks.history.unassigned")}
                       </Typography>
-                      {open?.due_date && (
+                      {live?.due_date && (
                         <Typography variant="caption">
-                          {t("risks.tasks.field.dueDate")}: {open.due_date}
+                          {t("risks.tasks.field.dueDate")}: {live.due_date}
                         </Typography>
                       )}
                     </Stack>
                   </Stack>
                   <Stack direction="row" spacing={0.5} flexShrink={0} alignItems="center">
-                    {open && (
+                    {isScheduled && live && (
+                      <Tooltip title={t("risks.tasks.actions.activateNow") ?? ""}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            disabled={riskClosed}
+                            onClick={() => handlePromote(task, live)}
+                          >
+                            <MaterialSymbol icon="bolt" size={18} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {isOpen && live && (
                       <Tooltip title={t("risks.tasks.actions.complete") ?? ""}>
                         <span>
                           <IconButton
@@ -316,7 +376,7 @@ export default function MitigationTasksPanel({
                             disabled={riskClosed}
                             onClick={() => {
                               setCompleteTask(task);
-                              setCompleteOcc(open);
+                              setCompleteOcc(live);
                               setCompleteMode("complete");
                               setCompleteOpen(true);
                             }}
@@ -326,7 +386,7 @@ export default function MitigationTasksPanel({
                         </span>
                       </Tooltip>
                     )}
-                    {open && !canCompleteSelf && (
+                    {isOpen && live && !canCompleteSelf && (
                       <Tooltip title={t("risks.tasks.actions.skip") ?? ""}>
                         <span>
                           <IconButton
@@ -335,7 +395,7 @@ export default function MitigationTasksPanel({
                             disabled={riskClosed}
                             onClick={() => {
                               setCompleteTask(task);
-                              setCompleteOcc(open);
+                              setCompleteOcc(live);
                               setCompleteMode("skip");
                               setCompleteOpen(true);
                             }}
@@ -402,7 +462,10 @@ export default function MitigationTasksPanel({
                 </Stack>
                 <Collapse in={isExpanded} unmountOnExit>
                   <Box sx={{ mt: 1.5 }}>
-                    <OccurrenceHistoryList occurrences={task.occurrences} />
+                    <OccurrenceHistoryList
+                      occurrences={task.occurrences}
+                      leadTimeDays={task.lead_time_days}
+                    />
                   </Box>
                 </Collapse>
               </Box>

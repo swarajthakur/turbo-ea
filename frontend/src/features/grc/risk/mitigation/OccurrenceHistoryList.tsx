@@ -18,10 +18,16 @@ import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import MaterialSymbol from "@/components/MaterialSymbol";
-import type { MitigationTaskOccurrence } from "@/types";
+import type { MitigationTask, MitigationTaskOccurrence } from "@/types";
+import { activationDate } from "./leadTime";
 
 interface Props {
   occurrences: MitigationTaskOccurrence[];
+  /** Lead-time on the parent task. Optional for backwards compat with
+   *  callers that don't render scheduled rows (e.g. test fixtures); when
+   *  omitted, scheduled cycles still render but without the "Activates
+   *  on" sub-line. */
+  leadTimeDays?: MitigationTask["lead_time_days"];
 }
 
 const COLLAPSED_LIMIT = 5;
@@ -35,7 +41,7 @@ function formatDateTime(iso: string | null): string {
   }
 }
 
-export default function OccurrenceHistoryList({ occurrences }: Props) {
+export default function OccurrenceHistoryList({ occurrences, leadTimeDays }: Props) {
   const { t } = useTranslation("delivery");
   const [expanded, setExpanded] = useState(false);
 
@@ -59,12 +65,15 @@ export default function OccurrenceHistoryList({ occurrences }: Props) {
     <Stack spacing={1.5}>
       {visible.map((occ) => {
         const isOpen = occ.status === "open";
+        const isScheduled = occ.status === "scheduled";
         const icon =
           occ.status === "done"
             ? "check_circle"
             : occ.status === "skipped"
               ? "skip_next"
-              : "schedule";
+              : occ.status === "scheduled"
+                ? "event_upcoming"
+                : "schedule";
         const color =
           occ.status === "done"
             ? "success.main"
@@ -75,6 +84,9 @@ export default function OccurrenceHistoryList({ occurrences }: Props) {
           occ.status === "skipped"
             ? "risks.tasks.history.skippedLabel"
             : "risks.tasks.history.completedLabel";
+        const activatesOn = isScheduled
+          ? activationDate(occ.due_date, leadTimeDays ?? 0)
+          : null;
         return (
           <Box
             key={occ.id}
@@ -106,14 +118,38 @@ export default function OccurrenceHistoryList({ occurrences }: Props) {
               <Typography variant="caption" color="text.secondary">
                 {t("risks.tasks.history.targetLabel")}: {occ.due_date ?? "—"}
               </Typography>
-              {isOpen ? (
-                <Typography variant="caption" color="text.secondary">
-                  {occ.assigned_owner_name
-                    ? t("risks.tasks.history.assignedTo", {
-                        name: occ.assigned_owner_name,
-                      })
-                    : t("risks.tasks.history.unassigned")}
-                </Typography>
+              {isScheduled ? (
+                <>
+                  {activatesOn && (
+                    <Typography variant="caption" color="text.secondary">
+                      {t("risks.tasks.history.activatesOn", { date: activatesOn })}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {occ.assigned_owner_name
+                      ? t("risks.tasks.history.assignedTo", {
+                          name: occ.assigned_owner_name,
+                        })
+                      : t("risks.tasks.history.unassigned")}
+                  </Typography>
+                </>
+              ) : isOpen ? (
+                <>
+                  {occ.activated_at && (
+                    <Typography variant="caption" color="text.secondary">
+                      {t("risks.tasks.history.activatedOn", {
+                        timestamp: formatDateTime(occ.activated_at),
+                      })}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {occ.assigned_owner_name
+                      ? t("risks.tasks.history.assignedTo", {
+                          name: occ.assigned_owner_name,
+                        })
+                      : t("risks.tasks.history.unassigned")}
+                  </Typography>
+                </>
               ) : (
                 <>
                   <Typography variant="caption" color="text.secondary">

@@ -5,6 +5,22 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.13.2] - 2026-05-15
+
+Lead-time gated recurrence for mitigation tasks. Recurring control reviews stop landing in the assignee's Todo list the moment the previous cycle closes — instead, each new cycle sits in a dormant `scheduled` state until the daily promotion loop activates it close to the due date. Auditors still see the future cycle ("next review: due 2026-11-15"), but the assignee only gets the reminder when it actually matters.
+
+### Added
+- **Per-task lead time (`lead_time_days`).** New column on `risk_mitigation_tasks` with smart defaults per recurrence unit — 1 day for daily, 2 days for weekly, 7 days for monthly, 14 days for yearly (capped at half the cycle so the window never overlaps the previous occurrence). Configurable per task in the mitigation task dialog; the field auto-updates as you change unit/interval until you touch it yourself. Migration 087 backfills existing recurring tasks with the smart per-unit default; one-shot tasks stay at 0 (no roll-forward to gate).
+- **`scheduled` occurrence status.** A new pre-state in the cycle lifecycle (`scheduled → open → done/skipped`). Scheduled cycles own no Todo and fire no notification — they exist for audit ("Next: due 2026-11-15 · activates 2026-11-01") and are promoted to `open` when `today >= due_date - lead_time_days`. The Risk Detail page renders them as a muted "Next scheduled" chip with a `bolt`-icon **Activate now** action for `risks.manage` holders who want to pull a cycle forward without waiting for the daily loop.
+- **Daily promotion loop.** New `_promote_recurring_tasks_loop()` background task in the FastAPI lifespan runs once per UTC day at 03:00, calls `promote_scheduled_occurrences()`, and flips every eligible scheduled cycle to `open` — creating the assignee's system Todo, firing the `task_assigned` notification, and emitting a new `risk_mitigation_task.activated` event onto the per-card history timeline. Promotion is idempotent on already-open cycles, so a transient restart doubling a tick is safe.
+- **Manual `Activate now` endpoint.** New `POST /api/v1/mitigation-tasks/{task_id}/occurrences/{occurrence_id}/promote` (permission `risks.manage`) short-circuits the daily wait. Idempotent.
+- **`activated_at` audit timestamp.** Stamped on every scheduled→open promotion. Surfaces in the occurrence history list as "Activated on {timestamp}" so auditors can verify the daily loop actually fired on the right day. Pre-feature occurrences stay NULL on purpose — they were never gated.
+
+### Changed
+- **PATCH on a mitigation task re-evaluates the active cycle.** Shortening the lead time or pulling the due date forward now promotes a `scheduled` cycle on the spot instead of forcing the user to wait for the next daily run.
+- **Demo seed showcases the gated behaviour.** The NIS2 OT tabletop (quarterly) and GDPR re-attest (annual) demo tasks carry explicit `lead_time_days` of 7 and 14 respectively. With due dates 30+ days out, they land as `scheduled` on a fresh `SEED_DEMO=true` install — no spurious Todo on the demo admin's list.
+- **Completing or skipping a `scheduled` cycle now returns a clearer 409 error** ("Occurrence is still scheduled — activate it before completing or skipping.") instead of the generic "already scheduled".
+
 ## [1.13.1] - 2026-05-15
 
 Iteration polish on the task-driven mitigation feature: human-readable task IDs, both target and completion dates visible per cycle, bounded inline history with full-history export, and a true XLSX register export carrying mitigation tasks on a second sheet.
