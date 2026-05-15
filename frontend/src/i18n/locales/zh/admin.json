@@ -252,7 +252,6 @@
   "users.columns.actions": "操作",
   "users.archivedRoleWarning": "此用户拥有一个已归档的角色。请考虑重新分配。",
   "users.archivedRoleTooltip": "已归档的角色",
-  "users.auth.ssoPassword": "SSO + 密码",
   "users.auth.sso": "SSO",
   "users.auth.pendingSetup": "待设置",
   "users.auth.local": "本地",

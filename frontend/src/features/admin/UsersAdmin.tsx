@@ -618,16 +618,6 @@ export default function UsersAdmin() {
           const u = p.data;
           if (!u) return null;
           if (u.auth_provider === "sso") {
-            if (u.has_password) {
-              return (
-                <Chip
-                  size="small"
-                  label={t("users.auth.ssoPassword")}
-                  color="info"
-                  variant="outlined"
-                />
-              );
-            }
             return (
               <Chip size="small" label={t("users.auth.sso")} color="info" variant="outlined" />
             );

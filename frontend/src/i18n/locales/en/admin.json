@@ -252,7 +252,6 @@
   "users.columns.actions": "Actions",
   "users.archivedRoleWarning": "This user has an archived role. Consider reassigning.",
   "users.archivedRoleTooltip": "Archived role",
-  "users.auth.ssoPassword": "SSO + Password",
   "users.auth.sso": "SSO",
   "users.auth.pendingSetup": "Pending Setup",
   "users.auth.local": "Local",
