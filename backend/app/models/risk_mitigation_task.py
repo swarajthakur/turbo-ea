@@ -43,7 +43,11 @@ class RiskMitigationTask(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "risk_mitigation_tasks"
 
-    reference: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    # Unique constraint is declared in ``__table_args__`` below with an
+    # explicit name so ``Base.metadata.create_all()`` produces the same
+    # constraint identifier the Alembic migration uses, letting the
+    # Migration Rollback CI job round-trip ``downgrade -1`` cleanly.
+    reference: Mapped[str] = mapped_column(String(16), nullable=False)
     risk_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("risks.id", ondelete="CASCADE"),
@@ -72,14 +76,19 @@ class RiskMitigationTask(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
 
+    # See note on ``Survey`` relationships: ``lazy="raise"`` keeps the
+    # N+1 protection and surfaces forgotten eager-loads loudly at
+    # runtime instead of intermittently returning ``None`` under
+    # pytest-xdist parallel sessions.
     occurrences = relationship(
         "RiskMitigationTaskOccurrence",
         back_populates="task",
         cascade="all, delete-orphan",
-        lazy="noload",
+        lazy="raise",
     )
 
     __table_args__ = (
+        UniqueConstraint("reference", name="uq_risk_mitigation_tasks_reference"),
         Index("ix_risk_mitigation_tasks_risk_id", "risk_id"),
         Index("ix_risk_mitigation_tasks_owner_id", "owner_id"),
         Index("ix_risk_mitigation_tasks_active_risk", "is_active", "risk_id"),
@@ -134,7 +143,7 @@ class RiskMitigationTaskOccurrence(Base, UUIDMixin):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    task = relationship("RiskMitigationTask", back_populates="occurrences", lazy="noload")
+    task = relationship("RiskMitigationTask", back_populates="occurrences", lazy="raise")
 
     __table_args__ = (
         UniqueConstraint(

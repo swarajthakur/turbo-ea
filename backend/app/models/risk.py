@@ -79,7 +79,7 @@ class Risk(UUIDMixin, TimestampMixin, Base):
     mitigation_tasks = relationship(
         "RiskMitigationTask",
         cascade="all, delete-orphan",
-        lazy="noload",
+        lazy="raise",
     )
 
     __table_args__ = (
