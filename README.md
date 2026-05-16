@@ -107,12 +107,12 @@ AI-powered EA analysis module — originally ported from [ArchLens](https://gith
 - **Duplicate Detection** — Identifies functional duplicate cards using AI clustering across Application, IT Component, and Interface types. Union-find algorithm merges overlapping clusters across batches. Each cluster includes evidence and retirement recommendations.
 - **Modernization Assessment** — Evaluates cards for modernization opportunities based on current technology trends, providing effort estimates, priority levels, and specific recommendations.
 - **Architecture AI** — 5-step guided wizard: (1) Requirements (objective + capability selection), (2) Business Fit clarification questions, (3) Technical Fit deep-dive, (4) Solution (options → gap analysis → dependency analysis), (5) Target Architecture with capability mapping and an interactive **Layered Dependency View** (React Flow) — Turbo EA's house notation for layered EA dependency diagrams. Commits to a real Initiative card with proposed cards, relations, and a draft ADR.
-- **Security & Compliance** — On-demand CVE scans (NIST NVD-backed with deterministic probability scoring) and compliance scans across EU AI Act, GDPR, NIS2, DORA, SOC 2, and ISO 27001. Findings show severity, business impact, and remediation. A clickable risk matrix drills through to filtered findings; any finding can be promoted to a Risk Register entry in one click.
+- **Security & Compliance** — On-demand compliance scans across EU AI Act, GDPR, NIS2, DORA, SOC 2, and ISO 27001. Findings show severity, business impact, and remediation. Any finding can be promoted to a Risk Register entry in one click.
 
 ### EA Delivery (TOGAF)
 
 - **Architecture Decision Records (ADR)** — Capture decisions, context, alternatives considered, consequences, and links to affected cards. Sign-off workflow with audit trail.
-- **EA Risk Register (TOGAF Phase G)** — Landscape-level register separate from initiative risks. Auto-generated `R-000123` references, initial vs residual 4×4 probability×impact matrices, sequential status workflow (analysis → mitigation → monitoring → closed) with explicit Accept / Reopen side actions, owner→Todo→notification loop, and idempotent promote-from-finding for CVE and compliance findings.
+- **EA Risk Register (TOGAF Phase G)** — Landscape-level register separate from initiative risks. Auto-generated `R-000123` references, initial vs residual 4×4 probability×impact matrices, sequential status workflow (analysis → mitigation → monitoring → closed) with explicit Accept / Reopen side actions, owner→Todo→notification loop, and idempotent promote-from-finding for compliance findings.
 - **EA Principles** — Admin-curated list of architecture principles (statement, rationale, implications) referenced from SoAW and ADR documents.
 - **Statement of Architecture Work** — TOGAF-compliant SoAW editor with rich text editing (TipTap), version history, sign-off requests, and DOCX export.
 

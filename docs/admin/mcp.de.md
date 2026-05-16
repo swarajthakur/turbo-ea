@@ -159,7 +159,7 @@ Der MCP-Server bietet **schreibgeschützten** Zugriff auf EA-Daten. Er kann nich
 
 ### Werkzeuge
 
-Der Server stellt 26 schreibgeschützte Werkzeuge in sechs Gruppen bereit.
+Der Server stellt 25 schreibgeschützte Werkzeuge in sechs Gruppen bereit.
 
 **Karten & Metamodell**
 
@@ -188,13 +188,12 @@ Der Server stellt 26 schreibgeschützte Werkzeuge in sechs Gruppen bereit.
 | `get_risk_metrics` | KPIs + 4×4-Matrizen für initial und residual |
 | `get_card_risks` | Alle Risiken, die aktuell mit einer Karte verknüpft sind |
 
-**GRC — Sicherheit & Compliance**
+**GRC — Compliance**
 
 | Werkzeug | Beschreibung |
 |----------|-------------|
-| `list_cve_findings` | CVE-Befunde mit Filtern Schweregrad / Wahrscheinlichkeit / Status |
 | `list_compliance_findings` | Compliance-Befunde gebündelt nach Regulierung |
-| `get_security_overview` | KPIs + Risiko-Matrix + Top-kritische Befunde |
+| `get_security_overview` | Compliance-Scores + Statusmatrix pro Regulierung + Metadaten des letzten Scans |
 
 **Governance & Bereitstellung**
 

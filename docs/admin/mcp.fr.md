@@ -159,7 +159,7 @@ Le serveur MCP fournit un accès **en lecture seule** aux données EA. Il ne peu
 
 ### Outils
 
-Le serveur expose 26 outils en lecture seule, regroupés en six clusters.
+Le serveur expose 25 outils en lecture seule, regroupés en six clusters.
 
 **Fiches & métamodèle**
 
@@ -188,13 +188,12 @@ Le serveur expose 26 outils en lecture seule, regroupés en six clusters.
 | `get_risk_metrics` | KPIs + matrices 4×4 initiales et résiduelles |
 | `get_card_risks` | Tous les risques actuellement liés à une fiche |
 
-**GRC — Sécurité & Conformité**
+**GRC — Conformité**
 
 | Outil | Description |
 |-------|-------------|
-| `list_cve_findings` | Constats CVE filtrables par gravité / probabilité / statut |
 | `list_compliance_findings` | Constats de conformité regroupés par régulation |
-| `get_security_overview` | KPIs + matrice de risque + top constats critiques |
+| `get_security_overview` | Scores de conformité + matrice de statut par régulation + métadonnées du dernier scan |
 
 **Gouvernance & Livraison**
 

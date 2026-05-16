@@ -159,7 +159,7 @@ The MCP server provides **read-only** access to EA data. It cannot create, modif
 
 ### Tools
 
-The server exposes 26 read-only tools grouped into six clusters.
+The server exposes 25 read-only tools grouped into six clusters.
 
 **Cards & metamodel**
 
@@ -188,13 +188,12 @@ The server exposes 26 read-only tools grouped into six clusters.
 | `get_risk_metrics` | KPIs + 4×4 initial / residual probability × impact matrices |
 | `get_card_risks` | All risks currently linked to a specific card |
 
-**GRC — Security & Compliance**
+**GRC — Compliance**
 
 | Tool | Description |
 |------|-------------|
-| `list_cve_findings` | CVE findings with severity / probability / status filters |
 | `list_compliance_findings` | Compliance findings bundled by regulation |
-| `get_security_overview` | KPIs + risk matrix + top critical findings |
+| `get_security_overview` | Compliance scores + per-regulation status matrix + last-scan metadata |
 
 **Governance & Delivery**
 

@@ -159,7 +159,7 @@ El servidor MCP proporciona acceso **solo de lectura** a los datos de EA. No pue
 
 ### Herramientas
 
-El servidor expone 26 herramientas de solo lectura agrupadas en seis clusters.
+El servidor expone 25 herramientas de solo lectura agrupadas en seis clusters.
 
 **Fichas y metamodelo**
 
@@ -188,13 +188,12 @@ El servidor expone 26 herramientas de solo lectura agrupadas en seis clusters.
 | `get_risk_metrics` | KPIs + matrices 4×4 inicial y residual |
 | `get_card_risks` | Todos los riesgos vinculados a una ficha |
 
-**GRC — Seguridad y cumplimiento**
+**GRC — Cumplimiento**
 
 | Herramienta | Descripción |
 |-------------|-------------|
-| `list_cve_findings` | Hallazgos CVE con filtros de severidad / probabilidad / estado |
 | `list_compliance_findings` | Hallazgos de cumplimiento agrupados por regulación |
-| `get_security_overview` | KPIs + matriz de riesgo + hallazgos críticos principales |
+| `get_security_overview` | Puntuaciones de cumplimiento + matriz de estado por regulación + metadatos del último escaneo |
 
 **Gobernanza y entrega**
 
