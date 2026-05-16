@@ -54,7 +54,7 @@ import {
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/hooks/AuthContext";
 import ComplianceScanCard from "./ComplianceScanCard";
-import { useAnalysisPolling } from "./useAnalysisPolling";
+import { useAnalysisPolling } from "@/features/turbolens/useAnalysisPolling";
 
 /**
  * Resolve a regulation key to a display label. Order of precedence:

@@ -225,7 +225,7 @@ class TestComplianceRollupOrphans:
         await db.flush()
 
         r = await client.get(
-            "/api/v1/turbolens/security/compliance",
+            "/api/v1/compliance/compliance",
             headers=auth_headers(admin),
         )
         assert r.status_code == 200
@@ -242,7 +242,7 @@ class TestComplianceRollupOrphans:
         await self._make_run_and_finding(db, "removed_regulation")
 
         r = await client.get(
-            "/api/v1/turbolens/security/compliance",
+            "/api/v1/compliance/compliance",
             headers=auth_headers(admin),
         )
         assert r.status_code == 200
@@ -262,7 +262,7 @@ class TestManualFindingValidation:
             headers=auth_headers(admin),
         )
         r = await client.post(
-            "/api/v1/turbolens/security/compliance-findings",
+            "/api/v1/compliance/compliance-findings",
             json={
                 "regulation": "internal_policy",
                 "requirement": "Must follow internal change-control policy.",
@@ -277,7 +277,7 @@ class TestManualFindingValidation:
     async def test_manual_finding_rejects_unknown_regulation(self, client, db, reg_env):
         admin = reg_env["admin"]
         r = await client.post(
-            "/api/v1/turbolens/security/compliance-findings",
+            "/api/v1/compliance/compliance-findings",
             json={
                 "regulation": "definitely_not_a_real_regulation",
                 "requirement": "Test.",

@@ -101,7 +101,7 @@ class TestBulkDelete:
 
         r = await client.request(
             "DELETE",
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": [str(a.id), str(b.id)]},
             headers=auth_headers(env["admin"]),
         )
@@ -121,7 +121,7 @@ class TestBulkDelete:
 
         r = await client.request(
             "DELETE",
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": [str(a.id), str(ghost)]},
             headers=auth_headers(env["admin"]),
         )
@@ -136,7 +136,7 @@ class TestBulkDelete:
 
         r = await client.request(
             "DELETE",
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": [str(a.id)]},
             headers=auth_headers(env["viewer"]),
         )
@@ -147,7 +147,7 @@ class TestBulkDelete:
     async def test_empty_ids_is_a_noop(self, client, db, env):
         r = await client.request(
             "DELETE",
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": []},
             headers=auth_headers(env["admin"]),
         )
@@ -162,7 +162,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={
                 "ids": [str(a.id), str(b.id)],
                 "decision": "in_review",
@@ -188,7 +188,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={
                 "ids": [str(legal.id), str(illegal.id)],
                 "decision": "in_review",
@@ -209,7 +209,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={
                 "ids": [str(legal.id), str(illegal.id)],
                 "decision": "mitigated",
@@ -229,7 +229,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={
                 "ids": [str(risk_tracked.id), str(plain.id)],
                 "decision": "in_review",
@@ -245,7 +245,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": [str(a.id)], "decision": "accepted"},
             headers=auth_headers(env["admin"]),
         )
@@ -259,7 +259,7 @@ class TestBulkDecision:
         await db.commit()
 
         r = await client.patch(
-            "/api/v1/turbolens/security/compliance-findings/bulk",
+            "/api/v1/compliance/compliance-findings/bulk",
             json={"ids": [str(a.id)], "decision": "in_review"},
             headers=auth_headers(env["viewer"]),
         )
