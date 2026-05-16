@@ -1,7 +1,7 @@
-"""TurboLens Compliance scan orchestrator.
+"""Compliance scan orchestrator.
 
 Runs in a background task triggered from
-``POST /turbolens/security/compliance-scan``. Per regulation (EU AI Act,
+``POST /compliance/compliance-scan``. Per regulation (EU AI Act,
 GDPR, NIS2, DORA, SOC 2, ISO 27001) the configured LLM is called with a
 regulation-specific system prompt against a landscape summary. The EU AI
 Act check runs a semantic detection pass first so cards that embed AI but

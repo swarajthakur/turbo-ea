@@ -500,7 +500,7 @@ export default function ComplianceGrid({
       valueFormatter: (p) => (p.value ? formatDate(p.value as string) : ""),
     },
     // Delete action — admin-grade (canManage gates rendering, the
-    // endpoint additionally enforces security_compliance.manage).
+    // endpoint additionally enforces compliance.manage).
     ...(canManage && onDelete
       ? [
           {

@@ -5,6 +5,36 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.18.0] - 2026-05-16
+
+Relocates the compliance scanner out of TurboLens AI and into its own home under GRC. The CVE half of the old "Security & Compliance" tab was removed in `1.11.1` (and finished cleaning up in `1.17.1`); what remained was the regulation gap-analysis scanner, which has nothing to do with vendor analysis, duplicate detection, or any of TurboLens's other AI-intelligence features. It's a GRC concern. This release moves it physically (frontend folder, backend service file), structurally (URL paths, permission keys, DB table, type names, i18n keys), and conceptually (the Compliance tab is now reachable without AI configured — only the *scan trigger* is gated).
+
+Breaking changes — all customers will pick these up automatically via the bundled migration, but anyone with external scripts hitting the old paths or filtering by the old enum values will need to update:
+
+### Changed
+- **Compliance tab is reachable without AI configured.** The original design — described in `docs/guide/compliance.md` as a "dual-source register" of manual + AI findings — never actually shipped: the GRC consolidation in `0bb8cde` (1.11.0) wrapped the entire tab in an AI-required gate, hiding the overview, the register grid, and the manual-create dialog whenever no AI provider was configured. The gate is now scoped to the scan-trigger card only. Manual entry, the register grid, the overview heatmap, promote-to-risk, and the CSV export all work regardless of AI provider state; admins with no AI configured see an inline "Configure AI" CTA next to the scan-trigger area.
+- **Backend routes renamed `/api/v1/turbolens/security/*` → `/api/v1/compliance/*`.** Affects `POST /compliance-scan`, `GET /active-runs`, `GET /overview`, `GET /compliance`, full CRUD on `/compliance-findings`, the bulk endpoints, and the AI-verdict endpoint. Hard cutover — the old paths return 404. Routes are mounted via a new sibling `compliance_router` (prefix `/compliance`, tag `Compliance`) that lives alongside `router` and `cards_router` inside `api/v1/turbolens.py`; handler bodies stay put because they share the analysis-runs background infrastructure with the rest of TurboLens.
+- **Permission keys renamed `security_compliance.{view,manage}` → `compliance.{view,manage}`.** Migration 089 rewrites the keys inside every role's `permissions` JSONB column via `jsonb_set + -` so seeded *and* custom roles transition cleanly. Custom integrations that hard-code the old key names need to update.
+- **Stored discriminator strings rewritten in-place.** Migration 089 also flips two literal values:
+  - `turbolens_analysis_runs.analysis_type`: `'security_compliance'` → `'compliance'` (every compliance scan run row).
+  - `risks.source_type`: `'security_compliance'` → `'compliance'` (every risk promoted from a compliance finding).
+  Both literals are used as request/filter values by the API — anyone filtering `/risks?source_type=security_compliance` needs to switch to `compliance`.
+- **DB table renamed.** `turbolens_compliance_findings` → `compliance_findings`; its six indexes lose the `ix_turbolens_compliance_findings_*` prefix in favour of `ix_compliance_findings_*`. The model's `__tablename__` flips accordingly. Migration 089 does the `ALTER TABLE RENAME` + index renames.
+- **MCP tool `get_security_overview` renamed `get_compliance_overview`.** Updates the tool definition, its test, and the table row in `docs/admin/mcp.{md,de,es,fr,it,pt,ru,zh}.md`. The MCP cluster — already renamed from "Security & Compliance" to "Compliance" in 1.17.1 — is now consistent with the tool names inside it.
+- **Frontend components relocated out of `features/turbolens/`** (preserving git blame via `git mv`):
+  - `features/turbolens/TurboLensSecurity.tsx` → `features/grc/compliance/ComplianceScanner.tsx` (component renamed too)
+  - `features/turbolens/SecurityScanCard.tsx` → `features/grc/compliance/ComplianceScanCard.tsx` (component renamed too)
+  - `features/turbolens/ComplianceHeatmap.tsx` → `features/grc/compliance/ComplianceHeatmap.tsx`
+  - matching test file moves
+- **Backend service file renamed.** `services/turbolens_security.py` → `services/compliance_scanner.py` (the name never meant anything: it isn't TurboLens and doesn't do security scanning). Test files renamed in step: `test_compliance_scanner.py`, `test_compliance_scanner_dedup.py`.
+- **TypeScript types renamed.** `SecurityScanRun` → `ComplianceScanRun`; `TurboLensSecurityOverview` → `ComplianceOverview`; `SecurityActiveRuns` → `ActiveComplianceRuns`. Pure rename — runtime shape unchanged.
+- **i18n keys renamed across 8 locales.** 85 `turbolens_security_*` keys in `admin.json` collapse to `compliance_*` (order-sensitive rename: `turbolens_security_compliance_*` → `compliance_*` first, then `turbolens_security_*` → `compliance_*` for the rest, so e.g. `turbolens_security_compliance_scan_title` → `compliance_scan_title` not `compliance_compliance_scan_title`). Plus the dead `turbolens.security` side-nav label in `nav.json` is dropped — it was already orphaned with no code consumers.
+- **AnalysisType.SECURITY_COMPLIANCE → AnalysisType.COMPLIANCE** in the backend enum (and the `SECURITY_SCAN_TYPES` constant follows to `COMPLIANCE_SCAN_TYPES`).
+
+### Migration
+
+Single Alembic migration `089_relocate_compliance_scanner` does all four state changes in lock-step (table rename, two literal rewrites, JSONB permission rename). The downgrade reverses them. Existing data is preserved; nothing is dropped or recreated.
+
 ## [1.17.1] - 2026-05-16
 
 Finishes the TurboLens CVE scanner removal that started in `1.11.1`. The CVE feature itself was deleted from the runtime back then (table dropped, model gone, routes gone, frontend gone), but a handful of dead references survived in the docs, schemas, the MCP server tool surface, and one screenshot capture. None of them changed observable behaviour, but every one of them was a small lie about the product's shape.

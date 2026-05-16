@@ -1414,7 +1414,7 @@ export type RiskCategory =
   | "reputational"
   | "strategic";
 
-export type RiskSourceType = "manual" | "security_compliance";
+export type RiskSourceType = "manual" | "compliance";
 
 export type RiskLevel = "critical" | "high" | "medium" | "low";
 

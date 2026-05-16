@@ -1320,7 +1320,7 @@
   "compliance_article": "Artikel",
   "compliance_scope_landscape": "Gesamte Landschaft",
   "compliance_running": "Scan läuft — Befunde werden automatisch aktualisiert.",
-  "compliance_permission_denied": "Sie benötigen die security_compliance-Berechtigung, um Scans auszuführen oder anzuzeigen.",
+  "compliance_permission_denied": "Sie benötigen die compliance-Berechtigung, um Scans auszuführen oder anzuzeigen.",
   "compliance_scan_title": "Compliance-Scan",
   "compliance_scan_description": "KI-gestützte Lückenanalyse für die gewählten Vorschriften. Wählen Sie, welche Vorschriften einbezogen werden, und starten Sie den Scan nur, wenn sich Metadaten geändert haben.",
   "compliance_run_compliance_scan": "Compliance-Scan starten",

@@ -1320,7 +1320,7 @@
   "compliance_article": "Article",
   "compliance_scope_landscape": "Landscape-wide",
   "compliance_running": "Scan running — findings will refresh automatically.",
-  "compliance_permission_denied": "You need the security_compliance permission to run or view scans.",
+  "compliance_permission_denied": "You need the compliance permission to run or view scans.",
   "compliance_scan_title": "Compliance scan",
   "compliance_scan_description": "AI-assisted gap analysis against the selected regulations. Pick which regulations to include and run only when the metadata has actually changed.",
   "compliance_run_compliance_scan": "Run compliance scan",

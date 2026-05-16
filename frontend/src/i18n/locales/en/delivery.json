@@ -500,7 +500,7 @@
   "risks.status.accepted": "Accepted",
   "risks.status.closed": "Closed",
   "risks.source.manual": "Manual",
-  "risks.source.security_compliance": "Compliance scan",
+  "risks.source.compliance": "Compliance scan",
   "risks.section.identification": "Identification",
   "risks.section.assessment": "Initial assessment",
   "risks.section.residual": "Residual assessment",

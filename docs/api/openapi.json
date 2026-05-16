@@ -16283,6 +16283,453 @@
         ]
       }
     },
+    "/api/v1/compliance/active-runs": {
+      "get": {
+        "description": "Return the latest running compliance scan.\n\nUsed by the UI on mount to reattach polling and show progress even\nafter a page refresh. ``compliance`` is ``null`` when no scan is\ncurrently running.",
+        "operationId": "security_active_runs_api_v1_compliance_active_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/TurboLensAnalysisRunOut"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response Security Active Runs Api V1 Compliance Active Runs Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Security Active Runs",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance": {
+      "get": {
+        "description": "Bundle compliance findings by regulation for the GRC grid.\n\nHides ``auto_resolved`` findings by default \u2014 these are stale rows\nthat a previous re-scan no longer reported. Pass\n``include_auto_resolved=true`` to opt into seeing them (e.g. for an\naudit-trail view). Mirrors the default on\n``GET /cards/{id}/compliance-findings``.",
+        "operationId": "list_compliance_api_v1_compliance_compliance_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "regulation",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Regulation"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_auto_resolved",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Auto Resolved",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ComplianceBundleOut"
+                  },
+                  "title": "Response List Compliance Api V1 Compliance Compliance Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Compliance",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance-findings": {
+      "post": {
+        "description": "Manually create a compliance finding (auditor / analyst entry).\n\nCreates a synthetic \"manual\" :class:`TurboLensAnalysisRun` row to\nsatisfy the FK (``run_id`` is non-null), computes ``finding_key``\nvia the same recipe as the scanner so a later re-scan can upsert\ncleanly, and persists the finding with ``decision='new'`` and\n``ai_detected=False``. Requires ``compliance.manage``.",
+        "operationId": "create_compliance_finding_manual_api_v1_compliance_compliance_findings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Compliance Finding Manual",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance-findings/bulk": {
+      "delete": {
+        "description": "Bulk-delete compliance findings.\n\nSame permission gate as the single-row delete (``compliance.manage``,\ngranted to admin only by default). The linked Risk on any row is NOT\ncascaded \u2014 Risks are independent records once promoted. Missing ids\nare reported in ``skipped`` with ``reason=\"not_found\"`` rather than\nfailing the whole batch.",
+        "operationId": "bulk_delete_compliance_findings_api_v1_compliance_compliance_findings_bulk_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingBulkDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingBulkResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Delete Compliance Findings",
+        "tags": [
+          "Compliance"
+        ]
+      },
+      "patch": {
+        "description": "Bulk-transition multiple compliance findings to one decision.\n\nPer-row lifecycle validation still runs \u2014 a row whose current\ndecision can't legally transition to ``body.decision`` is reported\nin ``skipped`` (with ``reason=\"illegal_transition\"``) instead of\nfailing the whole batch. Risk-tracked findings with an open Risk\nare also skipped (``reason=\"risk_tracked\"``); the linked Risk has\nto be closed first via the Risk lifecycle. Missing ids are\nskipped with ``reason=\"not_found\"``.\n\nThe reviewer (``reviewed_by`` / ``reviewed_at``) is set to the\ncaller on every successful row, mirroring the per-row endpoint.\n\nNOTE: this route MUST be declared before the single-row\n``PATCH /compliance/compliance-findings/{finding_id}`` so FastAPI\nmatches the literal ``bulk`` segment first. Don't reorder.",
+        "operationId": "bulk_update_compliance_findings_api_v1_compliance_compliance_findings_bulk_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingBulkDecisionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingBulkResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Update Compliance Findings",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance-findings/{finding_id}": {
+      "delete": {
+        "description": "Permanently delete a compliance finding.\n\nAdmin-grade action gated by ``compliance.manage`` (granted\nonly to the admin role by default). The linked Risk (if any) is\nNOT cascaded \u2014 risks are independent records once promoted; the\nfinding's row is simply removed. The next compliance scan will\nre-emit the finding if the LLM still reports it for the same\ncard+regulation+article+requirement.",
+        "operationId": "delete_compliance_finding_api_v1_compliance_compliance_findings__finding_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Compliance Finding",
+        "tags": [
+          "Compliance"
+        ]
+      },
+      "patch": {
+        "description": "Transition a compliance finding's lifecycle state.\n\nAllowed transitions follow ``compliance_lifecycle_allowed`` in\n``services.compliance_scanner``. ``accepted`` requires a\n``review_note``. ``risk_tracked`` is set by\n``POST /risks/promote/compliance/{id}`` (not here) and once a\nfinding is risk-tracked, manual transitions are blocked until the\nlinked Risk closes \u2014 the Risk lifecycle drives the finding via\n``compliance_risk_sync.propagate_risk_to_findings``.",
+        "operationId": "update_compliance_finding_decision_api_v1_compliance_compliance_findings__finding_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingDecisionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Compliance Finding Decision",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance-findings/{finding_id}/ai-verdict": {
+      "post": {
+        "description": "Record the user's verdict on the scanner's AI-detection claim.\n\nPersists ``hasAiFeatures`` (true / false) on the impacted card and\nadvances the finding's lifecycle to ``in_review`` with an audit\nreview note. The card must exist; landscape-scoped findings (no\n``card_id``) cannot receive a verdict.",
+        "operationId": "submit_ai_verdict_api_v1_compliance_compliance_findings__finding_id__ai_verdict_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingAiVerdict"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Ai Verdict",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/compliance-scan": {
+      "post": {
+        "description": "Trigger the compliance (per-regulation AI gap analysis) pipeline only.",
+        "operationId": "trigger_compliance_scan_api_v1_compliance_compliance_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SecurityScanRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Compliance Scan",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
+    "/api/v1/compliance/overview": {
+      "get": {
+        "description": "KPIs for the compliance scanner dashboard.",
+        "operationId": "security_overview_api_v1_compliance_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Security Overview",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
     "/api/v1/diagrams": {
       "get": {
         "operationId": "list_diagrams_api_v1_diagrams_get",
@@ -27876,453 +28323,6 @@
           }
         },
         "summary": "Turbolens Overview",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/active-runs": {
-      "get": {
-        "description": "Return the latest running compliance scan.\n\nUsed by the UI on mount to reattach polling and show progress even\nafter a page refresh. ``compliance`` is ``null`` when no scan is\ncurrently running.",
-        "operationId": "security_active_runs_api_v1_turbolens_security_active_runs_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/TurboLensAnalysisRunOut"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "title": "Response Security Active Runs Api V1 Turbolens Security Active Runs Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Security Active Runs",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance": {
-      "get": {
-        "description": "Bundle compliance findings by regulation for the GRC grid.\n\nHides ``auto_resolved`` findings by default \u2014 these are stale rows\nthat a previous re-scan no longer reported. Pass\n``include_auto_resolved=true`` to opt into seeing them (e.g. for an\naudit-trail view). Mirrors the default on\n``GET /cards/{id}/compliance-findings``.",
-        "operationId": "list_compliance_api_v1_turbolens_security_compliance_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "regulation",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Regulation"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "include_auto_resolved",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Include Auto Resolved",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ComplianceBundleOut"
-                  },
-                  "title": "Response List Compliance Api V1 Turbolens Security Compliance Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Compliance",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance-findings": {
-      "post": {
-        "description": "Manually create a compliance finding (auditor / analyst entry).\n\nCreates a synthetic \"manual\" :class:`TurboLensAnalysisRun` row to\nsatisfy the FK (``run_id`` is non-null), computes ``finding_key``\nvia the same recipe as the scanner so a later re-scan can upsert\ncleanly, and persists the finding with ``decision='new'`` and\n``ai_detected=False``. Requires ``compliance.manage``.",
-        "operationId": "create_compliance_finding_manual_api_v1_turbolens_security_compliance_findings_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComplianceFindingCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComplianceFindingOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Compliance Finding Manual",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance-findings/bulk": {
-      "delete": {
-        "description": "Bulk-delete compliance findings.\n\nSame permission gate as the single-row delete (``compliance.manage``,\ngranted to admin only by default). The linked Risk on any row is NOT\ncascaded \u2014 Risks are independent records once promoted. Missing ids\nare reported in ``skipped`` with ``reason=\"not_found\"`` rather than\nfailing the whole batch.",
-        "operationId": "bulk_delete_compliance_findings_api_v1_turbolens_security_compliance_findings_bulk_delete",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComplianceFindingBulkDelete"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComplianceFindingBulkResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Bulk Delete Compliance Findings",
-        "tags": [
-          "TurboLens"
-        ]
-      },
-      "patch": {
-        "description": "Bulk-transition multiple compliance findings to one decision.\n\nPer-row lifecycle validation still runs \u2014 a row whose current\ndecision can't legally transition to ``body.decision`` is reported\nin ``skipped`` (with ``reason=\"illegal_transition\"``) instead of\nfailing the whole batch. Risk-tracked findings with an open Risk\nare also skipped (``reason=\"risk_tracked\"``); the linked Risk has\nto be closed first via the Risk lifecycle. Missing ids are\nskipped with ``reason=\"not_found\"``.\n\nThe reviewer (``reviewed_by`` / ``reviewed_at``) is set to the\ncaller on every successful row, mirroring the per-row endpoint.\n\nNOTE: this route MUST be declared before the single-row\n``PATCH /security/compliance-findings/{finding_id}`` so FastAPI\nmatches the literal ``bulk`` segment first. Don't reorder.",
-        "operationId": "bulk_update_compliance_findings_api_v1_turbolens_security_compliance_findings_bulk_patch",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComplianceFindingBulkDecisionUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComplianceFindingBulkResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Bulk Update Compliance Findings",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance-findings/{finding_id}": {
-      "delete": {
-        "description": "Permanently delete a compliance finding.\n\nAdmin-grade action gated by ``compliance.manage`` (granted\nonly to the admin role by default). The linked Risk (if any) is\nNOT cascaded \u2014 risks are independent records once promoted; the\nfinding's row is simply removed. The next compliance scan will\nre-emit the finding if the LLM still reports it for the same\ncard+regulation+article+requirement.",
-        "operationId": "delete_compliance_finding_api_v1_turbolens_security_compliance_findings__finding_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "finding_id",
-            "required": true,
-            "schema": {
-              "title": "Finding Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Compliance Finding",
-        "tags": [
-          "TurboLens"
-        ]
-      },
-      "patch": {
-        "description": "Transition a compliance finding's lifecycle state.\n\nAllowed transitions follow ``compliance_lifecycle_allowed`` in\n``services.turbolens_security``. ``accepted`` requires a\n``review_note``. ``risk_tracked`` is set by\n``POST /risks/promote/compliance/{id}`` (not here) and once a\nfinding is risk-tracked, manual transitions are blocked until the\nlinked Risk closes \u2014 the Risk lifecycle drives the finding via\n``compliance_risk_sync.propagate_risk_to_findings``.",
-        "operationId": "update_compliance_finding_decision_api_v1_turbolens_security_compliance_findings__finding_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "finding_id",
-            "required": true,
-            "schema": {
-              "title": "Finding Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComplianceFindingDecisionUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComplianceFindingOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Compliance Finding Decision",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance-findings/{finding_id}/ai-verdict": {
-      "post": {
-        "description": "Record the user's verdict on the scanner's AI-detection claim.\n\nPersists ``hasAiFeatures`` (true / false) on the impacted card and\nadvances the finding's lifecycle to ``in_review`` with an audit\nreview note. The card must exist; landscape-scoped findings (no\n``card_id``) cannot receive a verdict.",
-        "operationId": "submit_ai_verdict_api_v1_turbolens_security_compliance_findings__finding_id__ai_verdict_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "finding_id",
-            "required": true,
-            "schema": {
-              "title": "Finding Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComplianceFindingAiVerdict"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ComplianceFindingOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Submit Ai Verdict",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/compliance-scan": {
-      "post": {
-        "description": "Trigger the compliance (per-regulation AI gap analysis) pipeline only.",
-        "operationId": "trigger_compliance_scan_api_v1_turbolens_security_compliance_scan_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/SecurityScanRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Trigger Compliance Scan",
-        "tags": [
-          "TurboLens"
-        ]
-      }
-    },
-    "/api/v1/turbolens/security/overview": {
-      "get": {
-        "description": "KPIs for the compliance scanner dashboard.",
-        "operationId": "security_overview_api_v1_turbolens_security_overview_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SecurityOverviewOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Security Overview",
         "tags": [
           "TurboLens"
         ]

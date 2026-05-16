@@ -97,7 +97,7 @@ export default function CardDetailContent({
   // take up tab-strip space.
   const [risksCount, setRisksCount] = useState<number | null>(null);
   const [complianceCount, setComplianceCount] = useState<number | null>(null);
-  const canViewCompliance = can("security_compliance.view");
+  const canViewCompliance = can("compliance.view");
   const canViewRisks = can("risks.view");
 
   useEffect(() => {

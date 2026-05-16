@@ -108,7 +108,7 @@ const CATEGORIES: RiskCategory[] = [
   "strategic",
 ];
 const LEVELS: RiskLevel[] = ["critical", "high", "medium", "low"];
-const SOURCES: RiskSourceType[] = ["manual", "security_compliance"];
+const SOURCES: RiskSourceType[] = ["manual", "compliance"];
 
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 500;

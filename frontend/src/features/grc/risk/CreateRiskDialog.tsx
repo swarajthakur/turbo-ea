@@ -148,7 +148,7 @@ export default function CreateRiskDialog({ open, seed, onClose, onCreated }: Pro
           {mode !== "manual" && (
             <Alert severity="info">
               {t("risks.section.identification")}:{" "}
-              {t("risks.source.security_compliance")}
+              {t("risks.source.compliance")}
             </Alert>
           )}
 
