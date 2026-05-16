@@ -5,6 +5,19 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.17.1] - 2026-05-16
+
+Finishes the TurboLens CVE scanner removal that started in `1.11.1`. The CVE feature itself was deleted from the runtime back then (table dropped, model gone, routes gone, frontend gone), but a handful of dead references survived in the docs, schemas, the MCP server tool surface, and one screenshot capture. None of them changed observable behaviour, but every one of them was a small lie about the product's shape.
+
+### Removed
+- **`list_cve_findings` MCP tool.** The MCP server kept exposing the tool even though its backing `/turbolens/security/findings` endpoint was removed with the CVE scanner — calling it would 404. Drops the tool definition, its test, and updates the GRC cluster name from "Security & Compliance" to "Compliance" everywhere (server, tests, `docs/admin/mcp.{md,de,es,fr,it,pt,ru,zh}.md` table + tool-count `26 → 25`). The `get_security_overview` docstring is reworded from "KPIs + risk matrix + top critical findings" to a compliance-only description that matches what the endpoint actually returns now.
+- **`security_cve` from the Risk `source_type` enum.** The Pydantic `SourceLiteral` in `schemas/risk.py` still listed the dead source variant — meaning `/risks?source_type=security_cve` was still accepted by FastAPI's request validator even though migration 084 had purged every row carrying it. Drops the literal, regenerates `docs/api/openapi.json` to match. The Risk model's docstring loses its "promoted from a TurboLens CVE / compliance finding" line for the same reason.
+
+### Fixed
+- **README + CLAUDE.md feature claims.** The README's TurboLens bullet still advertised "On-demand CVE scans (NIST NVD-backed with deterministic probability scoring)" as a shipping feature, and the EA Risk Register bullet still mentioned "promote-from-finding for CVE and compliance findings". CLAUDE.md likewise listed `list_cve_findings` in the MCP cluster description with a stale tool count of 26. Both files now describe the post-removal reality.
+- **Frontend comments referencing a CVE scan card and CVE gating.** `SecurityScanCard.tsx`'s file header claimed "Used twice on the Security Overview: once for the CVE scan, once for the compliance scan" — there is only one usage now. `ComplianceTab.tsx` had a paragraph explaining why CVE scanning lived behind the AI gate. Both removed.
+- **`54_grc_compliance` screenshot was capturing the wrong sub-tab.** PR 558 added a `nth: 5` click into the inner Compliance sub-tab on `/grc?tab=compliance` based on the assumption that the order was `[3 outer GRC tabs, Overview, CVEs, Compliance]`. The CVEs sub-tab no longer exists, so the actual order is `[3 outer, Overview, Compliance]` (index 4). Index 5 silently no-oped via the `try/catch` in `capture.ts`, so every capture since PR 558 has been the Overview pane, not the Compliance register. Corrected to `nth: 4`.
+
 ## [1.17.0] - 2026-05-16
 
 Admin user management gains bulk operations: an XLSX export, an Excel import with optional invite-email-on-create, and a multi-select toolbar that batch-changes role, activates / deactivates, and deletes selected users.
