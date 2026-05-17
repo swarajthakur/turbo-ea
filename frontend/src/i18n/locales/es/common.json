@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Encuestas",
   "todos.actionRequired": "Acción requerida",
   "todos.overdue": "Vencido",
+  "todos.assignedTo": "Asignada a: {{name}}",
+  "todos.unassigned": "Sin asignar",
   "todos.goToDocument": "Ir al documento",
   "todos.dueDate": "Vence: {{date}}",
   "todos.empty": "No se encontraron tareas.",

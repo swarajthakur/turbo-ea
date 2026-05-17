@@ -21,13 +21,13 @@ import { api } from "@/api/client";
 import { useDateFormat } from "@/hooks/useDateFormat";
 import type { Todo, MySurveyItem } from "@/types";
 
-function compareByDueDateDesc(a: Todo, b: Todo): number {
-  // Sort by due date descending, with rows missing a due date pushed to
-  // the bottom so they don't crowd out actionable items.
+function compareByDueDateAsc(a: Todo, b: Todo): number {
+  // Sort by due date ascending so the most urgent items (overdue first,
+  // then nearest due) land at the top. Rows without a due date go last.
   if (!a.due_date && !b.due_date) return 0;
   if (!a.due_date) return 1;
   if (!b.due_date) return -1;
-  return b.due_date.localeCompare(a.due_date);
+  return a.due_date.localeCompare(b.due_date);
 }
 
 function isOverdue(todo: Todo): boolean {
@@ -58,7 +58,8 @@ function TodosPanel() {
     api.get<Todo[]>(`/todos${params}`).then(setTodos);
   }, [tab]);
 
-  const sortedTodos = useMemo(() => [...todos].sort(compareByDueDateDesc), [todos]);
+  const sortedTodos = useMemo(() => [...todos].sort(compareByDueDateAsc), [todos]);
+  const showAssignee = tab === 3;
 
   const toggleStatus = async (todo: Todo) => {
     const newStatus = todo.status === "open" ? "done" : "open";
@@ -159,6 +160,19 @@ function TodosPanel() {
                         label={todo.card_name}
                         onClick={() => navigate(`/cards/${todo.card_id}`)}
                         sx={{ cursor: "pointer" }}
+                      />
+                    )}
+                    {showAssignee && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        icon={<MaterialSymbol icon="person" size={14} />}
+                        label={
+                          todo.assignee_name
+                            ? t("todos.assignedTo", { name: todo.assignee_name })
+                            : t("todos.unassigned")
+                        }
+                        sx={{ height: 20, fontSize: "0.7rem" }}
                       />
                     )}
                     {todo.due_date && (

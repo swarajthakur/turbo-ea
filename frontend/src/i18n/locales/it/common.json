@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Sondaggi",
   "todos.actionRequired": "Azione richiesta",
   "todos.overdue": "Scaduto",
+  "todos.assignedTo": "Assegnata a: {{name}}",
+  "todos.unassigned": "Non assegnata",
   "todos.goToDocument": "Vai al documento",
   "todos.dueDate": "Scadenza: {{date}}",
   "todos.empty": "Nessuna attività trovata.",

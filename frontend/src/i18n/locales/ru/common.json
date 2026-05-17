@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Опросы",
   "todos.actionRequired": "Требуется действие",
   "todos.overdue": "Просрочено",
+  "todos.assignedTo": "Назначено: {{name}}",
+  "todos.unassigned": "Не назначено",
   "todos.goToDocument": "Перейти к документу",
   "todos.dueDate": "Срок: {{date}}",
   "todos.empty": "Задачи не найдены.",

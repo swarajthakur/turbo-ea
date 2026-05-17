@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Enquêtes",
   "todos.actionRequired": "Action requise",
   "todos.overdue": "En retard",
+  "todos.assignedTo": "Attribuée à : {{name}}",
+  "todos.unassigned": "Non attribuée",
   "todos.goToDocument": "Aller au document",
   "todos.dueDate": "Échéance : {{date}}",
   "todos.empty": "Aucune tâche trouvée.",

@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "调查",
   "todos.actionRequired": "需要操作",
   "todos.overdue": "已逾期",
+  "todos.assignedTo": "分配给：{{name}}",
+  "todos.unassigned": "未分配",
   "todos.goToDocument": "前往文档",
   "todos.dueDate": "截止日期：{{date}}",
   "todos.empty": "未找到待办事项。",

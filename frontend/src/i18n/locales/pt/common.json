@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Pesquisas",
   "todos.actionRequired": "Ação necessária",
   "todos.overdue": "Atrasado",
+  "todos.assignedTo": "Atribuída a: {{name}}",
+  "todos.unassigned": "Não atribuída",
   "todos.goToDocument": "Ir para o documento",
   "todos.dueDate": "Prazo: {{date}}",
   "todos.empty": "Nenhuma tarefa encontrada.",

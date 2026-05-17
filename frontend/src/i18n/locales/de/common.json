@@ -191,6 +191,8 @@
   "todos.tabs.surveys": "Umfragen",
   "todos.actionRequired": "Handlungsbedarf",
   "todos.overdue": "Überfällig",
+  "todos.assignedTo": "Zugewiesen an: {{name}}",
+  "todos.unassigned": "Nicht zugewiesen",
   "todos.goToDocument": "Zum Dokument",
   "todos.dueDate": "Fällig: {{date}}",
   "todos.empty": "Keine Aufgaben gefunden.",

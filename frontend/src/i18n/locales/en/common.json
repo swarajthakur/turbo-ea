@@ -253,6 +253,8 @@
   "todos.tabs.surveys": "Surveys",
   "todos.actionRequired": "Action required",
   "todos.overdue": "Overdue",
+  "todos.assignedTo": "Assigned to: {{name}}",
+  "todos.unassigned": "Unassigned",
   "todos.goToDocument": "Go to document",
   "todos.dueDate": "Due: {{date}}",
   "todos.empty": "No todos found.",
