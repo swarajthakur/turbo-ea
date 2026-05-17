@@ -5,7 +5,21 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.19.0] - 2026-05-16
+## [1.20.0] - 2026-05-17
+
+Workspace dashboard and Todos page improvements. Surfaces saved reports inline on the Workspace tab, restructures the Todos page into symmetric "Assigned to me" / "Created by me" scopes, and aligns the workspace counters with the lists rendered under them.
+
+### Added
+- **My Saved Reports** widget on the Dashboard → My Workspace tab. Mini preview tiles (thumbnail or type-coloured fallback icon) next to My Favorites; click opens the saved view via `?saved_report_id=`.
+- **Todos page**: red **Overdue** pill on past-due open todos; **Assigned to: …** chip on the Created-by-me tab; due date now formatted via the global date-format setting; sorted by due date ascending (overdue and nearest-due at the top).
+- **`/todos` page restructured** into two parallel tabs — *Assigned to me* and *Created by me* — each with its own Open / Done / All status toggle that the page remembers independently.
+- **`GET /todos`** gains `assigned_only` and `created_only` query flags for strict scoping. Default behaviour (`mine=true` → assigned OR created) is unchanged.
+
+### Changed
+- **Workspace grid reordered** to Favorites · Saved reports · Roles · Todos · Pending surveys · Created · Recent activity. Recent activity now sits at the end so the personal-curation widgets group together at the top.
+- **Dashboard *My Open Todos*** preview now calls `/todos?status=open&assigned_only=true`, matching the workspace counter so the list and the number always agree.
+
+
 
 Adds a **Flexible Portfolio** report alongside the Application Portfolio. Same chart, same grouping/colour/filter controls, same saved-report and AI-insights surface — but with a card-type picker at the top of the toolbar so the report can analyse a portfolio of Business Capabilities, Initiatives, IT Components, or any other visible card type rather than being hardcoded to Applications.
 
