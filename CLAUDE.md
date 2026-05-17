@@ -329,7 +329,7 @@ turbo-ea/
 │   │   ├── api/
 │   │   │   ├── deps.py                # Auth dependencies (get_current_user, require_permission)
 │   │   │   └── v1/
-│   │   │       ├── router.py          # Mounts all 39 API routers
+│   │   │       ├── router.py          # Mounts all 46 API routers
 │   │   │       ├── auth.py            # /auth (login, register, me, SSO, set-password)
 │   │   │       ├── cards.py           # /cards CRUD + hierarchy + approval status + CSV export
 │   │   │       ├── metamodel.py       # /metamodel (types + relation types + field/section usage)
@@ -365,14 +365,18 @@ turbo-ea/
 │   │   │       ├── adr.py             # /adr (Architecture Decision Records)
 │   │   │       ├── file_attachments.py # /cards/{id}/attachments (file uploads)
 │   │   │       ├── risks.py           # /risks + /cards/{id}/risks (TOGAF Risk Register)
+│   │   │       ├── risk_mitigation_tasks.py # /risks/{id}/mitigation-tasks (+ recurring occurrences)
 │   │   │       ├── favorites.py       # /favorites (per-user favorited cards)
-│   │   │       └── capability_catalogue.py # /capability-catalogue (industry catalogue)
+│   │   │       ├── capability_catalogue.py # /capability-catalogue (industry catalogue)
+│   │   │       ├── principles_catalogue.py # /principles-catalogue (curated reference set)
+│   │   │       ├── process_catalogue.py    # /process-catalogue (industry process reference)
+│   │   │       └── value_stream_catalogue.py # /value-stream-catalogue (value stream reference)
 │   │   ├── core/
 │   │   │   ├── security.py            # JWT creation/validation (PyJWT HS256), bcrypt
 │   │   │   ├── permissions.py         # Permission key registry (single source of truth)
 │   │   │   ├── encryption.py          # Fernet symmetric encryption for DB secrets
 │   │   │   └── rate_limit.py          # slowapi rate limiter instance
-│   │   ├── models/                    # SQLAlchemy ORM models (44 files, see Database section)
+│   │   ├── models/                    # SQLAlchemy ORM models (47 files, see Database section)
 │   │   ├── schemas/                   # Pydantic request/response models
 │   │   │   ├── auth.py                # Auth schemas
 │   │   │   ├── card.py                # Card schemas
@@ -398,10 +402,12 @@ turbo-ea/
 │   │   ├── config.py                  # Settings from env vars + APP_VERSION
 │   │   ├── database.py                # Async engine + session factory
 │   │   └── main.py                    # FastAPI app, lifespan (migrations + seed + purge loop + AI auto-config)
-│   ├── alembic/                       # Database migrations (65 versions)
+│   ├── alembic/                       # Database migrations (89 versions)
 │   ├── tests/
-│   ├── pyproject.toml
-│   └── Dockerfile                     # Python 3.12-alpine + uvicorn (root context)
+│   └── pyproject.toml
+│
+├── Dockerfile                         # Root multi-stage build (targets: backend, db, frontend, nginx, ollama, mcp-server)
+├── nginx/                             # Edge nginx config + assets (default.conf, assets/)
 │
 ├── frontend/
 │   ├── src/
@@ -413,11 +419,20 @@ turbo-ea/
 │   │   │   ├── useAuth.ts             # Login/register/logout + token in sessionStorage
 │   │   │   ├── useMetamodel.ts        # Cached metamodel types + relation types
 │   │   │   ├── useEventStream.ts      # SSE subscription hook
-│   │   │   ├── useCurrency.ts         # Global currency format + symbol cache
+│   │   │   ├── useCurrency.ts         # Global currency format + symbol cache (singleton)
+│   │   │   ├── useDateFormat.ts       # Global date format (singleton)
+│   │   │   ├── useEnabledLocales.ts   # Active locale list from settings
+│   │   │   ├── useThemeMode.ts        # Light/dark mode preference
+│   │   │   ├── useAppTitle.ts         # Tab + browser title from settings
 │   │   │   ├── usePermissions.ts      # Effective permissions for current card
 │   │   │   ├── useCalculatedFields.ts # Track calculated fields per type
-│   │   │   ├── useBpmEnabled.ts       # BPM feature flag
-│   │   │   ├── usePpmEnabled.ts       # PPM feature flag
+│   │   │   ├── useResolveLabel.ts     # Metamodel label resolver (per-locale translations)
+│   │   │   ├── useBpmEnabled.ts       # BPM feature flag (singleton)
+│   │   │   ├── usePpmEnabled.ts       # PPM feature flag (singleton)
+│   │   │   ├── useGrcEnabled.ts       # GRC feature flag (singleton)
+│   │   │   ├── useTurboLensReady.ts   # TurboLens readiness (singleton)
+│   │   │   ├── useAiStatus.ts         # AI provider status (singleton)
+│   │   │   ├── useComplianceRegulations.ts # Compliance regulation catalogue
 │   │   │   ├── useSavedReport.ts      # Saved report caching
 │   │   │   ├── useThumbnailCapture.ts # SVG → PNG for report thumbnails
 │   │   │   └── useTimeline.ts         # Process timeline data
@@ -530,6 +545,29 @@ turbo-ea/
 │   │   │   │   ├── CapabilityCataloguePage.tsx
 │   │   │   │   ├── CapabilityCatalogueBrowser.tsx
 │   │   │   │   └── IndustryFilter.tsx
+│   │   │   ├── principles-catalogue/        # Curated EA principles reference set
+│   │   │   ├── process-catalogue/           # Industry business process reference
+│   │   │   ├── value-stream-catalogue/      # Value stream reference set
+│   │   │   ├── reference-catalogue/         # Shared catalogue shell + utilities
+│   │   │   ├── grc/                         # GRC module — embeds Risk Register, Compliance, Governance
+│   │   │   │   ├── GrcPage.tsx              # Tabbed shell (risk / compliance / governance)
+│   │   │   │   ├── risk/                    # Risk Register + mitigation tasks (TOGAF Phase G)
+│   │   │   │   │   ├── RiskRegisterPage.tsx
+│   │   │   │   │   ├── RiskDetailPage.tsx
+│   │   │   │   │   ├── RiskMatrix.tsx
+│   │   │   │   │   ├── CreateRiskDialog.tsx
+│   │   │   │   │   └── mitigation/          # MitigationTasksPanel + dialogs + occurrence history
+│   │   │   │   ├── compliance/              # Regulation-driven compliance scanner (no CVE half)
+│   │   │   │   │   ├── ComplianceScanner.tsx
+│   │   │   │   │   ├── ComplianceGrid.tsx
+│   │   │   │   │   ├── ComplianceHeatmap.tsx
+│   │   │   │   │   ├── ComplianceLifecycleTimeline.tsx
+│   │   │   │   │   ├── FindingDetailDrawer.tsx
+│   │   │   │   │   └── CreateComplianceFindingDialog.tsx
+│   │   │   │   └── governance/              # Principles + Decisions panels
+│   │   │   │       ├── GovernanceTab.tsx
+│   │   │   │       ├── PrinciplesPanel.tsx
+│   │   │   │       └── DecisionsPanel.tsx
 │   │   │   ├── turbolens/                   # AI-powered EA intelligence (see TurboLens section)
 │   │   │   └── admin/
 │   │   │       ├── MetamodelAdmin.tsx       # Type list + relation graph orchestrator
@@ -562,8 +600,7 @@ turbo-ea/
 │   ├── drawio-config/                       # PreConfig.js, PostConfig.js
 │   ├── nginx.conf                           # API proxy + DrawIO + security headers
 │   ├── package.json
-│   ├── vite.config.ts                       # __APP_VERSION__ injection from VERSION file
-│   └── Dockerfile                           # Multi-stage: node → drawio → nginx (root context)
+│   └── vite.config.ts                       # __APP_VERSION__ injection from VERSION file
 │
 ├── mcp-server/
 │   ├── turbo_ea_mcp/
@@ -575,11 +612,9 @@ turbo-ea/
 │   ├── tests/
 │   │   ├── test_server.py         # MCP tool tests
 │   │   └── test_oauth.py          # OAuth flow tests
-│   ├── pyproject.toml
-│   └── Dockerfile                 # Python 3.12-alpine + uvicorn
+│   └── pyproject.toml
 │
-├── plan.md
-└── Statement_of_Architecture_Work_Template.md
+└── (root) Dockerfile is shared across services — see top of tree
 ```
 
 ---
@@ -724,7 +759,7 @@ All tables use UUID primary keys and `created_at`/`updated_at` timestamps (from 
 
 ### Migrations
 
-Located in `backend/alembic/versions/` (65 migration files, sequentially numbered `001_` through `065_`). The app auto-runs Alembic on startup:
+Located in `backend/alembic/versions/` (89 migration files, sequentially numbered `001_` through `089_`). The app auto-runs Alembic on startup:
 - Fresh DB: `create_all` + stamp head
 - Existing DB without Alembic: stamp head
 - Normal: `upgrade head` (run pending migrations)
@@ -772,15 +807,28 @@ Base path: `/api/v1`. All endpoints except auth and public portals require `Auth
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/cards` | Paginated list. Query: `type`, `status`, `search`, `parent_id`, `approval_status`, `page`, `page_size`, `sort_by`, `sort_dir` |
+| GET | `/cards/counts` | Counts by type / status / approval (lightweight, no card payload) |
+| GET | `/cards/my-created` | Cards created by the current user |
+| GET | `/cards/my-stakeholder` | Cards on which the current user holds a stakeholder role |
 | POST | `/cards` | Create card. Auto-computes data quality, runs calculations |
 | GET | `/cards/{id}` | Get card with tags + stakeholders |
 | PATCH | `/cards/{id}` | Update. Breaks approval on substantive changes, recalculates quality |
-| DELETE | `/cards/{id}` | Archives (soft-delete: status=ARCHIVED, sets archived_at). Auto-purged after 30 days |
+| DELETE | `/cards/{id}` | Permanent delete (hard delete) |
 | PATCH | `/cards/bulk` | Bulk update multiple cards |
+| POST | `/cards/bulk-archive` | Soft-delete: status=ARCHIVED, sets archived_at. Auto-purged after 30 days |
+| POST | `/cards/bulk-restore` | Restore archived cards |
+| POST | `/cards/bulk-delete` | Permanent delete of multiple cards |
+| POST | `/cards/{id}/archive` | Archive single card (with impact preview) |
+| GET | `/cards/{id}/archive-impact` | Preview cards that would be cascade-archived |
+| POST | `/cards/{id}/restore` | Restore single archived card |
+| GET | `/cards/{id}/restore-impact` | Preview cards that would be cascade-restored |
 | GET | `/cards/{id}/hierarchy` | Ancestors, children, computed level |
 | GET | `/cards/{id}/history` | Paginated event history |
+| GET | `/cards/{id}/relation-summary` | Per-relation-type counts + sample targets |
+| GET | `/cards/{id}/my-permissions` | Effective permissions for the current user on this card |
 | POST | `/cards/{id}/approval-status` | `?action=approve\|reject\|reset` |
 | GET | `/cards/export/csv` | Export as CSV. `?type=X` |
+| GET | `/cards/export/json` | Export as JSON |
 
 ### RBAC (`/roles`, `/stakeholder-roles`)
 
@@ -935,6 +983,10 @@ Base path: `/api/v1`. All endpoints except auth and public portals require `Auth
 | **Events** | `GET /events`, `GET /events/stream` (SSE) |
 | **ADR** | `GET/POST /adr`, `GET/PATCH/DELETE /adr/{id}`, `/adr/{id}/cards`, `/adr/{id}/sign` |
 | **File Attachments** | `POST /cards/{id}/attachments`, `GET/DELETE /attachments/{id}` |
+| **Capability Catalogue** | `GET /capability-catalogue/*` (industry capability reference, includes Macro tier) |
+| **Principles Catalogue** | `GET /principles-catalogue/*` (curated EA principles reference set) |
+| **Process Catalogue** | `GET /process-catalogue/*` (industry business process reference) |
+| **Value Stream Catalogue** | `GET /value-stream-catalogue/*` (value stream reference set) |
 | **OData Feeds** | `GET /bookmarks/{id}/odata` (OData-style JSON feed for saved views) |
 | **Health** | `GET /api/health` (no auth, includes version) |
 
@@ -965,6 +1017,7 @@ All route-level pages use `lazy()` imports for code splitting. Auth pages (Login
 | `/inventory` | `InventoryPage` | AG Grid table with memoized configs |
 | `/cards/:id` | `CardDetail` | Modular detail: sections + tabs |
 | `/reports/portfolio` | `PortfolioReport` | Bubble/scatter chart |
+| `/reports/flexible-portfolio` | `FlexiblePortfolioReport` | Configurable multi-axis portfolio view |
 | `/reports/capability-map` | `CapabilityMapReport` | Heatmap of business capabilities |
 | `/reports/lifecycle` | `LifecycleReport` | Timeline visualization |
 | `/reports/dependencies` | `DependencyReport` | Network graph |
@@ -973,16 +1026,29 @@ All route-level pages use `lazy()` imports for code splitting. Auth pages (Login
 | `/reports/data-quality` | `DataQualityReport` | Completeness dashboard |
 | `/reports/eol` | `EolReport` | End-of-Life status |
 | `/reports/saved` | `SavedReportsPage` | Saved report gallery |
-| `/ppm` | `PpmPortfolio` | PPM portfolio dashboard with Gantt chart |
+| `/ppm` | `PpmHome` | PPM portfolio dashboard with Gantt chart |
 | `/ppm/:id` | `PpmProjectDetail` | Initiative detail (overview, reports, cost, risks, tasks, gantt) |
 | `/bpm` | `BpmDashboard` | BPM maturity overview |
 | `/bpm/processes/:id/flow` | `ProcessFlowEditorPage` | BPMN editor with approval workflow |
 | `/diagrams` | `DiagramsPage` | Diagram gallery with thumbnails |
-| `/diagrams/:id` | `DiagramEditor` | DrawIO iframe editor |
-| `/ea-delivery` | `EADeliveryPage` | SoAW document list |
+| `/diagrams/:id` | `DiagramViewer` | DrawIO iframe viewer (read-only) |
+| `/diagrams/:id/edit` | `DiagramEditor` | DrawIO iframe editor (edit mode) |
+| `/ea-delivery` | redirect → `/reports/ea-delivery` | Backwards-compat redirect |
+| `/reports/ea-delivery` | `EaDeliveryReport` | EA delivery dashboard (SoAW + ADR rollup) |
 | `/ea-delivery/soaw/new` | `SoAWEditor` | Create new SoAW |
 | `/ea-delivery/soaw/:id` | `SoAWEditor` | Edit SoAW |
-| `/ea-delivery/soaw/:id/preview` | `SoAWPreview` | Read-only preview |
+| `/ea-delivery/soaw/:id/preview` | `SoAWPreview` | Read-only SoAW preview |
+| `/ea-delivery/adr/new` | `ADREditor` | Create new ADR |
+| `/ea-delivery/adr/:id` | `ADREditor` | Edit ADR |
+| `/ea-delivery/adr/:id/preview` | `ADRPreview` | Read-only ADR preview |
+| `/grc` | `GrcPage` | GRC tabbed shell (risk / compliance / governance) |
+| `/grc/risks/:id` | `RiskDetailPage` | Risk detail page |
+| `/turbolens` | `TurboLensPage` | TurboLens AI tabs (dashboard / vendors / resolution / duplicates / architect / assessments / history) |
+| `/turbolens/assessments/:id` | `AssessmentViewer` | Read-only architecture-AI assessment |
+| `/capability-catalogue` | `CapabilityCataloguePage` | Industry capability reference (with Macro tier) |
+| `/principles-catalogue` | `PrinciplesCataloguePage` | Curated EA principles reference |
+| `/process-catalogue` | `ProcessCataloguePage` | Industry business process reference |
+| `/value-stream-catalogue` | `ValueStreamCataloguePage` | Value stream reference |
 | `/todos` | `TodosPage` | Todos + Surveys (tabbed) |
 | `/surveys/:surveyId/respond/:cardId` | `SurveyRespond` | Respond to survey |
 | `/portal/:slug` | `PortalViewer` | Public portal (no auth) |
@@ -991,13 +1057,14 @@ All route-level pages use `lazy()` imports for code splitting. Auth pages (Login
 | `/admin/metamodel` | `MetamodelAdmin` | Card types + relations |
 | `/admin/users` | `UsersAdmin` | User management |
 | `/admin/settings` | `SettingsAdmin` | Logo, currency, SMTP, AI |
-| `/admin/eol` | `EolAdmin` | Mass EOL linking |
+| `/admin/eol` | redirect → `/admin/settings?tab=eol` | Mass EOL linking (under settings) |
 | `/admin/surveys` | `SurveysAdmin` | Survey management |
 | `/admin/surveys/new` | `SurveyBuilder` | Create survey |
 | `/admin/surveys/:id` | `SurveyBuilder` | Edit survey |
 | `/admin/surveys/:id/results` | `SurveyResults` | View/apply responses |
-| `/admin/web-portals` | `WebPortalsAdmin` | Portal management |
-| `/admin/servicenow` | `ServiceNowAdmin` | ServiceNow sync config |
+| `/admin/web-portals` | redirect → `/admin/settings?tab=web-portals` | Portal management (under settings) |
+| `/admin/servicenow` | redirect → `/admin/settings?tab=servicenow` | ServiceNow sync config (under settings) |
+| `/admin/turbolens` | redirect → `/admin/settings?tab=turbolens` | TurboLens config (under settings) |
 
 ### Key Patterns
 
@@ -1120,9 +1187,9 @@ Each type has an optional `section_config` (JSONB) controlling layout:
 
 Single source of truth for all valid permission keys. Two categories:
 
-**App-level permissions** (22 groups, 50+ keys): `inventory.*`, `relations.*`, `stakeholders.*`, `comments.*`, `documents.*`, `diagrams.*`, `bpm.*`, `ppm.*`, `reports.*`, `surveys.*`, `soaw.*`, `adr.*`, `tags.*`, `bookmarks.*`, `saved_reports.*`, `eol.*`, `web_portals.*`, `notifications.*`, `servicenow.*`, `turbolens.*`, `compliance.*` (view + manage for TurboLens Security & Compliance), `risks.*` (view + manage for the EA Risk Register), `ai.*`, `admin.*`
+**App-level permissions** (27 groups, 69 keys): `inventory.*`, `relations.*`, `stakeholders.*`, `comments.*`, `documents.*`, `diagrams.*`, `bpm.*`, `ppm.*`, `reports.*`, `surveys.*`, `soaw.*`, `adr.*`, `tags.*`, `bookmarks.*`, `saved_reports.*`, `eol.*`, `web_portals.*`, `notifications.*`, `servicenow.*`, `turbolens.*`, `compliance.*` (view + manage for the GRC Compliance scanner — the CVE half of the old "Security & Compliance" tab was removed), `risks.*` (view + manage for the EA Risk Register), `grc.*`, `costs.*`, `ai.*`, `users.*`, `admin.*`
 
-**Card-level permissions** (13 keys): `card.view`, `card.edit`, `card.archive`, `card.delete`, `card.approval_status`, `card.manage_stakeholders`, `card.manage_relations`, `card.manage_documents`, `card.manage_comments`, `card.create_comments`, `card.bpm_edit`, `card.bpm_manage_drafts`, `card.bpm_approve`
+**Card-level permissions** (15 keys): `card.view`, `card.edit`, `card.archive`, `card.delete`, `card.approval_status`, `card.manage_stakeholders`, `card.manage_relations`, `card.manage_documents`, `card.manage_comments`, `card.create_comments`, `card.bpm_edit`, `card.bpm_manage_drafts`, `card.bpm_approve`, `card.manage_adr_links`, `card.manage_diagram_links`
 
 ### Permission Checking (Backend)
 ```python
@@ -1237,7 +1304,8 @@ Native AI analysis module — originally ported from [ArchLens](https://github.c
 | `turbolens_duplicate_clusters` | `TurboLensDuplicateCluster` | Functional duplicate groups with evidence, recommendation, status |
 | `turbolens_modernization_assessments` | `TurboLensModernization` | Modernization opportunities with effort, priority, current tech |
 | `turbolens_analysis_runs` | `TurboLensAnalysisRun` | Analysis execution history (type, status, timestamps, errors, progress JSONB). Used by all TurboLens analyses including the `compliance` compliance scanner. |
-| `turbolens_compliance_findings` | `TurboLensComplianceFinding` | Compliance gap / attestation per regulation (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001). Carries article, category, requirement, status, severity, gap, evidence, remediation, `ai_detected` flag for semantically-identified AI cards, and optional `risk_id`. |
+| `turbolens_assessments` | `TurboLensAssessment` | Saved Architecture-AI wizard runs — requirement, selected objectives/capabilities, phase answers, chosen option, gaps + dependencies, target architecture payload. Surfaced by the `/turbolens` Assessments tab. |
+| `compliance_findings` | `TurboLensComplianceFinding` | Compliance gap / attestation per regulation (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001). Carries article, category, requirement, status, severity, gap, evidence, remediation, `ai_detected` flag for semantically-identified AI cards, and optional `risk_id`. |
 
 ### Backend Services
 
@@ -1247,7 +1315,8 @@ Native AI analysis module — originally ported from [ArchLens](https://github.c
 | `services/turbolens_vendors.py` | Vendor categorization (45+ categories, batch=15) + resolution (batch=60, hierarchy building) |
 | `services/turbolens_duplicates.py` | Duplicate detection (union-find merge, batch=40) + modernization assessment (batch=25) |
 | `services/turbolens_architect.py` | 5-step architecture AI: objective-driven capability mapping, solution options, gap analysis, dependency analysis, and target architecture rendered with the Layered Dependency View |
-| `services/turbolens_security.py` | Compliance scanner orchestrator. Entry point (`run_compliance_scan`) that emits phase-aware progress to `run.results["progress"]`. Includes the EU AI Act **semantic detector** that flags cards embedding AI regardless of subtype. |
+| `services/compliance_scanner.py` | Compliance scanner orchestrator. Entry point (`run_compliance_scan`) that emits phase-aware progress to `run.results["progress"]`. Includes the EU AI Act **semantic detector** that flags cards embedding AI regardless of subtype. The legacy `run_security_scan` / `run_cve_scan` entry points have been removed — see `tests/services/test_compliance_scanner.py::test_service_exposes_compliance_scan_entry_point`. |
+| `services/compliance_risk_sync.py` | Two-way bridge between compliance findings and the EA Risk Register (promote-to-risk + back-links). |
 
 ### Architecture AI Flow
 
@@ -1293,10 +1362,16 @@ The Architecture AI follows a 5-step guided wizard:
 | GET | `/assessments/{id}` | `turbolens.view` | Get assessment details |
 | GET | `/analysis-runs` | `turbolens.view` | Analysis run history |
 | GET | `/analysis-runs/{run_id}` | `turbolens.view` | Get specific run with results (or progress while still running) |
-| POST | `/security/compliance-scan` | `compliance.manage` | Trigger compliance scan with optional `regulations[]` filter (background task) |
-| GET | `/security/active-runs` | `compliance.view` | Return the currently-running compliance scan so the UI can reattach polling after a refresh |
-| GET | `/security/overview` | `compliance.view` | KPIs: compliance scores + per-regulation status matrix, last-run metadata |
-| GET | `/security/compliance` | `compliance.view` | Compliance findings grouped by regulation with per-regulation scores |
+| POST | `/compliance/compliance-scan` | `compliance.manage` | Trigger compliance scan with optional `regulations[]` filter (background task) |
+| GET | `/compliance/active-runs` | `compliance.view` | Return the currently-running compliance scan so the UI can reattach polling after a refresh |
+| GET | `/compliance/overview` | `compliance.view` | KPIs: compliance scores + per-regulation status matrix, last-run metadata |
+| GET | `/compliance/compliance` | `compliance.view` | Compliance findings grouped by regulation with per-regulation scores |
+| POST | `/compliance/compliance-findings` | `compliance.manage` | Create / upsert a compliance finding |
+| PATCH | `/compliance/compliance-findings/{id}` | `compliance.manage` | Update a finding (status, severity, evidence, remediation, …) |
+| PATCH | `/compliance/compliance-findings/bulk` | `compliance.manage` | Bulk-update findings |
+| DELETE | `/compliance/compliance-findings/{id}` | `compliance.manage` | Delete a single finding |
+| DELETE | `/compliance/compliance-findings/bulk` | `compliance.manage` | Bulk-delete findings |
+| POST | `/compliance/compliance-findings/{id}/ai-verdict` | `compliance.manage` | Request an AI verdict on a single finding (helper for the human reviewer) |
 
 ### Risk Register API (`/risks` + `/cards/{id}/risks`)
 
@@ -1330,16 +1405,18 @@ Owner assignment on create / patch / promote auto-creates a single `is_system` T
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/turbolens` | `TurboLensPage` | Tab container: Dashboard, Vendors, Resolution, Duplicates, Architect, Security, History |
+| `/turbolens` | `TurboLensPage` | Tab container: Dashboard, Vendors, Resolution, Duplicates, Architect, Assessments, History. **No Security / Compliance tab** — compliance moved to `/grc?tab=compliance` when the CVE half of the old "Security & Compliance" feature was removed. |
 | `/turbolens` (Dashboard tab) | `TurboLensDashboard` | KPI tiles, cards by type, quality tiers (Bronze/Silver/Gold), top issues |
 | `/turbolens` (Vendors tab) | `TurboLensVendors` | Vendor analysis with category breakdown, grid/table toggle |
 | `/turbolens` (Resolution tab) | `TurboLensResolution` | Canonical vendor hierarchy with confidence scores |
 | `/turbolens` (Duplicates tab) | `TurboLensDuplicates` | Duplicate clusters + modernization assessment (sub-tabs) |
 | `/turbolens` (Architect tab) | `TurboLensArchitect` | 5-step architecture AI wizard with Layered Dependency View visualization |
-| `/turbolens` (Compliance tab) | `TurboLensSecurity` | On-demand compliance scan with phase-aware progress bar, compliance heatmap, and **Create risk** / **Open risk** actions on every finding |
+| `/turbolens` (Assessments tab) | `TurboLensAssessments` | Saved architecture-AI assessments |
 | `/turbolens` (History tab) | `TurboLensHistory` | Analysis run history table |
-| `/ea-delivery?tab=risks` | `RiskRegisterPage` (embedded in `EADeliveryPage`) | Risk Register — KPIs, Initial/Residual 4×4 matrix toggle, filters, risk table |
-| `/ea-delivery/risks/:id` | `RiskDetailPage` | Full TOGAF-shaped detail: Identification, Initial assessment, Mitigation & residual (with Owner picker), Affected cards (M:N), Status stepper + primary **Next step** + secondary side actions (Accept / Reopen / Close-early), Audit |
+| `/grc?tab=risk` | `RiskRegisterPage` (embedded in `GrcPage`) | Risk Register — KPIs, Initial/Residual 4×4 matrix toggle, filters, risk table. (`/ea-delivery/risks` 301-redirects here for backwards compatibility.) |
+| `/grc?tab=compliance` | `ComplianceScanner` + `ComplianceGrid` / `ComplianceHeatmap` (embedded in `GrcPage`) | On-demand compliance scan with phase-aware progress bar, compliance heatmap, finding grid, and **Create risk** / **Open risk** actions on every finding. **The CVE scan that used to live here has been removed** — compliance is now regulation-driven only (EU AI Act, GDPR, NIS2, DORA, SOC 2, ISO 27001). |
+| `/grc?tab=governance` | `GovernanceTab` (embedded in `GrcPage`) | Principles + Decisions panels |
+| `/grc/risks/:id` | `RiskDetailPage` | Full TOGAF-shaped detail: Identification, Initial assessment, Mitigation & residual (with Owner picker), Affected cards (M:N), Status stepper + primary **Next step** + secondary side actions (Accept / Reopen / Close-early), Audit. (`/ea-delivery/risks/:id` redirects here.) |
 
 ### Key Frontend Components
 
@@ -1365,7 +1442,7 @@ TurboLens was originally created by [Vinod](https://github.com/vinod-ea/archlens
 
 ## EA Risk Register (TOGAF Phase G)
 
-Landscape-level risk register aligned to TOGAF ADM Phase G. Separate from `PpmRisk` (which is initiative-scoped). Lives as a tab inside the EA Delivery page (`/ea-delivery?tab=risks`) with detail pages at `/ea-delivery/risks/:id`.
+Landscape-level risk register aligned to TOGAF ADM Phase G. Separate from `PpmRisk` (which is initiative-scoped). Lives as a tab inside the **GRC** page (`/grc?tab=risk`) with detail pages at `/grc/risks/:id`. The legacy `/ea-delivery/risks` and `/ea-delivery/risks/:id` paths redirect to the GRC routes.
 
 ### Tables
 
@@ -1376,7 +1453,7 @@ Landscape-level risk register aligned to TOGAF ADM Phase G. Separate from `PpmRi
 | `risk_mitigation_tasks` | `RiskMitigationTask` | Owned mitigation activities attached to a risk. Each row carries a human-readable `reference` (`T-NNNNNN`, monotonic, `String(16)` — same shape as `risks.reference`). One-shot (default) or recurring (`recurrence_unit` = `days`/`weeks`/`months`/`years`, `recurrence_interval` ≥ 1). Carries title, description, current `owner_id`, `is_active` (flips false when a one-shot task completes), and **`lead_time_days`** (how many days before `due_date` the cycle is promoted from `scheduled` to `open` — smart per-unit defaults of 1/2/7/14 for daily/weekly/monthly/yearly, capped at half the cycle). |
 | `risk_mitigation_task_occurrences` | `RiskMitigationTaskOccurrence` | One row per scheduled instance of a task. Captures `sequence` (monotonic per task), `due_date`, `assigned_owner_id` (snapshot when the cycle opens), `status` (`scheduled` / `open` / `done` / `skipped`), **`activated_at`** (stamp when a scheduled cycle was promoted to open — NULL on cycles that were never gated), `completed_at` / `completed_by` / **`owner_at_completion`** (snapshot when the cycle closes — may differ from `assigned_owner_id` if the owner was changed mid-cycle), and `completion_notes`. Recurring tasks roll forward calendar-correctly on completion: `next_due = due_date + interval`, day-of-month clamped (Jan 31 + 1 month → Feb 28); the new cycle lands as `scheduled` if today is outside `due_date - lead_time_days`, `open` otherwise. |
 
-The `turbolens_compliance_findings` table also carries a nullable `risk_id` back-link so findings that have been promoted show **Open risk R-000123** instead of **Create risk** (idempotent promotion). Promoting a finding now spawns a one-shot mitigation task seeded from the finding's `remediation` text instead of writing free-text guidance into the dropped `mitigation` column.
+The `compliance_findings` table also carries a nullable `risk_id` back-link so findings that have been promoted show **Open risk R-000123** instead of **Create risk** (idempotent promotion). Promoting a finding now spawns a one-shot mitigation task seeded from the finding's `remediation` text instead of writing free-text guidance into the dropped `mitigation` column.
 
 ### Backend modules
 
@@ -1653,13 +1730,20 @@ docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d --build
 - **Memory**: Configurable via `OLLAMA_MEMORY_LIMIT` (default 4G)
 - **Health check**: Uses `ollama list`
 
-### Frontend Dockerfile (multi-stage, root context)
-1. **build stage**: `node:20-alpine` — copies `frontend/package.json` + `VERSION`, npm ci, vite build
-2. **drawio stage**: `alpine/git` — clone jgraph/drawio v26.0.9
-3. **production stage**: `nginx:alpine` — serve built frontend + DrawIO + security configs, runs as non-root `nginx` user
+### Root Dockerfile (single file, multiple build targets)
+All container images are built from one `/Dockerfile` at the repo root using multi-stage `--target` selection. Each `target` becomes a published GHCR image. Stages:
 
-### Backend Dockerfile (root context)
-Single stage: `python:3.12-alpine` — copies `VERSION` + `backend/`, pip install, runs as non-root `appuser`
+| Target | Base | Purpose |
+|--------|------|---------|
+| `backend-build` | `python:3.12-alpine` | Compile-time wheel/deps builder for backend |
+| `backend` | `python:3.12-alpine` | Final backend image — copies `VERSION` + `backend/`, runs as non-root `appuser` |
+| `db` | `postgres:18-alpine` | Bundled PostgreSQL image |
+| `frontend-build` | `node:20-alpine` | Vite build of `frontend/` (consumes `VERSION` for `__APP_VERSION__`) |
+| `drawio` | `alpine/git:v2.47.2` | Clones jgraph/drawio v26.0.9 |
+| `frontend` | `nginx:alpine` | Final frontend image — built SPA + DrawIO assets, runs as non-root `nginx` |
+| `nginx` | `nginx:alpine` | Edge nginx (public entrypoint, proxies `/api`, `/mcp`, `/drawio`, `/`) — config from `nginx/default.conf` |
+| `ollama` | `ollama/ollama:latest` | Thin non-root patch over upstream Ollama |
+| `mcp-server` | `python:3.12-alpine` | MCP server image — copies `VERSION` + `mcp-server/`, runs as non-root |
 
 ### Nginx Configuration
 - `/api/*` → proxy to `backend:8000` (with SSE support headers)
