@@ -186,6 +186,7 @@
   "todos.tabs.open": "Offen",
   "todos.tabs.done": "Erledigt",
   "todos.tabs.all": "Alle",
+  "todos.tabs.assignedToMe": "Mir zugewiesen",
   "todos.tabs.createdByMe": "Von mir erstellt",
   "todos.tabs.todos": "Aufgaben",
   "todos.tabs.surveys": "Umfragen",

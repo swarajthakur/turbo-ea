@@ -248,6 +248,7 @@
   "todos.tabs.open": "Open",
   "todos.tabs.done": "Done",
   "todos.tabs.all": "All",
+  "todos.tabs.assignedToMe": "Assigned to me",
   "todos.tabs.createdByMe": "Created by me",
   "todos.tabs.todos": "Todos",
   "todos.tabs.surveys": "Surveys",

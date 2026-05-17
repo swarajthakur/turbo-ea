@@ -186,6 +186,7 @@
   "todos.tabs.open": "Открытые",
   "todos.tabs.done": "Выполненные",
   "todos.tabs.all": "Все",
+  "todos.tabs.assignedToMe": "Назначенные мне",
   "todos.tabs.createdByMe": "Созданные мной",
   "todos.tabs.todos": "Задачи",
   "todos.tabs.surveys": "Опросы",

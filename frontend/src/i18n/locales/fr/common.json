@@ -186,6 +186,7 @@
   "todos.tabs.open": "Ouvertes",
   "todos.tabs.done": "Terminées",
   "todos.tabs.all": "Toutes",
+  "todos.tabs.assignedToMe": "Attribuées à moi",
   "todos.tabs.createdByMe": "Créées par moi",
   "todos.tabs.todos": "Tâches",
   "todos.tabs.surveys": "Enquêtes",

@@ -186,6 +186,7 @@
   "todos.tabs.open": "进行中",
   "todos.tabs.done": "已完成",
   "todos.tabs.all": "全部",
+  "todos.tabs.assignedToMe": "分配给我的",
   "todos.tabs.createdByMe": "我创建的",
   "todos.tabs.todos": "待办事项",
   "todos.tabs.surveys": "调查",

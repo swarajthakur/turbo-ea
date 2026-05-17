@@ -43,31 +43,30 @@ function isOverdue(todo: Todo): boolean {
 
 /* ── Todos sub-panel ─────────────────────────────────────────────────── */
 
-type CreatedStatusFilter = "open" | "done" | "all";
+type StatusFilter = "open" | "done" | "all";
 
 function TodosPanel() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
   const { formatDate } = useDateFormat();
   const [todos, setTodos] = useState<Todo[]>([]);
+  // tab 0 = Assigned to me · tab 1 = Created by me. Each tab keeps its
+  // own status filter so switching back and forth doesn't reset the view.
   const [tab, setTab] = useState(0);
-  const [createdStatus, setCreatedStatus] = useState<CreatedStatusFilter>("open");
+  const [assignedStatus, setAssignedStatus] = useState<StatusFilter>("open");
+  const [createdStatus, setCreatedStatus] = useState<StatusFilter>("open");
+
+  const currentStatus = tab === 0 ? assignedStatus : createdStatus;
+  const setCurrentStatus = tab === 0 ? setAssignedStatus : setCreatedStatus;
 
   useEffect(() => {
-    // Tab order: Open · Done · All (all 3 scoped to "assigned to me") · Created by me
-    let params = "";
-    if (tab === 0) params = "?status=open&assigned_only=true";
-    else if (tab === 1) params = "?status=done&assigned_only=true";
-    else if (tab === 2) params = "?assigned_only=true";
-    else if (tab === 3) {
-      params = "?created_only=true";
-      if (createdStatus !== "all") params += `&status=${createdStatus}`;
-    }
-    api.get<Todo[]>(`/todos${params}`).then(setTodos);
-  }, [tab, createdStatus]);
+    const scope = tab === 0 ? "assigned_only=true" : "created_only=true";
+    const statusParam = currentStatus !== "all" ? `&status=${currentStatus}` : "";
+    api.get<Todo[]>(`/todos?${scope}${statusParam}`).then(setTodos);
+  }, [tab, currentStatus]);
 
   const sortedTodos = useMemo(() => [...todos].sort(compareByDueDateAsc), [todos]);
-  const showAssignee = tab === 3;
+  const showAssignee = tab === 1;
 
   const toggleStatus = async (todo: Todo) => {
     const newStatus = todo.status === "open" ? "done" : "open";
@@ -90,26 +89,22 @@ function TodosPanel() {
   return (
     <>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label={t("todos.tabs.open")} />
-        <Tab label={t("todos.tabs.done")} />
-        <Tab label={t("todos.tabs.all")} />
+        <Tab label={t("todos.tabs.assignedToMe")} />
         <Tab label={t("todos.tabs.createdByMe")} />
       </Tabs>
 
-      {tab === 3 && (
-        <Box sx={{ mb: 2 }}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={createdStatus}
-            onChange={(_, v: CreatedStatusFilter | null) => v && setCreatedStatus(v)}
-          >
-            <ToggleButton value="open">{t("todos.tabs.open")}</ToggleButton>
-            <ToggleButton value="done">{t("todos.tabs.done")}</ToggleButton>
-            <ToggleButton value="all">{t("todos.tabs.all")}</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      )}
+      <Box sx={{ mb: 2 }}>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={currentStatus}
+          onChange={(_, v: StatusFilter | null) => v && setCurrentStatus(v)}
+        >
+          <ToggleButton value="open">{t("todos.tabs.open")}</ToggleButton>
+          <ToggleButton value="done">{t("todos.tabs.done")}</ToggleButton>
+          <ToggleButton value="all">{t("todos.tabs.all")}</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
       <List>
         {sortedTodos.map((todo) => (
