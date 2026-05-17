@@ -5,6 +5,16 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.20.1] - 2026-05-17
+
+Bug fixes for the Flexible Portfolio report introduced in 1.19.
+
+### Fixed
+- **Flexible Portfolio — saving a custom report**: `POST /saved-reports` was rejecting `report_type=flexible-portfolio` with HTTP 400 because the new type was missing from the backend whitelist. Saving now works the same as the Application Portfolio.
+- **Flexible Portfolio — losing selections on navigation**: the auto-persist effect on every Portfolio-style report (Application + Flexible) was firing once on mount with the initial defaults — overwriting the user's saved localStorage config in the brief window before the restore effect's state updates flushed. Skip the first run so the saved config is preserved on return.
+- **Flexible Portfolio — Group by / Color by not refreshing after picking a new card type post-refresh**: when the user changed the card type after a page refresh, the defaults effect re-ran in the same render cycle with the *previous* card type's data still in state, picking that type's first option for `groupByRaw` / `colorBy`. Once the new fetch resolved, `defaultsApplied` was already `true` so nothing re-corrected it. Now track which card type the loaded `data` belongs to and gate both the defaults- and persist-effects on a match, so they sit out the transition window. The data-fetch effect also gets a cancellation guard so a slow fetch from the previous type can no longer clobber a fresh one.
+- **Flexible Portfolio — hardcoded "applications" copy across the view**: the summary stat at the bottom of the chart ("12 applications"), the drawer stats, the drawer list header, the three empty-state messages, and the "Color apps by" toolbar dropdown all said "applications"/"apps" regardless of which card type the user had picked. They now use the resolved type label (e.g. "Business Process", "Initiative") on the Flexible Portfolio while the legacy Application Portfolio keeps its existing localised wording. The "Color apps by" label degrades to a generic "Color by" for non-Application types. The summary stat icon also follows the selected type's icon/colour. Adds `portfolio.noItemsFiltered` / `noItemsEmpty` / `noItemsInGroup` translation keys with a `{{type}}` placeholder across all 8 supported locales.
+
 ## [1.20.0] - 2026-05-17
 
 Workspace dashboard and Todos page improvements. Surfaces saved reports inline on the Workspace tab, restructures the Todos page into symmetric "Assigned to me" / "Created by me" scopes, and aligns the workspace counters with the lists rendered under them.

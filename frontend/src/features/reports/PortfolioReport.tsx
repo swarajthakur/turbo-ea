@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { alpha, useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -536,6 +536,10 @@ export default function PortfolioReport({
   // Data
   const [cardType, setCardType] = useState<string>(initialCardType);
   const [data, setData] = useState<ApiResponse | null>(null);
+  // Tracks the card type that the currently-loaded `data` belongs to. Used to
+  // gate the defaults- and persist-effects so they don't fire while data is
+  // stale (between picking a new type and the fresh fetch resolving).
+  const [dataCardType, setDataCardType] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerData | null>(null);
   const [sidePanelCardId, setSidePanelCardId] = useState<string | null>(null);
   const [view, setView] = useState<"chart" | "table">("chart");
@@ -598,10 +602,22 @@ export default function PortfolioReport({
 
   const getConfig = () => ({ cardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, timelineDate: tl.persistValue, sortK, sortD });
 
-  // Auto-persist config to localStorage
+  // Auto-persist config to localStorage. Skip the very first run so that on
+  // mount we don't overwrite a previously-saved config with the initial
+  // defaults (the consume-config effect runs alongside this one but its state
+  // updates have not yet flushed when this closure is first invoked). Also
+  // skip while data is stale (between switching card types and the new fetch
+  // resolving) — otherwise we'd persist transient empty groupByRaw/colorBy
+  // that would prevent defaults from re-applying on the next load.
+  const skipFirstPersistRef = useRef(true);
   useEffect(() => {
+    if (skipFirstPersistRef.current) {
+      skipFirstPersistRef.current = false;
+      return;
+    }
+    if (dataCardType !== cardType) return;
     saved.persistConfig(getConfig());
-  }, [cardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, tl.timelineDate, sortK, sortD]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cardType, dataCardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, tl.timelineDate, sortK, sortD]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset all parameters to defaults
   const handleReset = useCallback(() => {
@@ -623,12 +639,22 @@ export default function PortfolioReport({
 
   // Fetch data — refetches whenever the user picks a different card type.
   useEffect(() => {
+    let cancelled = false;
+    const fetchedFor = cardType;
     setData(null);
+    setDataCardType(null);
     setAiInsights(null);
     setAiOpen(false);
     api
       .get<ApiResponse>(`/reports/app-portfolio?type=${encodeURIComponent(cardType)}`)
-      .then((r) => setData(r));
+      .then((r) => {
+        if (cancelled) return;
+        setData(r);
+        setDataCardType(fetchedFor);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [cardType]);
 
   // Switching card types invalidates field/relation/tag selections because
@@ -684,9 +710,11 @@ export default function PortfolioReport({
     return opts;
   }, [data, selectFields, metamodelTypes]);
 
-  // Apply defaults once data is available
+  // Apply defaults once data is available. Skip when `data` is stale (loaded
+  // for a previous card type) — otherwise we'd pick options from the old
+  // type's schema right after the user switches types.
   useEffect(() => {
-    if (!data || defaultsApplied) return;
+    if (!data || dataCardType !== cardType || defaultsApplied) return;
     // Set defaults from first available options
     if (!groupByRaw && groupByOptions.length > 0) {
       setGroupByRaw(groupByOptions[0].key);
@@ -695,7 +723,7 @@ export default function PortfolioReport({
       setColorBy(selectFields[0].key);
     }
     setDefaultsApplied(true);
-  }, [data, groupByOptions, selectFields, defaultsApplied]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, dataCardType, cardType, groupByOptions, selectFields, defaultsApplied]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ensure groupByRaw has a valid default
   const groupByKey = useMemo(() => {
@@ -1013,6 +1041,26 @@ export default function PortfolioReport({
     [cardType, typeLabel, t],
   );
 
+  // Noun used after the summary stat ("12 applications" vs "12 Business
+  // Process"). Application Portfolio keeps the localised plural "applications"
+  // string for back-compat; other types fall back to the singular type label.
+  const typeNoun =
+    cardType === "Application" ? t("portfolio.applications") : typeLabel;
+
+  // Empty-state messages, parameterised by type for the Flexible Portfolio.
+  const noItemsFiltered =
+    cardType === "Application"
+      ? t("portfolio.noAppsFiltered")
+      : t("portfolio.noItemsFiltered", { type: typeLabel });
+  const noItemsEmpty =
+    cardType === "Application"
+      ? t("portfolio.noAppsEmpty")
+      : t("portfolio.noItemsEmpty", { type: typeLabel });
+  const noItemsInGroup =
+    cardType === "Application"
+      ? t("portfolio.noAppsInGroup")
+      : t("portfolio.noItemsInGroup", { type: typeLabel });
+
   const printParams = useMemo(() => {
     const params: { label: string; value: string }[] = [];
     params.push({ label: t("portfolio.groupBy"), value: groupByLabel });
@@ -1138,7 +1186,11 @@ export default function PortfolioReport({
           <TextField
             select
             size="small"
-            label={t("portfolio.colorAppsBy")}
+            label={
+              cardType === "Application"
+                ? t("portfolio.colorAppsBy")
+                : t("common.colorBy")
+            }
             value={colorBy}
             onChange={(e) => setColorBy(e.target.value)}
             sx={{ minWidth: 180 }}
@@ -1371,9 +1423,9 @@ export default function PortfolioReport({
           {/* Summary stats */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <MaterialSymbol icon="apps" size={16} color="#1976d2" />
+              <MaterialSymbol icon={typeIcon} size={16} color={typeColor} />
               <Typography variant="caption" color="text.secondary">
-                <strong>{stats.total}</strong> {t("portfolio.applications")}
+                <strong>{stats.total}</strong> {typeNoun}
               </Typography>
             </Box>
             {stats.withEol > 0 && (
@@ -1544,9 +1596,7 @@ export default function PortfolioReport({
           {groups.length === 0 && ungrouped.length === 0 ? (
             <Box sx={{ py: 8, textAlign: "center" }}>
               <Typography color="text.secondary">
-                {hasActiveFilters
-                  ? t("portfolio.noAppsFiltered")
-                  : t("portfolio.noAppsEmpty")}
+                {hasActiveFilters ? noItemsFiltered : noItemsEmpty}
               </Typography>
             </Box>
           ) : (
@@ -1830,7 +1880,7 @@ export default function PortfolioReport({
                   {drawer.apps.length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {t("portfolio.applications")}
+                  {typeNoun}
                 </Typography>
               </Box>
               {drawer.apps.filter((a) => a.lifecycle?.endOfLife).length > 0 && (
@@ -1850,7 +1900,7 @@ export default function PortfolioReport({
               variant="subtitle2"
               sx={{ fontWeight: 600, mb: 1 }}
             >
-              {t("portfolio.applications")} ({drawer.apps.length})
+              {typeNoun} ({drawer.apps.length})
             </Typography>
             <List dense>
               {drawer.apps
@@ -1902,7 +1952,7 @@ export default function PortfolioReport({
                   color="text.secondary"
                   sx={{ py: 2, textAlign: "center" }}
                 >
-                  {t("portfolio.noAppsInGroup")}
+                  {noItemsInGroup}
                 </Typography>
               )}
             </List>

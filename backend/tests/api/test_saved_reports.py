@@ -107,6 +107,23 @@ class TestCreateSavedReport:
         )
         assert resp.status_code == 400
 
+    async def test_flexible_portfolio_report_type_accepted(self, client, db, reports_env):
+        admin = reports_env["admin"]
+        resp = await client.post(
+            "/api/v1/saved-reports",
+            json={
+                "name": "My Flexible View",
+                "report_type": "flexible-portfolio",
+                "config": {"cardType": "BusinessProcess", "groupByRaw": "rel:Organization"},
+                "visibility": "private",
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["report_type"] == "flexible-portfolio"
+        assert data["config"]["cardType"] == "BusinessProcess"
+
 
 # -------------------------------------------------------------------
 # GET /saved-reports  (list)

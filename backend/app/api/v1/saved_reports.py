@@ -18,6 +18,7 @@ router = APIRouter(prefix="/saved-reports", tags=["saved-reports"])
 
 VALID_REPORT_TYPES = {
     "portfolio",
+    "flexible-portfolio",
     "capability-map",
     "lifecycle",
     "dependencies",
