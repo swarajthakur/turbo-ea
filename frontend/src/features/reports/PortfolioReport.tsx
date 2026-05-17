@@ -1041,6 +1041,26 @@ export default function PortfolioReport({
     [cardType, typeLabel, t],
   );
 
+  // Noun used after the summary stat ("12 applications" vs "12 Business
+  // Process"). Application Portfolio keeps the localised plural "applications"
+  // string for back-compat; other types fall back to the singular type label.
+  const typeNoun =
+    cardType === "Application" ? t("portfolio.applications") : typeLabel;
+
+  // Empty-state messages, parameterised by type for the Flexible Portfolio.
+  const noItemsFiltered =
+    cardType === "Application"
+      ? t("portfolio.noAppsFiltered")
+      : t("portfolio.noItemsFiltered", { type: typeLabel });
+  const noItemsEmpty =
+    cardType === "Application"
+      ? t("portfolio.noAppsEmpty")
+      : t("portfolio.noItemsEmpty", { type: typeLabel });
+  const noItemsInGroup =
+    cardType === "Application"
+      ? t("portfolio.noAppsInGroup")
+      : t("portfolio.noItemsInGroup", { type: typeLabel });
+
   const printParams = useMemo(() => {
     const params: { label: string; value: string }[] = [];
     params.push({ label: t("portfolio.groupBy"), value: groupByLabel });
@@ -1399,9 +1419,9 @@ export default function PortfolioReport({
           {/* Summary stats */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <MaterialSymbol icon="apps" size={16} color="#1976d2" />
+              <MaterialSymbol icon={typeIcon} size={16} color={typeColor} />
               <Typography variant="caption" color="text.secondary">
-                <strong>{stats.total}</strong> {t("portfolio.applications")}
+                <strong>{stats.total}</strong> {typeNoun}
               </Typography>
             </Box>
             {stats.withEol > 0 && (
@@ -1572,9 +1592,7 @@ export default function PortfolioReport({
           {groups.length === 0 && ungrouped.length === 0 ? (
             <Box sx={{ py: 8, textAlign: "center" }}>
               <Typography color="text.secondary">
-                {hasActiveFilters
-                  ? t("portfolio.noAppsFiltered")
-                  : t("portfolio.noAppsEmpty")}
+                {hasActiveFilters ? noItemsFiltered : noItemsEmpty}
               </Typography>
             </Box>
           ) : (
@@ -1858,7 +1876,7 @@ export default function PortfolioReport({
                   {drawer.apps.length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {t("portfolio.applications")}
+                  {typeNoun}
                 </Typography>
               </Box>
               {drawer.apps.filter((a) => a.lifecycle?.endOfLife).length > 0 && (
@@ -1878,7 +1896,7 @@ export default function PortfolioReport({
               variant="subtitle2"
               sx={{ fontWeight: 600, mb: 1 }}
             >
-              {t("portfolio.applications")} ({drawer.apps.length})
+              {typeNoun} ({drawer.apps.length})
             </Typography>
             <List dense>
               {drawer.apps
@@ -1930,7 +1948,7 @@ export default function PortfolioReport({
                   color="text.secondary"
                   sx={{ py: 2, textAlign: "center" }}
                 >
-                  {t("portfolio.noAppsInGroup")}
+                  {noItemsInGroup}
                 </Typography>
               )}
             </List>
