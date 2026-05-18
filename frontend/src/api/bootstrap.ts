@@ -27,6 +27,7 @@ import { invalidateComplianceRegulations } from "@/hooks/useComplianceRegulation
 import { invalidateGrcEnabled } from "@/hooks/useGrcEnabled";
 import { invalidatePpmEnabled } from "@/hooks/usePpmEnabled";
 import { invalidateEnabledLocalesGlobal } from "@/hooks/useEnabledLocales";
+import { invalidateLoginBranding } from "@/hooks/useLoginBranding";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
 import type { ComplianceRegulation } from "@/types";
 
@@ -43,6 +44,11 @@ type BootstrapResponse = {
   bpm_row_order: string[];
   show_principles_tab: boolean;
   compliance_regulations: ComplianceRegulation[];
+  login_tagline: string;
+  login_tagline_hidden: boolean;
+  login_help_text: string;
+  login_help_link: string;
+  smtp_configured: boolean;
 };
 
 let _primed = false;
@@ -83,6 +89,14 @@ export function primeBootstrap(): Promise<void> {
       invalidateComplianceRegulations(
         Array.isArray(r.compliance_regulations) ? r.compliance_regulations : [],
       );
+
+      invalidateLoginBranding({
+        tagline: r.login_tagline || "",
+        taglineHidden: Boolean(r.login_tagline_hidden),
+        helpText: r.login_help_text || "",
+        helpLink: r.login_help_link || "",
+        smtpConfigured: Boolean(r.smtp_configured),
+      });
 
       _primed = true;
     } catch {

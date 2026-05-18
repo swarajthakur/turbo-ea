@@ -14,6 +14,9 @@ import SsoCallback from "@/features/auth/SsoCallback";
 import SetPasswordPage from "@/features/auth/SetPasswordPage";
 import ModuleGate from "@/components/ModuleGate";
 
+const ForgotPasswordPage = lazy(() => import("@/features/auth/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/features/auth/ResetPasswordPage"));
+
 // --- Lazy-loaded page components (route-level code splitting) ---
 const Dashboard = lazy(() => import("@/features/dashboard/Dashboard"));
 const InventoryPage = lazy(() => import("@/features/inventory/InventoryPage"));
@@ -106,6 +109,15 @@ function AppRoutes() {
         <Route path="/auth/callback" element={<SsoCallback onSsoCallback={ssoCallback} />} />
         {/* Password setup route (for invited users) */}
         <Route path="/auth/set-password" element={<SetPasswordPage onSetPassword={setPassword} />} />
+        {/* Forgot / reset password routes */}
+        <Route
+          path="/auth/forgot-password"
+          element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>}
+        />
+        <Route
+          path="/auth/reset-password"
+          element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>}
+        />
         {/* Everything else redirects to login */}
         <Route path="*" element={<LoginPage onLogin={login} onRegister={register} />} />
       </Routes>

@@ -49,6 +49,12 @@ class User(Base, UUIDMixin, TimestampMixin):
     password_setup_token: Mapped[str | None] = mapped_column(
         String(128), nullable=True, unique=True
     )
+    password_reset_token: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, unique=True, index=True
+    )
+    password_reset_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     notification_preferences: Mapped[dict | None] = mapped_column(
         JSONB, default=lambda: DEFAULT_NOTIFICATION_PREFERENCES.copy()
     )

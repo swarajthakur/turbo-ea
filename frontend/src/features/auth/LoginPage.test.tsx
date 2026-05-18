@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import LoginPage from "./LoginPage";
+import { _resetLoginBrandingCache, invalidateLoginBranding } from "@/hooks/useLoginBranding";
 
 // ---------------------------------------------------------------------------
 // Mock the API client — LoginPage calls auth.ssoConfig() on mount
@@ -20,6 +22,7 @@ import { auth } from "@/api/client";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  _resetLoginBrandingCache();
 });
 
 // ---------------------------------------------------------------------------
@@ -30,7 +33,11 @@ const onLogin = vi.fn();
 const onRegister = vi.fn();
 
 function renderLogin() {
-  return render(<LoginPage onLogin={onLogin} onRegister={onRegister} />);
+  return render(
+    <MemoryRouter>
+      <LoginPage onLogin={onLogin} onRegister={onRegister} />
+    </MemoryRouter>,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -166,5 +173,107 @@ describe("LoginPage", () => {
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     });
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------
+  // Login-page branding customizations
+  // ---------------------------------------------------------------------
+
+  it("hides the 'Forgot password?' link when SMTP is not configured", async () => {
+    vi.mocked(auth.ssoConfig).mockResolvedValueOnce({ enabled: false });
+    invalidateLoginBranding({
+      tagline: "",
+      taglineHidden: false,
+      helpText: "",
+      helpLink: "",
+      smtpConfigured: false,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/forgot password/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the 'Forgot password?' link when SMTP is configured", async () => {
+    vi.mocked(auth.ssoConfig).mockResolvedValueOnce({ enabled: false });
+    invalidateLoginBranding({
+      tagline: "",
+      taglineHidden: false,
+      helpText: "",
+      helpLink: "",
+      smtpConfigured: true,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(screen.getByText(/forgot password/i)).toBeInTheDocument();
+    });
+  });
+
+  it("renders the admin tagline override instead of the translated default", async () => {
+    vi.mocked(auth.ssoConfig).mockResolvedValueOnce({ enabled: false });
+    invalidateLoginBranding({
+      tagline: "Our internal EA platform",
+      taglineHidden: false,
+      helpText: "",
+      helpLink: "",
+      smtpConfigured: false,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(screen.getByText("Our internal EA platform")).toBeInTheDocument();
+    });
+    // The default translated tagline must not appear when an override is set.
+    expect(
+      screen.queryByText("Enterprise Architecture Management"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the tagline entirely when taglineHidden is true", async () => {
+    vi.mocked(auth.ssoConfig).mockResolvedValueOnce({ enabled: false });
+    invalidateLoginBranding({
+      tagline: "Should not appear",
+      taglineHidden: true,
+      helpText: "",
+      helpLink: "",
+      smtpConfigured: false,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Should not appear")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Enterprise Architecture Management"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the help text and turns a bare email into a mailto: link", async () => {
+    vi.mocked(auth.ssoConfig).mockResolvedValueOnce({ enabled: false });
+    invalidateLoginBranding({
+      tagline: "",
+      taglineHidden: false,
+      helpText: "Trouble signing in? Contact IT support.",
+      helpLink: "support@example.com",
+      smtpConfigured: false,
+    });
+
+    renderLogin();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Trouble signing in? Contact IT support."),
+      ).toBeInTheDocument();
+    });
+    const link = screen.getByText("support@example.com").closest("a")!;
+    expect(link).toHaveAttribute("href", "mailto:support@example.com");
   });
 });

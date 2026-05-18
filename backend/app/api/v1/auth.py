@@ -22,6 +22,7 @@ from app.models.app_settings import AppSettings
 from app.models.sso_invitation import SsoInvitation
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.services import email_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -729,3 +730,194 @@ async def logout(request: Request, response: Response):
 def generate_setup_token() -> str:
     """Generate a cryptographically secure setup token."""
     return secrets.token_urlsafe(48)
+
+
+# ---------------------------------------------------------------------------
+# Password reset (forgot password) endpoints — local accounts only
+# ---------------------------------------------------------------------------
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+PASSWORD_RESET_TTL = timedelta(hours=1)
+
+
+def _build_reset_email_body(display_name: str, app_title: str, reset_url: str) -> tuple[str, str]:
+    """Return (html, plain_text) email body for the reset link.
+
+    Mirrors the visual style of `send_notification_email` but with a fixed
+    template — we keep it inline so the reset flow doesn't depend on the
+    notification helper (which carries a generic "view in app" CTA).
+    """
+    import html as _html
+
+    safe_name = _html.escape(display_name or "")
+    safe_app = _html.escape(app_title)
+    safe_link = _html.escape(reset_url)
+
+    intro = f"Hi {safe_name}," if safe_name else "Hi,"
+    wrapper = "font-family: sans-serif; max-width: 600px; margin: 0 auto"
+    header_s = "background: #1a1a2e; padding: 16px 24px"
+    body_s = "padding: 24px; border: 1px solid #e0e0e0"
+    btn = (
+        f"<a href='{safe_link}' style='display: inline-block; margin-top: 12px; "
+        "padding: 10px 18px; background: #1976d2; color: white; "
+        "text-decoration: none; border-radius: 4px;'>Reset password</a>"
+    )
+    body_html = (
+        f'<div style="{wrapper}">'
+        f'<div style="{header_s}">'
+        f'<h2 style="color:#64b5f6;margin:0">{safe_app}</h2></div>'
+        f'<div style="{body_s}">'
+        f'<p style="color:#333">{intro}</p>'
+        '<p style="color:#555">We received a request to reset the password for your '
+        f"{safe_app} account. Click the button below to choose a new password. "
+        "This link is valid for one hour.</p>"
+        f"{btn}"
+        '<p style="color:#777;font-size:12px;margin-top:24px">'
+        "If you didn't request a password reset, you can safely ignore this email — "
+        "your password will not change.</p>"
+        "</div></div>"
+    )
+    body_text = (
+        f"{intro}\n\n"
+        f"We received a request to reset the password for your {app_title} account.\n"
+        f"Open the link below to choose a new password (valid for one hour):\n\n"
+        f"{reset_url}\n\n"
+        "If you didn't request a password reset, you can safely ignore this email."
+    )
+    return body_html, body_text
+
+
+def _resolve_app_base_url(request: Request) -> str:
+    """Resolve the public base URL for emailed links.
+
+    Priority:
+    1. Admin-configured `app_base_url` (general / email settings push it onto
+       `app_config._app_base_url`).
+    2. The current request's base URL (works for direct deployments).
+    """
+    explicit = getattr(settings, "_app_base_url", "") or ""
+    if explicit:
+        return explicit.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Initiate a password reset for a local account.
+
+    Anti-enumeration: always returns `{"ok": True}` regardless of whether the
+    email matches a user. An email is only sent when ALL of the following hold:
+
+    - A user exists with the given email.
+    - The user has a local password (not SSO-only).
+    - The user is active.
+    - SMTP is configured.
+
+    Tokens live for one hour and are stored on the user row directly.
+    """
+    raw_email = (body.email or "").strip().lower()
+    if not raw_email:
+        # Treat missing email same as unknown — anti-enumeration.
+        return {"ok": True}
+
+    result = await db.execute(select(User).where(User.email == raw_email))
+    user = result.scalar_one_or_none()
+
+    if (
+        user is not None
+        and user.password_hash is not None
+        and user.is_active
+        and email_service._is_configured()
+    ):
+        token = secrets.token_urlsafe(32)
+        user.password_reset_token = token
+        user.password_reset_expires_at = datetime.now(timezone.utc) + PASSWORD_RESET_TTL
+        await db.commit()
+
+        base_url = _resolve_app_base_url(request)
+        reset_url = f"{base_url}/auth/reset-password?token={token}"
+        app_title = email_service._get_app_title()
+        body_html, body_text = _build_reset_email_body(user.display_name, app_title, reset_url)
+        try:
+            await email_service.send_email(
+                user.email,
+                f"[{app_title}] Reset your password",
+                body_html,
+                body_text,
+            )
+        except Exception:
+            # Email delivery failure must not leak via response status —
+            # the user still receives the generic success screen.
+            logger.exception("Failed to send password-reset email to %s", user.email)
+
+    return {"ok": True}
+
+
+@router.get("/validate-reset-token")
+async def validate_reset_token(token: str, db: AsyncSession = Depends(get_db)):
+    """Check whether a password-reset token is valid and unexpired."""
+    if not token:
+        raise HTTPException(404, "Invalid or expired reset token")
+    result = await db.execute(select(User).where(User.password_reset_token == token))
+    user = result.scalar_one_or_none()
+    if not user or not user.password_reset_expires_at:
+        raise HTTPException(404, "Invalid or expired reset token")
+    if user.password_reset_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(404, "Invalid or expired reset token")
+    return {"email": user.email}
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Consume a reset token and set a new password. Does NOT auto-log-in."""
+    from app.schemas.auth import _validate_password_strength
+
+    try:
+        _validate_password_strength(body.password)
+    except ValueError:
+        raise HTTPException(
+            400,
+            "Password does not meet strength requirements: "
+            "minimum 10 characters, at least one uppercase letter, "
+            "and at least one digit.",
+        )
+
+    if not body.token:
+        raise HTTPException(404, "Invalid or expired reset token")
+
+    result = await db.execute(select(User).where(User.password_reset_token == body.token))
+    user = result.scalar_one_or_none()
+    if not user or not user.password_reset_expires_at:
+        raise HTTPException(404, "Invalid or expired reset token")
+    if user.password_reset_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(404, "Invalid or expired reset token")
+
+    user.password_hash = hash_password(body.password)
+    user.password_reset_token = None
+    user.password_reset_expires_at = None
+    # A successful reset clears any account lockout — the user proved
+    # control of their inbox.
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    await db.commit()
+
+    return {"ok": True}

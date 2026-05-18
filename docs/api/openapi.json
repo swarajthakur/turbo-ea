@@ -3763,6 +3763,19 @@
         "title": "FiscalYearStartPayload",
         "type": "object"
       },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest",
+        "type": "object"
+      },
       "GrcEnabledPayload": {
         "properties": {
           "enabled": {
@@ -3834,6 +3847,35 @@
           "catalogue_ids"
         ],
         "title": "ImportRequest",
+        "type": "object"
+      },
+      "LoginBrandingPayload": {
+        "properties": {
+          "login_help_link": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Login Help Link",
+            "type": "string"
+          },
+          "login_help_text": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Login Help Text",
+            "type": "string"
+          },
+          "login_tagline": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Login Tagline",
+            "type": "string"
+          },
+          "login_tagline_hidden": {
+            "default": false,
+            "title": "Login Tagline Hidden",
+            "type": "boolean"
+          }
+        },
+        "title": "LoginBrandingPayload",
         "type": "object"
       },
       "LoginRequest": {
@@ -7468,6 +7510,24 @@
           "display_name"
         ],
         "title": "ReporterOut",
+        "type": "object"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ResetPasswordRequest",
         "type": "object"
       },
       "RestoreImpactPassenger": {
@@ -11978,6 +12038,46 @@
         ]
       }
     },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "description": "Initiate a password reset for a local account.\n\nAnti-enumeration: always returns `{\"ok\": True}` regardless of whether the\nemail matches a user. An email is only sent when ALL of the following hold:\n\n- A user exists with the given email.\n- The user has a local password (not SSO-only).\n- The user is active.\n- SMTP is configured.\n\nTokens live for one hour and are stored on the user row directly.",
+        "operationId": "forgot_password_api_v1_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forgot Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -12123,6 +12223,46 @@
         ]
       }
     },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "description": "Consume a reset token and set a new password. Does NOT auto-log-in.",
+        "operationId": "reset_password_api_v1_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/set-password": {
       "post": {
         "description": "Set a password for an invited user using a one-time setup token.",
@@ -12222,6 +12362,47 @@
           }
         },
         "summary": "Sso Config Endpoint",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/validate-reset-token": {
+      "get": {
+        "description": "Check whether a password-reset token is valid and unexpired.",
+        "operationId": "validate_reset_token_api_v1_auth_validate_reset_token_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Reset Token",
         "tags": [
           "auth"
         ]
@@ -25421,6 +25602,64 @@
           }
         },
         "summary": "Update Grc Enabled",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/login-branding": {
+      "get": {
+        "description": "Admin endpoint \u2014 read the customizable login-page strings.\n\nPublic consumers (the login page itself) read these via\n``GET /settings/bootstrap`` instead, where they're returned alongside\nother public boot-time settings.",
+        "operationId": "get_login_branding_api_v1_settings_login_branding_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Login Branding",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Admin endpoint \u2014 update login-page tagline / help text / contact link.",
+        "operationId": "update_login_branding_api_v1_settings_login_branding_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBrandingPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Login Branding",
         "tags": [
           "settings"
         ]

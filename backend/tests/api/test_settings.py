@@ -340,6 +340,13 @@ class TestBootstrapSettings:
         assert data["fiscal_year_start"] == 1
         assert data["bpm_row_order"] == ["management", "core", "support"]
         assert data["show_principles_tab"] is True
+        # Login-branding fields default to blank / hidden=false.
+        assert data["login_tagline"] == ""
+        assert data["login_tagline_hidden"] is False
+        assert data["login_help_text"] == ""
+        assert data["login_help_link"] == ""
+        # smtp_configured reflects whatever the test env has set.
+        assert isinstance(data["smtp_configured"], bool)
 
     async def test_bootstrap_reflects_admin_edits(self, client, db, settings_env):
         admin = settings_env["admin"]
@@ -367,3 +374,88 @@ class TestBootstrapSettings:
         """Used during boot, before the user has a token — must not require auth."""
         resp = await client.get("/api/v1/settings/bootstrap")
         assert resp.status_code == 200
+
+
+# -------------------------------------------------------------------
+# GET/PATCH /settings/login-branding
+# -------------------------------------------------------------------
+
+
+class TestLoginBrandingSettings:
+    async def test_get_requires_admin(self, client, db, settings_env):
+        resp = await client.get(
+            "/api/v1/settings/login-branding",
+            headers=auth_headers(settings_env["member"]),
+        )
+        assert resp.status_code == 403
+
+    async def test_get_defaults(self, client, db, settings_env):
+        resp = await client.get(
+            "/api/v1/settings/login-branding",
+            headers=auth_headers(settings_env["admin"]),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "login_tagline": "",
+            "login_tagline_hidden": False,
+            "login_help_text": "",
+            "login_help_link": "",
+        }
+
+    async def test_patch_updates_and_bootstrap_reflects(self, client, db, settings_env):
+        admin = settings_env["admin"]
+        resp = await client.patch(
+            "/api/v1/settings/login-branding",
+            json={
+                "login_tagline": "  Our EA Platform  ",
+                "login_tagline_hidden": False,
+                "login_help_text": "Need help? Contact IT.",
+                "login_help_link": "support@example.com",
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Whitespace trimmed.
+        assert data["login_tagline"] == "Our EA Platform"
+        assert data["login_help_text"] == "Need help? Contact IT."
+        assert data["login_help_link"] == "support@example.com"
+        assert data["login_tagline_hidden"] is False
+
+        # Bootstrap echoes the values.
+        boot = await client.get("/api/v1/settings/bootstrap")
+        assert boot.status_code == 200
+        b = boot.json()
+        assert b["login_tagline"] == "Our EA Platform"
+        assert b["login_help_text"] == "Need help? Contact IT."
+        assert b["login_help_link"] == "support@example.com"
+        assert b["login_tagline_hidden"] is False
+
+    async def test_patch_hide_tagline(self, client, db, settings_env):
+        admin = settings_env["admin"]
+        resp = await client.patch(
+            "/api/v1/settings/login-branding",
+            json={
+                "login_tagline": "",
+                "login_tagline_hidden": True,
+                "login_help_text": "",
+                "login_help_link": "",
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["login_tagline_hidden"] is True
+
+    async def test_patch_requires_admin(self, client, db, settings_env):
+        resp = await client.patch(
+            "/api/v1/settings/login-branding",
+            json={
+                "login_tagline": "Nope",
+                "login_tagline_hidden": False,
+                "login_help_text": "",
+                "login_help_link": "",
+            },
+            headers=auth_headers(settings_env["viewer"]),
+        )
+        assert resp.status_code == 403

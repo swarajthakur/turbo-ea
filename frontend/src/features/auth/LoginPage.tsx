@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -11,6 +13,7 @@ import Divider from "@mui/material/Divider";
 import { useTranslation } from "react-i18next";
 import { auth } from "@/api/client";
 import { useAppTitle } from "@/hooks/useAppTitle";
+import { useLoginBranding, normalizeContactLink } from "@/hooks/useLoginBranding";
 import type { SsoConfig } from "@/types";
 
 interface Props {
@@ -28,6 +31,7 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
   const [loading, setLoading] = useState(false);
   const [ssoConfig, setSsoConfig] = useState<SsoConfig | null>(null);
   const appTitle = useAppTitle();
+  const branding = useLoginBranding();
 
   useEffect(() => {
     auth.ssoConfig().then(setSsoConfig).catch(() => {});
@@ -95,13 +99,15 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
     >
       <Box sx={{ textAlign: "center", mb: 3 }}>
         <img
-          src="/logo.png"
+          src="/api/v1/settings/logo"
           alt={appTitle}
-          style={{ height: 64, objectFit: "contain" }}
+          style={{ height: 64, maxWidth: 280, objectFit: "contain" }}
         />
-        <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
-          {t("login.title")}
-        </Typography>
+        {!branding.taglineHidden && (
+          <Typography variant="body2" sx={{ mt: 1, color: "rgba(255,255,255,0.6)" }}>
+            {branding.tagline || t("login.title")}
+          </Typography>
+        )}
       </Box>
       <Card sx={{ p: 4, width: 400, maxWidth: "90vw" }}>
 
@@ -198,8 +204,20 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            sx={{ mb: 3 }}
+            sx={{ mb: tab === 0 && branding.smtpConfigured ? 1 : 3 }}
           />
+          {tab === 0 && branding.smtpConfigured && (
+            <Box sx={{ textAlign: "right", mb: 2 }}>
+              <Link
+                component={RouterLink}
+                to="/auth/forgot-password"
+                variant="body2"
+                underline="hover"
+              >
+                {t("login.forgotPassword")}
+              </Link>
+            </Box>
+          )}
           <Button
             fullWidth
             variant="contained"
@@ -211,6 +229,37 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
           </Button>
         </form>
       </Card>
+      {(branding.helpText || branding.helpLink) && (
+        <Box
+          sx={{
+            mt: 3,
+            width: 400,
+            maxWidth: "90vw",
+            textAlign: "center",
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          {branding.helpText && (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
+              {branding.helpText}
+            </Typography>
+          )}
+          {branding.helpLink && (
+            <Link
+              href={normalizeContactLink(branding.helpLink)}
+              variant="body2"
+              underline="hover"
+              sx={{
+                display: "inline-block",
+                mt: branding.helpText ? 0.5 : 0,
+                color: "#64b5f6",
+              }}
+            >
+              {branding.helpLink}
+            </Link>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
