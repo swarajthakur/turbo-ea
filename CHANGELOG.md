@@ -5,6 +5,16 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.22.0] - 2026-05-18
+
+Login page customizations: the screen now picks up the uploaded brand logo, admins can override or hide the tagline, add a contact-support help block, and offer a password-reset flow for local accounts.
+
+### Added
+- **Login page uses the admin-uploaded logo.** The login screen now reads `/api/v1/settings/logo` (which transparently falls back to the default brand logo when no custom one is uploaded), so the same logo configured in **Admin → Settings → General** appears on the sign-in page.
+- **Configurable login tagline.** A new "Login page" section in **Admin → Settings → General** lets admins override the "Enterprise Architecture Management" tagline shown under the logo, or hide it entirely with a toggle.
+- **Login help text & contact link.** Admins can add a short plain-text message and an optional contact URL or email below the login form — useful for pointing users at IT support when they can't sign in. Bare email addresses are automatically turned into `mailto:` links.
+- **Forgot-password flow for local accounts.** When SMTP is configured, the login page shows a "Forgot password?" link. Users receive an email with a one-hour reset link; the new `/auth/reset-password` page lets them set a new password. The flow is anti-enumeration (the same success screen is shown whether or not the email is registered) and is hidden when SMTP isn't set up. Backed by new `POST /auth/forgot-password`, `GET /auth/validate-reset-token`, and `POST /auth/reset-password` endpoints, all rate-limited to 5 requests/minute.
+
 ## [1.21.0] - 2026-05-17
 
 Dashboard "Needs my attention" redesign and a scoped inventory deep-link so the user actually lands on **their** broken cards.

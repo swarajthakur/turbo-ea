@@ -29,6 +29,7 @@ import {
 } from "@/hooks/useDateFormat";
 import { invalidateAppTitle } from "@/hooks/useAppTitle";
 import { invalidateGrcEnabled } from "@/hooks/useGrcEnabled";
+import { invalidateLoginBranding } from "@/hooks/useLoginBranding";
 import { useMetamodel } from "@/hooks/useMetamodel";
 import { useEnabledLocales } from "@/hooks/useEnabledLocales";
 import { SUPPORTED_LOCALES, LOCALE_LABELS, type SupportedLocale } from "@/i18n";
@@ -177,6 +178,13 @@ function GeneralTab() {
   const [enabledLocales, setEnabledLocales] = useState<SupportedLocale[]>([...SUPPORTED_LOCALES]);
   const [savingLocales, setSavingLocales] = useState(false);
 
+  // Login-page branding state (tagline + help text + contact link)
+  const [loginTagline, setLoginTagline] = useState("");
+  const [loginTaglineHidden, setLoginTaglineHidden] = useState(false);
+  const [loginHelpText, setLoginHelpText] = useState("");
+  const [loginHelpLink, setLoginHelpLink] = useState("");
+  const [savingLoginBranding, setSavingLoginBranding] = useState(false);
+
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState(587);
   const [smtpUser, setSmtpUser] = useState("");
@@ -203,8 +211,14 @@ function GeneralTab() {
       api.get<{ app_title: string }>("/settings/app-title"),
       api.get<{ date_format: string }>("/settings/date-format"),
       api.get<{ enabled: boolean }>("/settings/grc-enabled"),
+      api.get<{
+        login_tagline: string;
+        login_tagline_hidden: boolean;
+        login_help_text: string;
+        login_help_link: string;
+      }>("/settings/login-branding"),
     ])
-      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, appTitleData, dateFormatData, grcData]) => {
+      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, appTitleData, dateFormatData, grcData, loginBrandingData]) => {
         setSmtpHost(emailData.smtp_host);
         setSmtpPort(emailData.smtp_port);
         setSmtpUser(emailData.smtp_user);
@@ -230,6 +244,10 @@ function GeneralTab() {
           (SUPPORTED_LOCALES as readonly string[]).includes(l),
         );
         if (validLocales.length > 0) setEnabledLocales(validLocales);
+        setLoginTagline(loginBrandingData.login_tagline || "");
+        setLoginTaglineHidden(Boolean(loginBrandingData.login_tagline_hidden));
+        setLoginHelpText(loginBrandingData.login_help_text || "");
+        setLoginHelpLink(loginBrandingData.login_help_link || "");
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("common:errors.generic")))
       .finally(() => setLoading(false));
@@ -451,6 +469,39 @@ function GeneralTab() {
       setError(e instanceof Error ? e.message : t("common:errors.generic"));
     } finally {
       setSavingAppTitle(false);
+    }
+  };
+
+  const handleLoginBrandingSave = async () => {
+    setSavingLoginBranding(true);
+    setError("");
+    try {
+      const res = await api.patch<{
+        login_tagline: string;
+        login_tagline_hidden: boolean;
+        login_help_text: string;
+        login_help_link: string;
+      }>("/settings/login-branding", {
+        login_tagline: loginTagline.trim(),
+        login_tagline_hidden: loginTaglineHidden,
+        login_help_text: loginHelpText.trim(),
+        login_help_link: loginHelpLink.trim(),
+      });
+      setLoginTagline(res.login_tagline);
+      setLoginTaglineHidden(res.login_tagline_hidden);
+      setLoginHelpText(res.login_help_text);
+      setLoginHelpLink(res.login_help_link);
+      invalidateLoginBranding({
+        tagline: res.login_tagline,
+        taglineHidden: res.login_tagline_hidden,
+        helpText: res.login_help_text,
+        helpLink: res.login_help_link,
+      });
+      setSnack(t("settings.loginBranding.savedSuccess"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common:errors.generic"));
+    } finally {
+      setSavingLoginBranding(false);
     }
   };
 
@@ -710,6 +761,82 @@ function GeneralTab() {
                 {t("settings.logo.reset")}
               </Button>
             )}
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Login Page Branding */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+          <MaterialSymbol icon="login" size={22} color="#555" />
+          <Typography variant="h6" fontWeight={600}>
+            {t("settings.loginBranding.title")}
+          </Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          {t("settings.loginBranding.description")}
+        </Typography>
+
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            size="small"
+            label={t("settings.loginBranding.tagline")}
+            value={loginTagline}
+            onChange={(e) => setLoginTagline(e.target.value)}
+            inputProps={{ maxLength: 200 }}
+            placeholder={t("settings.loginBranding.taglinePlaceholder")}
+            helperText={t("settings.loginBranding.taglineHelp")}
+            fullWidth
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={loginTaglineHidden}
+                onChange={(_, checked) => setLoginTaglineHidden(checked)}
+              />
+            }
+            label={t("settings.loginBranding.hideTagline")}
+          />
+          <TextField
+            size="small"
+            label={t("settings.loginBranding.helpText")}
+            value={loginHelpText}
+            onChange={(e) => setLoginHelpText(e.target.value)}
+            inputProps={{ maxLength: 500 }}
+            placeholder={t("settings.loginBranding.helpTextPlaceholder")}
+            helperText={t("settings.loginBranding.helpTextHelp")}
+            multiline
+            minRows={2}
+            maxRows={4}
+            fullWidth
+          />
+          <TextField
+            size="small"
+            label={t("settings.loginBranding.helpLink")}
+            value={loginHelpLink}
+            onChange={(e) => setLoginHelpLink(e.target.value)}
+            inputProps={{ maxLength: 300 }}
+            placeholder={t("settings.loginBranding.helpLinkPlaceholder")}
+            helperText={t("settings.loginBranding.helpLinkHelp")}
+            fullWidth
+          />
+          <Box>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleLoginBrandingSave}
+              disabled={savingLoginBranding}
+              startIcon={
+                savingLoginBranding ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <MaterialSymbol icon="save" size={18} />
+                )
+              }
+              sx={{ textTransform: "none" }}
+            >
+              {savingLoginBranding ? t("common:labels.loading") : t("common:actions.save")}
+            </Button>
           </Box>
         </Box>
       </Paper>

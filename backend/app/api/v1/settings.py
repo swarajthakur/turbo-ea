@@ -158,6 +158,9 @@ async def get_bootstrap(db: AsyncSession = Depends(get_db)):
         for r in reg_rows
     ]
 
+    email_settings = (row.email_settings if row else None) or {}
+    smtp_configured = bool(email_settings.get("smtp_host") or app_config.SMTP_HOST)
+
     return {
         "currency": general.get("currency", DEFAULT_CURRENCY),
         "date_format": general.get("dateFormat", DEFAULT_DATE_FORMAT),
@@ -171,6 +174,11 @@ async def get_bootstrap(db: AsyncSession = Depends(get_db)):
         "bpm_row_order": general.get("bpmRowOrder", ["management", "core", "support"]),
         "show_principles_tab": general.get("showPrinciplesTab", True),
         "compliance_regulations": compliance_regulations,
+        "login_tagline": (general.get("loginTagline") or "").strip(),
+        "login_tagline_hidden": bool(general.get("loginTaglineHidden", False)),
+        "login_help_text": (general.get("loginHelpText") or "").strip(),
+        "login_help_link": (general.get("loginHelpLink") or "").strip(),
+        "smtp_configured": smtp_configured,
     }
 
 
@@ -365,6 +373,66 @@ async def update_app_title(
     app_config.APP_TITLE = trimmed or DEFAULT_APP_TITLE
 
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Login-page branding (tagline + help text + contact link)
+# ---------------------------------------------------------------------------
+
+
+class LoginBrandingPayload(BaseModel):
+    login_tagline: str = Field(default="", max_length=200)
+    login_tagline_hidden: bool = False
+    login_help_text: str = Field(default="", max_length=500)
+    login_help_link: str = Field(default="", max_length=300)
+
+
+def _read_login_branding(general: dict) -> dict:
+    return {
+        "login_tagline": (general.get("loginTagline") or "").strip(),
+        "login_tagline_hidden": bool(general.get("loginTaglineHidden", False)),
+        "login_help_text": (general.get("loginHelpText") or "").strip(),
+        "login_help_link": (general.get("loginHelpLink") or "").strip(),
+    }
+
+
+@router.get("/login-branding")
+async def get_login_branding(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Admin endpoint — read the customizable login-page strings.
+
+    Public consumers (the login page itself) read these via
+    ``GET /settings/bootstrap`` instead, where they're returned alongside
+    other public boot-time settings.
+    """
+    await PermissionService.require_permission(db, user, "admin.settings")
+    result = await db.execute(select(AppSettings).where(AppSettings.id == "default"))
+    row = result.scalar_one_or_none()
+    general = (row.general_settings if row else None) or {}
+    return _read_login_branding(general)
+
+
+@router.patch("/login-branding")
+async def update_login_branding(
+    body: LoginBrandingPayload,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Admin endpoint — update login-page tagline / help text / contact link."""
+    await PermissionService.require_permission(db, user, "admin.settings")
+
+    row = await _get_or_create_row(db)
+    general = dict(row.general_settings or {})
+    general["loginTagline"] = body.login_tagline.strip()
+    general["loginTaglineHidden"] = bool(body.login_tagline_hidden)
+    general["loginHelpText"] = body.login_help_text.strip()
+    general["loginHelpLink"] = body.login_help_link.strip()
+    row.general_settings = general
+    await db.commit()
+
+    return _read_login_branding(general)
 
 
 # ---------------------------------------------------------------------------

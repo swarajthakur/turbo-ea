@@ -157,4 +157,12 @@ export const auth = {
     api.post<{ access_token: string }>("/auth/sso/callback", { code, redirect_uri }),
   setPassword: (token: string, password: string) =>
     api.post<{ access_token: string }>("/auth/set-password", { token, password }),
+  forgotPassword: (email: string) =>
+    api.post<{ ok: boolean }>("/auth/forgot-password", { email }),
+  validateResetToken: (token: string) =>
+    api.get<{ email: string }>(
+      `/auth/validate-reset-token?token=${encodeURIComponent(token)}`,
+    ),
+  resetPassword: (token: string, password: string) =>
+    api.post<{ ok: boolean }>("/auth/reset-password", { token, password }),
 };
