@@ -41,13 +41,17 @@ const TagsCellEditor = forwardRef<{ getValue: () => TagRef[] }, Params>(
     }));
 
     return (
-      <Box sx={{ p: 1, minWidth: 320, bgcolor: "background.paper" }}>
+      <Box
+        sx={{ p: 1, minWidth: 320, bgcolor: "background.paper" }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <TagPicker
           groups={props.groups}
           value={ids}
           onChange={setIds}
           typeKey={props.typeKey}
           size="small"
+          disablePortal
         />
       </Box>
     );

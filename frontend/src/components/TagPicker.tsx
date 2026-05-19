@@ -29,6 +29,10 @@ interface Props {
   sx?: SxProps<Theme>;
   /** Force the label to stay shrunk (top-left) regardless of focus / value. */
   inputLabelShrink?: boolean;
+  /** Render the dropdown inline (no portal) — needed when mounted inside
+   *  another popup (e.g. AG Grid cell editor) so that clicks on options
+   *  don't escape the host popup and dismiss it prematurely. */
+  disablePortal?: boolean;
 }
 
 export default function TagPicker({
@@ -42,6 +46,7 @@ export default function TagPicker({
   size,
   sx,
   inputLabelShrink,
+  disablePortal = false,
 }: Props) {
   const { t } = useTranslation("cards");
 
@@ -117,6 +122,7 @@ export default function TagPicker({
       multiple
       disabled={disabled}
       size={size}
+      disablePortal={disablePortal}
       sx={[compactSx, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])] as typeof sx}
       options={options}
       value={selected}
