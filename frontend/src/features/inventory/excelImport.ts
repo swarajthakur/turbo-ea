@@ -1346,16 +1346,22 @@ export async function validateMultiSheet(
   // cardId → type → target ids. Keys are normalised so a stray uppercase
   // hex character in the source spreadsheet can't silently miss the diff.
   const outgoingByCard = new Map<string, Map<string, string[]>>();
+  // Triple-key (type|source|target) → existing relation so the Relations
+  // sheet's diff can decide whether a row is a no-op (relation already
+  // exists with identical attributes/description) or a real upsert.
+  const relationByTriple = new Map<string, Relation>();
   for (const rel of existingRelations) {
     const sid = normalizeId(rel.source_id);
+    const tid = normalizeId(rel.target_id);
     let perType = outgoingByCard.get(sid);
     if (!perType) {
       perType = new Map();
       outgoingByCard.set(sid, perType);
     }
     const list = perType.get(rel.type) || [];
-    list.push(normalizeId(rel.target_id));
+    list.push(tid);
     perType.set(rel.type, list);
+    relationByTriple.set(`${rel.type}|${sid}|${tid}`, rel);
   }
 
   for (const sheet of parsed.sheets) {
@@ -1587,6 +1593,55 @@ export async function validateMultiSheet(
       });
     }
   }
+
+  // Drop Relations-sheet upserts that would re-write a relation
+  // identically to what the live graph already has — those are no-ops
+  // and shouldn't inflate the "relations to add" count on a round-trip
+  // (the dominant noise source on attribute-bearing relations like
+  // `relAppToITC`, where every export row roundtrips as an upsert).
+  // Deletes pass through unchanged; upserts on resolved-by-name refs
+  // whose target row was created in the same batch (pathKey targets)
+  // also pass through, because they can't have an existing relation yet.
+  function attributesMatch(
+    proposed: Record<string, unknown> | undefined,
+    current: Record<string, unknown> | null | undefined,
+  ): boolean {
+    const a = proposed ?? {};
+    const b = current ?? {};
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const k of aKeys) {
+      // JSON.stringify handles arrays / nested objects; primitives compare
+      // by value. Same approach the inline-cell diff uses.
+      if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) return false;
+    }
+    return true;
+  }
+  const dedupedOps: RelationOp[] = [];
+  for (const op of relationOps) {
+    if (op.sheet !== RELATIONS_SHEET_NAME || op.action !== "upsert") {
+      dedupedOps.push(op);
+      continue;
+    }
+    if (op.sourceRef.kind !== "id" || op.targetRef.kind !== "id") {
+      dedupedOps.push(op);
+      continue;
+    }
+    const key = `${op.relationType}|${op.sourceRef.id}|${op.targetRef.id}`;
+    const existing = relationByTriple.get(key);
+    if (!existing) {
+      dedupedOps.push(op);
+      continue;
+    }
+    const sameAttrs = attributesMatch(op.attributes, existing.attributes);
+    const sameDescription =
+      (op.description ?? "").trim() === (existing.description ?? "").trim();
+    if (sameAttrs && sameDescription) continue; // no-op, drop
+    dedupedOps.push(op);
+  }
+  relationOps.length = 0;
+  relationOps.push(...dedupedOps);
 
   void inlineRefs;
   return {

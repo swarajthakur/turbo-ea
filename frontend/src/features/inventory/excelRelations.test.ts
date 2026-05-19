@@ -844,4 +844,152 @@ describe("buildExportWorkbook", () => {
     );
     expect(readOnlyWarnings).toHaveLength(0);
   });
+
+  it("Relations sheet upserts with unchanged attributes are dropped from the diff", async () => {
+    // Regression for the "286 false relations to add" report — every
+    // Relations-sheet row was being queued as `upsert` regardless of
+    // whether the live graph already had an identical relation, so a
+    // re-export of a demo carrying ~286 attribute-bearing relations
+    // produced ~286 false adds.
+    const app: Card = makeCard({
+      id: "11111111-1111-1111-1111-111111111111",
+      type: "Application",
+      name: "ERP",
+    });
+    const itc: Card = makeCard({
+      id: "22222222-2222-2222-2222-222222222222",
+      type: "ITComponent",
+      name: "DB",
+    });
+    const COST_REL: RelationType = {
+      ...DEPENDS_ON_TYPE,
+      key: "costs",
+      attributes_schema: [
+        { key: "annual", label: "Annual Cost", type: "cost" } as FieldDef,
+      ],
+    };
+    postMock.mockImplementation(buildResolveRefsMock([app, itc]));
+    // Build a workbook that has only a Relations sheet row matching the
+    // live graph exactly. (We hand-craft the sheet rather than going
+    // through the exporter so the assertion is hermetic.)
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        {
+          id: app.id,
+          type: "Application",
+          name: app.name,
+        },
+      ]),
+      "Application",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        {
+          action: "upsert",
+          relation_type: "costs",
+          source_type: "Application",
+          source_ref: app.name,
+          target_type: "ITComponent",
+          target_ref: itc.name,
+          attr_annual: 25000,
+          description: "Production",
+        },
+      ]),
+      "Relations",
+    );
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const parsed = parseWorkbookSheets(buf, [APP_TYPE, ITC_TYPE]);
+    const report = await validateMultiSheet(
+      parsed,
+      [app, itc],
+      [APP_TYPE, ITC_TYPE],
+      [COST_REL],
+      [
+        {
+          id: "rel-cost-1",
+          type: "costs",
+          source_id: app.id,
+          target_id: itc.id,
+          attributes: { annual: 25000 },
+          description: "Production",
+        },
+      ],
+    );
+    expect(report.errors).toEqual([]);
+    // The row matches exactly → diff drops it. Same target with a
+    // *different* cost would queue an upsert; tested separately if
+    // needed, but the round-trip-noop case is the hot path.
+    expect(report.relationOps).toHaveLength(0);
+  });
+
+  it("Relations sheet upserts with changed attributes still queue", async () => {
+    // Counterpart to the no-op test: a real attribute edit must still
+    // surface as an upsert in the preview.
+    const app: Card = makeCard({
+      id: "11111111-1111-1111-1111-111111111111",
+      type: "Application",
+      name: "ERP",
+    });
+    const itc: Card = makeCard({
+      id: "22222222-2222-2222-2222-222222222222",
+      type: "ITComponent",
+      name: "DB",
+    });
+    const COST_REL: RelationType = {
+      ...DEPENDS_ON_TYPE,
+      key: "costs",
+      attributes_schema: [
+        { key: "annual", label: "Annual Cost", type: "cost" } as FieldDef,
+      ],
+    };
+    postMock.mockImplementation(buildResolveRefsMock([app, itc]));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { id: app.id, type: "Application", name: app.name },
+      ]),
+      "Application",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        {
+          action: "upsert",
+          relation_type: "costs",
+          source_type: "Application",
+          source_ref: app.name,
+          target_type: "ITComponent",
+          target_ref: itc.name,
+          attr_annual: 30000, // ← changed
+          description: "Production",
+        },
+      ]),
+      "Relations",
+    );
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const parsed = parseWorkbookSheets(buf, [APP_TYPE, ITC_TYPE]);
+    const report = await validateMultiSheet(
+      parsed,
+      [app, itc],
+      [APP_TYPE, ITC_TYPE],
+      [COST_REL],
+      [
+        {
+          id: "rel-cost-1",
+          type: "costs",
+          source_id: app.id,
+          target_id: itc.id,
+          attributes: { annual: 25000 },
+          description: "Production",
+        },
+      ],
+    );
+    const upserts = report.relationOps.filter((o) => o.action === "upsert");
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0].attributes).toMatchObject({ annual: 30000 });
+  });
 });
