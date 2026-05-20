@@ -34,7 +34,7 @@
 | User Group | Organization с подтипом `team`, с тегом `leanix_origin=UserGroup` |
 | Фазы жизненного цикла (plan / phaseIn / active / phaseOut / endOfLife) | Дословно переносятся в `cards.lifecycle` |
 | Иерархия (`childParentRelation`) | Сворачивается в `Card.parent_id` |
-| Рёбра Successor/Predecessor (`*SuccessorRelation`) | Сохраняются как связи; у новых tenant-типов карт `has_successors=true`, поэтому отображается представление lineage |
+| Рёбра Successor/Predecessor (`*SuccessorRelation`) | Сохраняются как связи; направление переворачивается при импорте, чтобы конвенция Turbo EA «source следует за target» совпала с семантикой LeanIX «у X есть преемник Y». У новых tenant-типов карт `has_successors=true`, поэтому отображается представление lineage. |
 | Связи (50+ типов рёбер LeanIX по умолчанию, и xlsx-нотация `applicationITComponentRelation`, и GraphQL-нотация `relApplicationToITComponent`) | Нативные связи Turbo EA с атрибутами рёбер |
 | Tenant-определённые типы связей (Server↔Application, lxSystem*, lxDora*, microservice*, ESG* и т. д.) | Новые не-built-in строки `relation_types`, создаются автоматически в том же проходе импорта, чтобы каждое ребро реально приземлилось |
 | Теги (группы single/multi) | Группы тегов + теги + связи по картам |

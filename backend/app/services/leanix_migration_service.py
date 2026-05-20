@@ -240,6 +240,39 @@ def map_lx_relation(lx_rel: str) -> str | None:
     return LX_TO_TEA_RELATION.get(lx_rel)
 
 
+# LeanIX relation types whose ``from → to`` direction is the reverse of
+# the matching Turbo EA ``source → target``. The staging layer swaps the
+# endpoints on these so the frontend's SuccessorsSection — which trusts
+# the stored direction — renders the right list under each heading.
+#
+# Currently exclusively the successor-chain edges: LeanIX reads them as
+# "X has successor Y" (from = older), while Turbo EA defines them as
+# "source succeeds target" (source = newer). If we ever find other LX
+# relation types with the same reversed convention, add them here and
+# staging picks them up without further plumbing.
+LX_FLIP_DIRECTION: frozenset[str] = frozenset(
+    {
+        # xlsx-form names
+        "applicationSuccessorRelation",
+        "itComponentSuccessorRelation",
+        "interfaceSuccessorRelation",
+        "initiativeSuccessorRelation",
+        "platformSuccessorRelation",
+        "processSuccessorRelation",
+        "dataObjectSuccessorRelation",
+        # GraphQL-form names (JSON snapshots — retained for completeness
+        # even though the JSON parser path was removed in 1.24.0)
+        "relApplicationSuccessor",
+        "relITComponentSuccessor",
+        "relInterfaceSuccessor",
+        "relInitiativeSuccessor",
+        "relPlatformSuccessor",
+        "relProcessSuccessor",
+        "relDataObjectSuccessor",
+    }
+)
+
+
 # ---------------------------------------------------------------------------
 # Card-fact-sheet payload builder
 # ---------------------------------------------------------------------------
@@ -556,16 +589,25 @@ async def stage_relations(
             )
             continue
 
+        # LeanIX successor relations encode "X has successor Y" with
+        # ``from = X (older)``. Turbo EA's matching ``rel*Successor`` edge
+        # is the opposite — ``source succeeds target``. Swap once here so
+        # the rest of the pipeline (endpoint resolution, dedup lookup,
+        # staged-row preview, apply, frontend) all sees TEA's convention.
+        src_lx_id, tgt_lx_id = rel.source_id, rel.target_id
+        if rel.type in LX_FLIP_DIRECTION:
+            src_lx_id, tgt_lx_id = tgt_lx_id, src_lx_id
+
         # Endpoint resolution: both ends must end up as Turbo EA card UUIDs.
-        src_target_id = await _resolve_endpoint_card_id(db, rel.source_id, in_snapshot)
-        tgt_target_id = await _resolve_endpoint_card_id(db, rel.target_id, in_snapshot)
+        src_target_id = await _resolve_endpoint_card_id(db, src_lx_id, in_snapshot)
+        tgt_target_id = await _resolve_endpoint_card_id(db, tgt_lx_id, in_snapshot)
         if src_target_id is None or tgt_target_id is None:
             stats["conflict"] += 1
             missing = []
             if src_target_id is None:
-                missing.append(f"source={rel.source_id}")
+                missing.append(f"source={src_lx_id}")
             if tgt_target_id is None:
-                missing.append(f"target={rel.target_id}")
+                missing.append(f"target={tgt_lx_id}")
             db.add(
                 LeanixStagedRecord(
                     id=uuid.uuid4(),
@@ -573,8 +615,8 @@ async def stage_relations(
                     entity_kind="relation",
                     leanix_id=rel.leanix_id,
                     leanix_data={
-                        "source_id": rel.source_id,
-                        "target_id": rel.target_id,
+                        "source_id": src_lx_id,
+                        "target_id": tgt_lx_id,
                         "lx_type": rel.type,
                         "tea_type": tea_type,
                         "attributes": rel.attributes,
@@ -624,8 +666,8 @@ async def stage_relations(
                 leanix_data={
                     "lx_type": rel.type,
                     "tea_type": tea_type,
-                    "source_id": rel.source_id,
-                    "target_id": rel.target_id,
+                    "source_id": src_lx_id,
+                    "target_id": tgt_lx_id,
                     "attributes": rel.attributes,
                     # Resolved endpoint UUIDs are cached on the staged
                     # row so the apply pass doesn't have to redo the

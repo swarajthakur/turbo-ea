@@ -34,7 +34,7 @@ In LeanIX, open **Administration → Export → Full Snapshot**. This produces a
 | User Group | Organization with subtype `team`, tagged `leanix_origin=UserGroup` |
 | Lifecycle phases (plan / phaseIn / active / phaseOut / endOfLife) | Carried verbatim onto `cards.lifecycle` |
 | Hierarchy (`childParentRelation`) | Folded into `Card.parent_id` |
-| Successor / predecessor edges (`*SuccessorRelation`) | Stored as relations; the new tenant card types have `has_successors=true` so the lineage view renders |
+| Successor / predecessor edges (`*SuccessorRelation`) | Stored as relations; direction is flipped on import so Turbo EA's "source succeeds target" convention matches LeanIX's "X has successor Y" semantic. The new tenant card types have `has_successors=true` so the lineage view renders. |
 | Relations (50+ default LeanIX edge types, both xlsx-style `applicationITComponentRelation` and GraphQL-style `relApplicationToITComponent` names) | Native Turbo EA relations with edge attributes |
 | Tenant-defined relation types (Server↔Application, lxSystem*, lxDora*, microservice*, ESG*, etc.) | New non-built-in `relation_types` rows, created automatically in the same import pass so every edge actually lands |
 | Tags (single / multi groups) | Tag groups + tags + per-card joins |

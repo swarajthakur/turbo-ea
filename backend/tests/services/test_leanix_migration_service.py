@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 from app.services.leanix_migration_service import (
     LX_DATATYPE_TO_TEA_TYPE,
+    LX_FLIP_DIRECTION,
     LX_SUBSCRIPTION_ROLE_MAP,
     LX_TO_TEA_RELATION,
     LX_TO_TEA_TYPE,
@@ -107,6 +108,31 @@ def test_map_lx_relation_default_and_legacy_names() -> None:
     assert map_lx_relation("relCustomSomething") is None
     # Sanity check: table covers the core surface area.
     assert len(LX_TO_TEA_RELATION) >= 40
+
+
+def test_flip_direction_covers_every_successor_relation() -> None:
+    """Every LX relation type whose TEA target is a ``rel*Successor`` edge
+    must be in ``LX_FLIP_DIRECTION`` — LeanIX's "X has successor Y" direction
+    is the reverse of TEA's "source succeeds target", so staging swaps them.
+    Missing entries here would land successors as predecessors and vice-versa
+    in the CardDetail lineage view."""
+    successor_lx_names = {lx for lx, tea in LX_TO_TEA_RELATION.items() if tea.endswith("Successor")}
+    missing = successor_lx_names - LX_FLIP_DIRECTION
+    assert missing == set(), f"Successor LX relations missing from flip set: {missing}"
+
+
+def test_flip_direction_does_not_swap_non_successor_relations() -> None:
+    """Inverse of the above — nothing in ``LX_FLIP_DIRECTION`` should map
+    to a non-successor TEA key. A stray entry here would silently invert a
+    healthy edge (e.g. ``relAppToITC``) and corrupt the import."""
+    for lx_name in LX_FLIP_DIRECTION:
+        tea = LX_TO_TEA_RELATION.get(lx_name)
+        # ``None`` means the LX type isn't in the static map (it may still
+        # be staged via the parser-synthesised metamodel path, but no
+        # built-in TEA edge claims it — fine).
+        assert tea is None or tea.endswith("Successor"), (
+            f"{lx_name!r} flips direction but maps to non-successor {tea!r}"
+        )
 
 
 def test_normalise_tag_group_mode() -> None:

@@ -34,7 +34,7 @@ En LeanIX, abra **Administration → Export → Full Snapshot**. Esto produce un
 | User Group | Organization con subtipo `team`, etiquetado `leanix_origin=UserGroup` |
 | Fases de ciclo de vida (plan / phaseIn / active / phaseOut / endOfLife) | Trasladadas literalmente a `cards.lifecycle` |
 | Jerarquía (`childParentRelation`) | Plegada en `Card.parent_id` |
-| Aristas Sucesor/Predecesor (`*SuccessorRelation`) | Almacenadas como relaciones; los nuevos tipos de tarjeta del tenant tienen `has_successors=true` para que se renderice la vista de linaje |
+| Aristas Sucesor/Predecesor (`*SuccessorRelation`) | Almacenadas como relaciones; la dirección se invierte al importar para que la convención de Turbo EA «source sucede target» coincida con la semántica de LeanIX «X tiene sucesor Y». Los nuevos tipos de tarjeta del tenant tienen `has_successors=true` para que se renderice la vista de linaje. |
 | Relaciones (50+ tipos de aristas predeterminados de LeanIX, tanto en notación xlsx `applicationITComponentRelation` como GraphQL `relApplicationToITComponent`) | Relaciones nativas de Turbo EA con atributos de arista |
 | Tipos de relación definidos por el tenant (Server↔Application, lxSystem*, lxDora*, microservice*, ESG*, etc.) | Nuevas filas `relation_types` no-built-in, creadas automáticamente en la misma pasada de importación para que cada arista realmente aterrice |
 | Tags (grupos single/multi) | Grupos de tags + tags + joins por tarjeta |

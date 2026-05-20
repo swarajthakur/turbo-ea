@@ -34,7 +34,7 @@ In LeanIX öffnen Sie **Administration → Export → Full Snapshot**. Dadurch e
 | User Group | Organisation mit Subtyp `team`, getaggt `leanix_origin=UserGroup` |
 | Lifecycle-Phasen (plan / phaseIn / active / phaseOut / endOfLife) | Wortgetreu auf `cards.lifecycle` übernommen |
 | Hierarchie (`childParentRelation`) | In `Card.parent_id` zusammengefasst |
-| Successor- / Predecessor-Kanten (`*SuccessorRelation`) | Als Beziehungen gespeichert; neue mandantenspezifische Kartentypen erhalten `has_successors=true`, sodass die Lineage-Ansicht angezeigt wird |
+| Successor- / Predecessor-Kanten (`*SuccessorRelation`) | Als Beziehungen gespeichert; die Richtung wird beim Import umgekehrt, damit Turbo EAs Konvention „Quelle folgt Ziel" zur LeanIX-Semantik „X hat Nachfolger Y" passt. Neue mandantenspezifische Kartentypen erhalten `has_successors=true`, sodass die Lineage-Ansicht angezeigt wird. |
 | Beziehungen (50+ Standard-LeanIX-Beziehungstypen, sowohl xlsx-Notation `applicationITComponentRelation` als auch GraphQL-Notation `relApplicationToITComponent`) | Native Turbo-EA-Beziehungen mit Kantenattributen |
 | Mandantenspezifische Beziehungstypen (Server↔Application, lxSystem*, lxDora*, microservice*, ESG*, etc.) | Neue Nicht-Built-in-`relation_types`-Einträge, im selben Importlauf automatisch angelegt, damit jede Kante tatsächlich landet |
 | Tags (Single- / Multi-Gruppen) | Tag-Gruppen + Tags + Pro-Karte-Joins |

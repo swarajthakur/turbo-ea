@@ -34,7 +34,7 @@
 | User Group | Organization，子类型 `team`，打上 `leanix_origin=UserGroup` |
 | 生命周期阶段（plan / phaseIn / active / phaseOut / endOfLife） | 原样写入 `cards.lifecycle` |
 | 层级关系（`childParentRelation`） | 折叠到 `Card.parent_id` |
-| 后继/前序边（`*SuccessorRelation`） | 存储为关系；新租户卡片类型的 `has_successors=true`，因此 lineage 视图可被渲染 |
+| 后继/前序边（`*SuccessorRelation`） | 存储为关系；导入时翻转方向，使 Turbo EA 的「source 后继于 target」约定与 LeanIX 的「X 的后继是 Y」语义一致。新租户卡片类型的 `has_successors=true`，因此 lineage 视图可被渲染。 |
 | 关系（50+ 种 LeanIX 默认边类型，xlsx 风格 `applicationITComponentRelation` 与 GraphQL 风格 `relApplicationToITComponent` 均支持） | Turbo EA 原生关系，含边属性 |
 | 租户自定义关系类型（Server↔Application、lxSystem*、lxDora*、microservice*、ESG* 等） | 新的非 built-in `relation_types` 行，在同一次导入 pass 中自动创建，使每条边真正落地 |
 | 标签（single/multi 组） | 标签组 + 标签 + 每卡 join |
