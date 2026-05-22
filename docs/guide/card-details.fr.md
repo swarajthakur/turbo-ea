@@ -57,6 +57,7 @@ Chaque phase dispose d'un **sélecteur de date** pour enregistrer quand le compo
 Selon le type de fiche, vous verrez des sections supplémentaires avec des **champs personnalisés** configurés dans le métamodèle. Les types de champs incluent :
 
 - **Texte** -- Saisie de texte libre
+- **Texte multiligne** -- Saisie de texte libre qui préserve les retours à la ligne, affichée comme une zone de texte à hauteur automatique
 - **Nombre** -- Valeur numérique
 - **Coût** -- Valeur numérique affichée avec la devise configurée de la plateforme
 - **Booléen** -- Interrupteur marche/arrêt

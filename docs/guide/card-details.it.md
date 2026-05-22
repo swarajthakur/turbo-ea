@@ -57,6 +57,7 @@ Ogni fase ha un **selettore di data** per registrare quando il componente è ent
 A seconda del tipo di card, vedrete sezioni aggiuntive con **campi personalizzati** configurati nel metamodello. I tipi di campo includono:
 
 - **Testo** — Input di testo libero
+- **Testo multilinea** — Input di testo libero che preserva le interruzioni di riga, visualizzato come un'area di testo a crescita automatica
 - **Numero** — Valore numerico
 - **Costo** — Valore numerico visualizzato con la valuta configurata della piattaforma
 - **Booleano** — Interruttore on/off

@@ -57,6 +57,7 @@ Cada fase tiene un **selector de fecha** para registrar cuándo el componente en
 Dependiendo del tipo de ficha, verá secciones adicionales con **campos personalizados** configurados en el metamodelo. Los tipos de campo incluyen:
 
 - **Texto** — Entrada de texto libre
+- **Texto multilínea** — Entrada de texto libre que preserva los saltos de línea, mostrada como un área de texto que crece automáticamente
 - **Número** — Valor numérico
 - **Costo** — Valor numérico mostrado con la moneda configurada en la plataforma
 - **Booleano** — Interruptor de activar/desactivar

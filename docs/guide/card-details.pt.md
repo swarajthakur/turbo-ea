@@ -57,6 +57,7 @@ Cada fase tem um **seletor de data** para que você possa registrar quando o com
 Dependendo do tipo de card, você verá seções adicionais com **campos personalizados** configurados no metamodelo. Os tipos de campo incluem:
 
 - **Texto** — Entrada de texto livre
+- **Texto multilinha** — Entrada de texto livre que preserva quebras de linha, exibida como uma área de texto que cresce automaticamente
 - **Número** — Valor numérico
 - **Custo** — Valor numérico exibido com a moeda configurada na plataforma
 - **Booleano** — Alternância liga/desliga

@@ -57,6 +57,7 @@ Jede Phase verfügt über eine **Datumsauswahl**, damit Sie festhalten können, 
 Abhängig vom Kartentyp werden Sie zusätzliche Abschnitte mit **benutzerdefinierten Feldern** sehen, die im Metamodell konfiguriert sind. Feldtypen umfassen:
 
 - **Text** — Freitexteingabe
+- **Mehrzeiliger Text** — Freitexteingabe, die Zeilenumbrüche beibehält und als automatisch wachsendes Textfeld dargestellt wird
 - **Zahl** — Numerischer Wert
 - **Kosten** — Numerischer Wert, angezeigt mit der konfigurierten Währung der Plattform
 - **Boolean** — Ein/Aus-Umschalter

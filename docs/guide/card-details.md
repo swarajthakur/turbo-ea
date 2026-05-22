@@ -57,6 +57,7 @@ Each phase has a **date picker** so you can record when the component entered or
 Depending on the card type, you will see additional sections with **custom fields** configured in the metamodel. Field types include:
 
 - **Text** — Free text input
+- **Multi-line Text** — Free text input that preserves line breaks, rendered as an auto-growing text area
 - **Number** — Numeric value
 - **Cost** — Numeric value displayed with the platform's configured currency
 - **Boolean** — On/off toggle
