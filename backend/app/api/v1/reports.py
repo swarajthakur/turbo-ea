@@ -611,33 +611,31 @@ async def stakeholder_directory(
 ):
     """Org-wide stakeholder directory keyed by card type → role → users.
 
-    Powers the **Stakeholder directory** widget on the Admin tab. One
-    aggregating query group-bys over `(card.type, stakeholder.role,
-    stakeholder.user_id)` so the whole tree comes back in a single
-    round-trip. Per-user card lists are intentionally **not** included
-    here — drill-down uses the existing
-    ``GET /cards/my-stakeholder?user_id=X`` endpoint (cached on hover
-    in the UI), which keeps this payload small on big tenants.
+    Powers the **Stakeholder directory** widget on the Admin tab. Returns
+    the whole (card type → role → user → cards) tree in one round-trip,
+    including each user's cards so the widget can expand a chip and show
+    the cards inline without an extra fetch.
     """
     await PermissionService.require_permission(db, user, "admin.users")
 
     hidden_types_sq = select(CardType.key).where(CardType.is_hidden == True)  # noqa: E712
 
-    # Aggregate (type, role, user_id) → distinct card count.
+    # Fetch the raw join rows ungrouped — we group in Python so we can keep
+    # the per-user card list (which a SQL group-by would collapse).
     rows = (
         await db.execute(
             select(
                 Card.type,
                 Stakeholder.role,
                 Stakeholder.user_id,
-                func.count(func.distinct(Card.id)).label("card_count"),
+                Card.id,
+                Card.name,
             )
             .join(Stakeholder, Stakeholder.card_id == Card.id)
             .where(
                 Card.status == "ACTIVE",
                 Card.type.not_in(hidden_types_sq),
             )
-            .group_by(Card.type, Stakeholder.role, Stakeholder.user_id)
         )
     ).all()
 
@@ -676,10 +674,14 @@ async def stakeholder_directory(
     user_rows = (await db.execute(select(User).where(User.id.in_(user_ids)))).scalars().all()
     user_meta = {u.id: u for u in user_rows}
 
-    # Build nested tree: type → role → users.
+    # Build nested tree: type → role → user → cards.
+    # Per-user card lists are deduplicated by id (a card can theoretically
+    # carry the same user in the same role twice — defensive).
     by_type: dict[str, dict] = {}
     type_total_holders: dict[str, set] = {}
-    for type_key, role_key, user_id, card_count in rows:
+    # Intermediate per-(type, role, user) card aggregation.
+    user_cards: dict[tuple[str, str, object], dict[str, str]] = {}
+    for type_key, role_key, user_id, card_id, card_name in rows:
         ct_node = by_type.setdefault(
             type_key,
             {
@@ -697,19 +699,29 @@ async def stakeholder_directory(
                 "role_label": role_key,
                 "role_color": "#757575",
                 "role_translations": {},
-                "users": [],
+                "users": {},
             },
         )
-        u = user_meta.get(user_id)
-        role_node["users"].append(
-            {
+        if user_id not in role_node["users"]:
+            u = user_meta.get(user_id)
+            role_node["users"][user_id] = {
                 "user_id": str(user_id),
                 "display_name": (u.display_name if u else None) or (u.email if u else str(user_id)),
                 "email": u.email if u else None,
-                "card_count": int(card_count),
+                "cards": [],
             }
-        )
+        bucket = user_cards.setdefault((type_key, role_key, user_id), {})
+        bucket[str(card_id)] = card_name
         type_total_holders.setdefault(type_key, set()).add(user_id)
+
+    # Flatten the per-user `cards` dicts onto each user node + sort by name.
+    for (type_key, role_key, user_id), cards in user_cards.items():
+        user_node = by_type[type_key]["roles"][role_key]["users"][user_id]
+        user_node["cards"] = sorted(
+            ({"id": cid, "name": cname} for cid, cname in cards.items()),
+            key=lambda c: (c["name"] or "").lower(),
+        )
+        user_node["card_count"] = len(user_node["cards"])
 
     # Resolve type + role metadata and serialise into ordered lists.
     out_card_types = []
@@ -727,10 +739,10 @@ async def stakeholder_directory(
                 role_node["role_label"] = srd.label
                 role_node["role_color"] = srd.color or "#757575"
                 role_node["role_translations"] = srd.translations or {}
-            # Order users within each role by card_count desc, then name.
-            role_node["users"].sort(
-                key=lambda u: (-u["card_count"], (u["display_name"] or "").lower())
-            )
+            # Convert users dict → list, ordered by card_count desc, then name.
+            users_list = list(role_node["users"].values())
+            users_list.sort(key=lambda u: (-u["card_count"], (u["display_name"] or "").lower()))
+            role_node["users"] = users_list
             roles_list.append(role_node)
         roles_list.sort(
             key=lambda r: (srd_sort.get((type_key, r["role_key"]), 9999), r["role_key"])

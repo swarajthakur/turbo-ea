@@ -23799,7 +23799,7 @@
     },
     "/api/v1/reports/stakeholder-directory": {
       "get": {
-        "description": "Org-wide stakeholder directory keyed by card type \u2192 role \u2192 users.\n\nPowers the **Stakeholder directory** widget on the Admin tab. One\naggregating query group-bys over `(card.type, stakeholder.role,\nstakeholder.user_id)` so the whole tree comes back in a single\nround-trip. Per-user card lists are intentionally **not** included\nhere \u2014 drill-down uses the existing\n``GET /cards/my-stakeholder?user_id=X`` endpoint (cached on hover\nin the UI), which keeps this payload small on big tenants.",
+        "description": "Org-wide stakeholder directory keyed by card type \u2192 role \u2192 users.\n\nPowers the **Stakeholder directory** widget on the Admin tab. Returns\nthe whole (card type \u2192 role \u2192 user \u2192 cards) tree in one round-trip,\nincluding each user's cards so the widget can expand a chip and show\nthe cards inline without an extra fetch.",
         "operationId": "stakeholder_directory_api_v1_reports_stakeholder_directory_get",
         "responses": {
           "200": {

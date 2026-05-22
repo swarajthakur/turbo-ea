@@ -302,12 +302,19 @@ class TestStakeholderDirectory:
         assert names == ["Alice", "Bob"]
         counts = [u["card_count"] for u in responsible["users"]]
         assert counts == [2, 1]
+        # Each user now carries the actual cards inline (no follow-up fetch
+        # needed for the click-to-expand affordance in the directory widget).
+        alice_cards = {c["name"] for c in responsible["users"][0]["cards"]}
+        assert alice_cards == {"A1", "A2"}
+        bob_cards = {c["name"] for c in responsible["users"][1]["cards"]}
+        assert bob_cards == {"A3"}
 
         observer = app_node["roles"][1]
         observer_users = observer["users"]
         assert len(observer_users) == 1
         assert observer_users[0]["display_name"] == "Alice"
         assert observer_users[0]["card_count"] == 1
+        assert [c["name"] for c in observer_users[0]["cards"]] == ["A3"]
 
         # Card types ordered by holders_count desc — Application (2) before
         # BusinessProcess (1).

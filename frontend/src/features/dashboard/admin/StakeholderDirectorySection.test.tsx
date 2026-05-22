@@ -12,12 +12,6 @@ vi.mock("@/hooks/useResolveLabel", () => ({
   useResolveMetaLabel: () => (label: string) => label,
 }));
 
-// The widget renders StakeholderHoverCard around each user chip; stub it to
-// keep this test focused on the directory tree.
-vi.mock("@/components/StakeholderHoverCard", () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 import { api } from "@/api/client";
 import StakeholderDirectorySection from "./StakeholderDirectorySection";
 
@@ -36,8 +30,23 @@ const DIRECTORY = {
           role_color: "#1976d2",
           role_translations: {},
           users: [
-            { user_id: "u-alice", display_name: "Alice", email: "a@x", card_count: 2 },
-            { user_id: "u-bob", display_name: "Bob", email: "b@x", card_count: 1 },
+            {
+              user_id: "u-alice",
+              display_name: "Alice",
+              email: "alice@example.com",
+              card_count: 2,
+              cards: [
+                { id: "card-a1", name: "NexaCore ERP" },
+                { id: "card-a2", name: "Logistics Hub" },
+              ],
+            },
+            {
+              user_id: "u-bob",
+              display_name: "Bob",
+              email: "bob@example.com",
+              card_count: 1,
+              cards: [{ id: "card-a3", name: "Reporting Suite" }],
+            },
           ],
         },
       ],
@@ -55,7 +64,13 @@ const DIRECTORY = {
           role_color: "#1976d2",
           role_translations: {},
           users: [
-            { user_id: "u-bob", display_name: "Bob", email: "b@x", card_count: 1 },
+            {
+              user_id: "u-bob",
+              display_name: "Bob",
+              email: "bob@example.com",
+              card_count: 1,
+              cards: [{ id: "card-p1", name: "Onboarding Flow" }],
+            },
           ],
         },
       ],
@@ -84,33 +99,69 @@ describe("StakeholderDirectorySection", () => {
       expect(api.get).toHaveBeenCalledWith("/reports/stakeholder-directory");
     });
 
-    // Both card types appear as rows. `useResolveMetaLabel` falls back to
-    // the type_key (the stub takes the first arg), so we match those.
-    expect(await screen.findByText("Application")).toBeInTheDocument();
-    expect(screen.getByText("BusinessProcess")).toBeInTheDocument();
-
     // The first card type is auto-expanded → its role + users render.
-    expect(screen.getByText("Application Owner")).toBeInTheDocument();
+    expect(await screen.findByText("Application Owner")).toBeInTheDocument();
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
 
     // The second card type is collapsed by default — its role doesn't show.
     expect(screen.queryByText("Process Owner")).not.toBeInTheDocument();
+    // User cards are also collapsed by default.
+    expect(screen.queryByText("NexaCore ERP")).not.toBeInTheDocument();
   });
 
-  it("expands a card type on click to reveal its role chips", async () => {
+  it("expands a user chip on click to reveal their cards under that role", async () => {
     vi.mocked(api.get).mockResolvedValue(DIRECTORY);
     renderSection();
-    await screen.findByText("Application");
+    await screen.findByText("Alice");
+
+    // Click the user chip to expand. Cards render below as clickable rows.
+    await userEvent.click(screen.getByText("Alice"));
+    expect(await screen.findByText("NexaCore ERP")).toBeInTheDocument();
+    expect(screen.getByText("Logistics Hub")).toBeInTheDocument();
+    // Bob's card isn't part of Alice's expansion.
+    expect(screen.queryByText("Reporting Suite")).not.toBeInTheDocument();
+  });
+
+  it("filters by name and auto-expands matching card types", async () => {
+    vi.mocked(api.get).mockResolvedValue(DIRECTORY);
+    renderSection();
+    await screen.findByText("Alice");
 
     // BusinessProcess starts collapsed.
     expect(screen.queryByText("Process Owner")).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByText("BusinessProcess"));
+    // Type "bob" — only Bob's placements remain, in BOTH card types.
+    const filter = screen.getByPlaceholderText(
+      "Filter by stakeholder name or email…",
+    );
+    await userEvent.type(filter, "bob");
+
+    // BusinessProcess now visible (auto-expanded by the filter), Application
+    // still visible too.
     expect(await screen.findByText("Process Owner")).toBeInTheDocument();
+    expect(screen.getByText("Application Owner")).toBeInTheDocument();
+
+    // Alice is filtered out.
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
 
-  it("renders the empty state when no stakeholders exist", async () => {
+  it("shows the no-matches empty state when nothing matches the filter", async () => {
+    vi.mocked(api.get).mockResolvedValue(DIRECTORY);
+    renderSection();
+    await screen.findByText("Alice");
+
+    const filter = screen.getByPlaceholderText(
+      "Filter by stakeholder name or email…",
+    );
+    await userEvent.type(filter, "zzzz");
+
+    expect(
+      await screen.findByText("No stakeholders match «zzzz»."),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the empty state when the directory is empty", async () => {
     vi.mocked(api.get).mockResolvedValue({ card_types: [] });
     renderSection();
 
