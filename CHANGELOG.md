@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.25.1] - 2026-05-22
+
+### Fixed
+- **User import respects «send invites» checkbox.** Importing users via Admin → Users & Roles with the *send invites* box unchecked no longer flags the new accounts as **Invited** and no longer adds them to the pending invitations list. In SSO mode the email→role binding is still created so the SSO callback applies the right role on first sign-in (#584).
+
 ## [1.25.0] - 2026-05-22
 
 ### Added

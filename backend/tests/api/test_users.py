@@ -416,6 +416,111 @@ class TestUpdateUser:
         assert "logged-in@test.com" not in emails
         assert "never-logged-in@test.com" in emails
 
+    async def test_create_user_no_invite_local_mode_skips_invitation(self, client, db, users_env):
+        """Bulk-importing a user with «send invites» unchecked must NOT flag
+        the account as Invited. In local-mode (SSO disabled) the SsoInvitation
+        row serves no purpose other than the «pending invitations» list — and
+        the admin explicitly opted out (#584).
+        """
+        from sqlalchemy import select
+
+        from app.models.sso_invitation import SsoInvitation
+
+        admin = users_env["admin"]
+        resp = await client.post(
+            "/api/v1/users",
+            json={
+                "email": "import-no-invite@test.com",
+                "display_name": "Import No Invite",
+                "password": "StrongPass1",
+                "role": "member",
+                "send_email": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 201
+
+        # No SsoInvitation row.
+        inv_q = await db.execute(
+            select(SsoInvitation).where(SsoInvitation.email == "import-no-invite@test.com")
+        )
+        assert inv_q.scalar_one_or_none() is None
+
+        # And the user is not surfaced on the pending list.
+        resp = await client.get("/api/v1/users/invitations", headers=auth_headers(admin))
+        assert resp.status_code == 200
+        assert all(inv["email"] != "import-no-invite@test.com" for inv in resp.json())
+
+    async def test_create_user_with_invite_local_mode_creates_invitation(
+        self, client, db, users_env
+    ):
+        """When the admin explicitly asks to invite (send_email=True), the
+        SsoInvitation row IS created so the user stays on the pending list
+        until first login — that's what powers «resend invite» (#539)."""
+        from sqlalchemy import select
+
+        from app.models.sso_invitation import SsoInvitation
+
+        admin = users_env["admin"]
+        resp = await client.post(
+            "/api/v1/users",
+            json={
+                "email": "import-with-invite@test.com",
+                "display_name": "Import With Invite",
+                "password": "StrongPass1",
+                "role": "member",
+                "send_email": True,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 201
+
+        inv_q = await db.execute(
+            select(SsoInvitation).where(SsoInvitation.email == "import-with-invite@test.com")
+        )
+        assert inv_q.scalar_one_or_none() is not None
+
+        resp = await client.get("/api/v1/users/invitations", headers=auth_headers(admin))
+        assert resp.status_code == 200
+        assert any(inv["email"] == "import-with-invite@test.com" for inv in resp.json())
+
+    async def test_create_user_sso_enabled_always_creates_invitation(self, client, db, users_env):
+        """In SSO mode the SsoInvitation row is the email→role binding the
+        SSO callback uses on first sign-in, so it must be created regardless
+        of the send_email flag."""
+        from sqlalchemy import select
+
+        from app.models.app_settings import AppSettings
+        from app.models.sso_invitation import SsoInvitation
+
+        # Flip SSO on via app_settings.
+        db.add(
+            AppSettings(
+                id="default",
+                general_settings={"sso": {"enabled": True, "provider": "generic_oidc"}},
+            )
+        )
+        await db.commit()
+
+        admin = users_env["admin"]
+        resp = await client.post(
+            "/api/v1/users",
+            json={
+                "email": "sso-user@test.com",
+                "display_name": "SSO User",
+                "role": "member",
+                "send_email": False,
+                # No password — allowed in SSO mode (user will sign in via SSO).
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 201, resp.text
+
+        inv_q = await db.execute(
+            select(SsoInvitation).where(SsoInvitation.email == "sso-user@test.com")
+        )
+        assert inv_q.scalar_one_or_none() is not None
+
 
 # -------------------------------------------------------------------
 # DELETE /users/{id}  (hard delete — row is removed)

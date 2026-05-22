@@ -497,13 +497,22 @@ async def create_user(
     )
     db.add(u)
 
-    # Also create an SSO invitation so SSO login gives the right role
-    sso_inv = SsoInvitation(
-        email=email,
-        role=body.role,
-        invited_by=current_user.id,
-    )
-    db.add(sso_inv)
+    # Create an SSO invitation only when actually needed:
+    # - SSO enabled: required so the SSO callback applies the right role on
+    #   first sign-in (the row is the email→role binding).
+    # - Local mode with send_email=True: keeps the user on the «pending
+    #   invitations» list so admins can resend the welcome email until first
+    #   login (#539).
+    # - Local mode with send_email=False: admin pre-set a password and
+    #   explicitly opted out of notifying the user — the account is active
+    #   from creation, not «Invited» (#584).
+    if sso_enabled or body.send_email:
+        sso_inv = SsoInvitation(
+            email=email,
+            role=body.role,
+            invited_by=current_user.id,
+        )
+        db.add(sso_inv)
 
     await db.commit()
     await db.refresh(u)
