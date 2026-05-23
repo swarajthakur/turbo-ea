@@ -1778,6 +1778,11 @@
       },
       "CardBulkUpdate": {
         "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
           "ids": {
             "items": {
               "type": "string"
@@ -1890,6 +1895,11 @@
               }
             ],
             "title": "Parent Id"
+          },
+          "strict_attributes": {
+            "default": false,
+            "title": "Strict Attributes",
+            "type": "boolean"
           },
           "subtype": {
             "anyOf": [
@@ -2609,6 +2619,11 @@
               }
             ],
             "title": "Status"
+          },
+          "strict_attributes": {
+            "default": false,
+            "title": "Strict Attributes",
+            "type": "boolean"
           },
           "subtype": {
             "anyOf": [
@@ -9546,6 +9561,22 @@
         "title": "RoleUpdate",
         "type": "object"
       },
+      "RollbackBody": {
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          }
+        },
+        "title": "RollbackBody",
+        "type": "object"
+      },
       "SavedReportCreate": {
         "properties": {
           "config": {
@@ -15953,13 +15984,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CardResponse"
-                  },
-                  "title": "Response Bulk Update Api V1 Cards Bulk Patch",
-                  "type": "array"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -21600,6 +21625,58 @@
           }
         },
         "summary": "Get Batch History",
+        "tags": [
+          "mutation-batches"
+        ]
+      }
+    },
+    "/api/v1/mutation-batches/{batch_id}/rollback": {
+      "post": {
+        "description": "Reverse the writes performed under a mutation batch.\n\nPermission rules: the batch owner can roll back their own batch\nwithout ``admin.events``; reverting another user's batch needs\n``admin.events``. ``force=True`` requires ``admin.events``\nregardless, since it accepts overwriting later writes by other\nusers.",
+        "operationId": "rollback_api_v1_mutation_batches__batch_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback",
         "tags": [
           "mutation-batches"
         ]

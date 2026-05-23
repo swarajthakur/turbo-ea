@@ -32,6 +32,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -58,6 +59,7 @@ from app.services.mutation_batch_service import (
     verify_confirm_token,
 )
 from app.services.permission_service import PermissionService
+from app.services.rollback_service import execute_rollback, plan_rollback
 
 router = APIRouter(prefix="/mutation-batches", tags=["mutation-batches"])
 
@@ -237,3 +239,38 @@ async def get_batch_history(
             for e in events
         ],
     )
+
+
+class RollbackBody(BaseModel):
+    dry_run: bool = True
+    force: bool = False
+
+
+@router.post("/{batch_id}/rollback")
+async def rollback(
+    batch_id: uuid.UUID,
+    body: RollbackBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Reverse the writes performed under a mutation batch.
+
+    Permission rules: the batch owner can roll back their own batch
+    without ``admin.events``; reverting another user's batch needs
+    ``admin.events``. ``force=True`` requires ``admin.events``
+    regardless, since it accepts overwriting later writes by other
+    users.
+    """
+    batch = await get_batch(db, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="Mutation batch not found")
+    cross_actor = bool(batch.actor_user_id and batch.actor_user_id != user.id)
+    if cross_actor or body.force:
+        await PermissionService.require_permission(db, user, "admin.events")
+    if body.dry_run:
+        plan = await plan_rollback(db, batch)
+        plan["dry_run"] = True
+        return plan
+    result = await execute_rollback(db, batch, user_id=user.id, force=body.force)
+    await db.commit()
+    return result

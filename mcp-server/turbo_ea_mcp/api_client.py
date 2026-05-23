@@ -71,6 +71,18 @@ class TurboEAClient:
                 return {}
             return resp.json()
 
+    async def patch(self, path: str, json: dict | None = None) -> dict | list:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.patch(
+                f"{self._base}{path}",
+                headers=self._headers(),
+                json=json,
+            )
+            resp.raise_for_status()
+            if resp.status_code == 204:
+                return {}
+            return resp.json()
+
     async def refresh_token(self) -> str | None:
         """Call POST /auth/refresh to get a new JWT. Returns the new token
         or None if the current token is expired/invalid."""
