@@ -1,6 +1,6 @@
 # Integração MCP (acesso para ferramentas de IA)
 
-O Turbo EA inclui um **servidor MCP** (Model Context Protocol) integrado que permite que ferramentas de IA — como Claude Desktop, GitHub Copilot, Cursor e VS Code — consultem seus dados de EA diretamente. Os usuários se autenticam através do provedor SSO existente, e cada consulta respeita suas permissões individuais.
+O Turbo EA inclui um **servidor MCP** (Model Context Protocol) integrado que permite que ferramentas de IA — como Claude Desktop, GitHub Copilot, Cursor e VS Code — consultem e atualizem seus dados de EA diretamente. As ferramentas de IA também podem carregar artefatos (planilhas, diagramas BPMN, diagramas DrawIO, documentos livres) e transformá-los em cards, relações e diagramas que se ajustam ao metamodelo existente. Os usuários se autenticam através do provedor SSO existente, e cada ação respeita suas permissões individuais.
 
 Este recurso é **opcional** e **não inicia automaticamente**. Requer que o SSO esteja configurado, que o perfil MCP esteja ativado no Docker Compose e que um administrador o ative na interface de configurações.
 
@@ -155,11 +155,15 @@ Neste modo, o servidor se autentica com email/senha e renova o token automaticam
 
 ## Capacidades disponíveis
 
-O servidor MCP fornece acesso **somente leitura** aos dados de EA. Ele não pode criar, modificar ou excluir nada.
+O servidor MCP expõe **30 ferramentas** divididas em dois grupos: **25 ferramentas de leitura** que consultam dados de EA e **5 ferramentas de escrita** que transformam artefatos que uma ferramenta de IA tem no seu próprio contexto (planilhas, BPMN XML, DrawIO XML, documentos, imagens) em cards, relações e diagramas.
 
-### Ferramentas
+### Segurança por execução simulada nas escritas
 
-O servidor expõe 25 ferramentas somente leitura agrupadas em seis clusters.
+Cada ferramenta de escrita usa por padrão **`dry_run=true`**. Nesse modo, o backend executa cada validador e resolvedor, monta o plano completo e então **reverte a transação**, de modo que nada é persistido. A ferramenta de IA devolve a prévia ao usuário; somente após confirmação explícita ela deve chamar a ferramenta novamente com `dry_run=false` para confirmar. Isso impede que um agente afoito introduza silenciosamente centenas de cards a partir de uma planilha interpretada de forma errada.
+
+### Ferramentas de leitura
+
+O servidor expõe 25 ferramentas de leitura agrupadas em seis clusters.
 
 **Cards & metamodelo**
 
@@ -223,6 +227,26 @@ O servidor expõe 25 ferramentas somente leitura agrupadas em seis clusters.
 
 Todas as ferramentas respeitam o RBAC do usuário autenticado — um visualizador recebe simplesmente uma lista vazia (ou 403) para o que não pode ver; nenhuma configuração por ferramenta é necessária no nível MCP.
 
+### Ferramentas de escrita — upload de artefatos
+
+Cinco ferramentas permitem que um agente de IA transforme artefatos em dados EA estruturados. O agente lê o arquivo de origem no seu próprio contexto (visão multimodal, anexos), extrai linhas estruturadas e chama estas ferramentas. O próprio servidor MCP nunca faz parsing de arquivos — ele espera entrada já estruturada.
+
+| Ferramenta | Descrição |
+|------------|-----------|
+| `create_cards_bulk` | Cria vários cards em uma única chamada (por exemplo, linhas de planilha). Suporta referências ao pai por nome dentro do mesmo lote, com ordenação topológica no servidor. |
+| `resolve_card_refs` | Pré-valida referências baseadas em nome antes de uma importação em massa — útil para mostrar ao usuário pais ambíguos ou ausentes. |
+| `upsert_relations_bulk` | Cria ou exclui relações entre cards. Origem / destino / tipo são validados contra o metamodelo. |
+| `create_diagram` | Cria um diagrama DrawIO livre com vínculos opcionais a cards existentes. |
+| `import_bpmn` | Salva um diagrama BPMN 2.0 XML em um card de Processo de negócio. Localiza o card por nome, cria-o se estiver ausente e salva o diagrama em uma única chamada. |
+
+Fluxo típico quando um usuário compartilha uma planilha com o agente de IA:
+
+1. O agente chama `list_card_types` e `get_relation_types` para entender o metamodelo.
+2. O agente faz o parse da planilha (no seu próprio contexto, não no MCP) e monta dicionários de linha.
+3. O agente chama `create_cards_bulk(cards=…, dry_run=True)` e mostra a prévia ao usuário.
+4. O usuário confirma; o agente chama novamente com `dry_run=False` para confirmar.
+5. Se houver colunas de relação, o agente chama em seguida `upsert_relations_bulk` com o mesmo ciclo execução simulada / confirmação.
+
 ### Recursos
 
 | URI | Descrição |
@@ -245,12 +269,12 @@ Todas as ferramentas respeitam o RBAC do usuário autenticado — um visualizado
 
 | Papel | Acesso |
 |-------|--------|
-| **Administrador** | Configurar ajustes MCP (permissão `admin.mcp`) |
-| **Todos os usuários autenticados** | Consultar dados de EA através do servidor MCP (respeita suas permissões existentes no nível de card e aplicação) |
+| **Administrador** | Configurar ajustes MCP (permissão `admin.mcp`). Acesso completo de leitura + escrita através do MCP. |
+| **Todos os usuários autenticados** | Acesso de leitura governado pelo seu RBAC existente. As ferramentas de escrita exigem as permissões backend correspondentes — `inventory.create` (cards), `relations.manage` (relações), `diagrams.manage` (diagramas), `bpm.edit` (BPMN). |
 
 A permissão `admin.mcp` controla quem pode gerenciar as configurações de MCP. Está disponível apenas para o papel de Administrador por padrão. Papéis personalizados podem receber esta permissão através da página de administração de Papéis.
 
-O acesso a dados através do MCP segue o mesmo modelo RBAC da interface web — não há permissões de dados específicas do MCP.
+O acesso a dados através do MCP — leitura ou escrita — segue o mesmo modelo RBAC da interface web. Se um usuário não pode criar cards na interface do inventário, também não pode criá-los via MCP; não há permissões de dados específicas do MCP.
 
 ---
 
@@ -258,8 +282,9 @@ O acesso a dados através do MCP segue o mesmo modelo RBAC da interface web — 
 
 - **Autenticação delegada por SSO**: Os usuários se autenticam através do provedor SSO corporativo. O servidor MCP nunca vê ou armazena senhas.
 - **OAuth 2.1 com PKCE**: O fluxo de autenticação utiliza Proof Key for Code Exchange (S256) para prevenir a interceptação de códigos de autorização.
-- **RBAC por usuário**: Cada consulta MCP é executada com as permissões do usuário autenticado. Sem contas de serviço compartilhadas.
-- **Acesso somente leitura**: O servidor MCP só pode ler dados. Não pode criar, atualizar ou excluir cards, relações ou quaisquer outros recursos.
+- **RBAC por usuário**: Cada ação MCP — leitura ou escrita — é executada com as permissões do usuário autenticado. Sem contas de serviço compartilhadas.
+- **Execução simulada padrão nas escritas**: As ferramentas de escrita oferecem por padrão uma prévia validar-e-reverter. A ferramenta de IA deve chamar explicitamente novamente com `dry_run=false` antes de qualquer dado ser persistido, e cada alteração é auditada sob a identidade do usuário.
+- **Sem parsing de arquivos no MCP**: O próprio servidor MCP não aceita PDFs, arquivos Excel, imagens ou outros artefatos binários. A ferramenta de IA chamadora os processa no seu próprio contexto e envia linhas estruturadas. Isso mantém a superfície de ataque reduzida e evita expor o servidor a entradas binárias malformadas.
 - **Rotação de tokens**: Tokens de acesso expiram após 1 hora. Tokens de renovação duram 30 dias. Códigos de autorização são de uso único e expiram após 10 minutos.
 - **Porta apenas interna**: O container MCP expõe a porta 8001 apenas na rede Docker interna. Todo acesso externo passa pelo proxy reverso Nginx.
 
