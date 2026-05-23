@@ -646,6 +646,9 @@ from app.services.event_bus import (  # noqa: E402
     request_batch_id as _request_batch_id,
 )
 from app.services.event_bus import (  # noqa: E402
+    request_endpoint as _request_endpoint,
+)
+from app.services.event_bus import (  # noqa: E402
     request_origin as _request_origin,
 )
 
@@ -677,11 +680,20 @@ async def capture_request_origin(request, call_next):
             batch_id = None
     batch_token = _request_batch_id.set(batch_id)
 
+    # Capture an endpoint label (e.g. "PATCH /api/v1/cards/<id>") so
+    # auto-created mutation batches for non-MCP web/api writes land with
+    # a meaningful Tool column in the audit log. The matched FastAPI
+    # route isn't on ``request.scope`` yet at this point (routing runs
+    # downstream of this middleware), so the raw URL path is the best
+    # we can do — concrete UUIDs included.
+    endpoint_token = _request_endpoint.set(f"{request.method} {request.url.path}")
+
     try:
         return await call_next(request)
     finally:
         _request_origin.reset(token)
         _request_batch_id.reset(batch_token)
+        _request_endpoint.reset(endpoint_token)
 
 
 app.middleware("http")(capture_request_origin)

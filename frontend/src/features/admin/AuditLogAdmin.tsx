@@ -349,9 +349,12 @@ export default function AuditLogAdmin() {
             Audit log
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Every mutating MCP / API / web write opens a <em>mutation batch</em>.
-            Use this view to inspect what changed, by whom, when, and from where —
-            and to roll back an AI-driven batch that landed wrong.
+            Every mutating write (MCP agent, Web UI, direct API) lands here as a
+            mutation batch with its actor, tool, origin and per-event diff. Use
+            it to audit what changed and to roll back AI-driven batches that
+            landed wrong. (Rollback is supported on card / relation writes today;
+            other event types surface in the dry-run plan as
+            <code> unsupported_events</code>.)
           </Typography>
         </Box>
         <Tooltip title="Refresh">

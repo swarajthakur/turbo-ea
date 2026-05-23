@@ -26,6 +26,13 @@ request_origin: ContextVar[str | None] = ContextVar("request_origin", default=No
 # foundation S6 (change history) and S7 (rollback) ride on.
 request_batch_id: ContextVar[uuid.UUID | None] = ContextVar("request_batch_id", default=None)
 
+# Captured by the same middleware as ``request_origin``: the HTTP method +
+# path of the in-flight request. Used to label auto-created batches when a
+# web-UI or direct-API write publishes events without an MCP-style explicit
+# batch — gives admins something more useful than "POST /api/v1/cards" in
+# the audit log's Tool column.
+request_endpoint: ContextVar[str | None] = ContextVar("request_endpoint", default=None)
+
 
 class EventBus:
     def __init__(self) -> None:
@@ -47,6 +54,34 @@ class EventBus:
             # stream) all see the origin without a schema change.
             data = {**data, "origin": origin}
         effective_batch_id = batch_id if batch_id is not None else request_batch_id.get()
+
+        # Lazy auto-batch creation: web-UI and direct-API writes do not
+        # open a mutation batch the way MCP tools do, so without this
+        # their events would land in the audit log with batch_id=NULL
+        # and never surface on the Admin → Audit log page. Create one on
+        # the first publish in the request and stash it on the
+        # contextvar so any subsequent publish in the same request
+        # shares it. MCP requests already set request_batch_id via the
+        # X-Turbo-EA-Batch header, so they short-circuit this branch.
+        if effective_batch_id is None and db is not None:
+            from app.models.mutation_batch import MutationBatch
+
+            endpoint = request_endpoint.get()
+            auto = MutationBatch(
+                tool_name=endpoint or f"event:{event_type}",
+                actor_user_id=user_id,
+                origin=origin or "api",
+                dry_run=False,
+                # Auto-batches don't follow the open → write → commit
+                # dance; they're closed the moment they're opened
+                # because they represent a single in-flight request.
+                committed_at=datetime.now(timezone.utc),
+            )
+            db.add(auto)
+            await db.flush()
+            effective_batch_id = auto.id
+            request_batch_id.set(effective_batch_id)
+
         if db:
             event = Event(
                 card_id=card_id,
