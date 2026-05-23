@@ -424,6 +424,9 @@ async def bulk_relations(
     """
     await PermissionService.require_permission(db, user, "relations.manage")
 
+    # Dry-run isolation — see the matching comment in `cards.py` bulk-create.
+    dry_run_savepoint = await db.begin_nested() if body.dry_run else None
+
     operations = list(body.operations)
 
     # Preload every referenced relation type in one query.
@@ -593,7 +596,8 @@ async def bulk_relations(
             )
 
     if body.dry_run:
-        await db.rollback()
+        assert dry_run_savepoint is not None
+        await dry_run_savepoint.rollback()
     elif failed > 0 and upserted == 0 and deleted == 0:
         await db.rollback()
     else:

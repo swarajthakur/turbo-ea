@@ -122,6 +122,9 @@ async def save_diagram(
     pid = uuid.UUID(process_id)
     process = await _get_process_or_404(db, pid)
 
+    # Dry-run isolation — see the matching comment in `cards.py` bulk-create.
+    dry_run_savepoint = await db.begin_nested() if body.dry_run else None
+
     # Get current version
     existing = await db.execute(
         select(ProcessDiagram)
@@ -194,7 +197,8 @@ async def save_diagram(
         )
 
     if body.dry_run:
-        await db.rollback()
+        assert dry_run_savepoint is not None
+        await dry_run_savepoint.rollback()
     else:
         await db.commit()
     return {

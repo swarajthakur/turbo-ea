@@ -796,6 +796,13 @@ async def bulk_create_cards(
     """
     await PermissionService.require_permission(db, user, "inventory.create")
 
+    # Dry-run isolation: wrap the whole batch in our own savepoint so the
+    # discard at the end only undoes our work and never reaches a wrapping
+    # transaction (e.g. the savepoint that backs the integration-test
+    # fixture). `session.rollback()` on its own would rewind to the outer
+    # transaction and take fixture data with it.
+    dry_run_savepoint = await db.begin_nested() if body.dry_run else None
+
     rows = list(body.cards)
     by_index: dict[int, CardBulkCreateResult] = {}
 
@@ -975,10 +982,12 @@ async def bulk_create_cards(
 
     if body.dry_run:
         # Preview-only mode: every validator and resolver has already run,
-        # but the agent expects to confirm before persisting. Discard the
-        # in-flight inserts so the agent sees the would-be outcome without
-        # touching the inventory.
-        await db.rollback()
+        # but the agent expects to confirm before persisting. Roll back the
+        # handler-local savepoint so the agent sees the would-be outcome
+        # without touching the inventory — and without unwinding any
+        # caller-supplied transaction.
+        assert dry_run_savepoint is not None
+        await dry_run_savepoint.rollback()
     elif failed_count > 0 and created_count == 0:
         # Nothing succeeded — roll back so we don't half-apply.
         await db.rollback()
