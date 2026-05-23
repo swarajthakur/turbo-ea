@@ -269,6 +269,40 @@ class TestSaveDiagramDryRun:
         assert diagrams == []
         assert elements == []
 
+    async def test_business_process_card_accepts_description_via_bulk(self, client, db, bpm_env):
+        """Regression for the empty-card report: a BusinessProcess card
+        created via /cards/bulk-create with a `description` field must
+        land with that description set on the card row, exactly like any
+        other card type. The BPMN flow does not change card-level
+        description semantics; description is a top-level column on
+        `cards`, not a per-type attribute."""
+        from sqlalchemy import select
+
+        from app.models.card import Card
+
+        admin = bpm_env["admin"]
+        payload = {
+            "cards": [
+                {
+                    "row_index": 0,
+                    "type": "BusinessProcess",
+                    "name": "Procure to Pay",
+                    "description": "End-to-end procurement workflow.",
+                    "attributes": {"processType": "Core"},
+                }
+            ]
+        }
+        resp = await client.post(
+            "/api/v1/cards/bulk-create", json=payload, headers=auth_headers(admin)
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["created"] == 1
+        cid = body["results"][0]["id"]
+        card = (await db.execute(select(Card).where(Card.id == uuid.UUID(cid)))).scalar_one()
+        assert card.description == "End-to-end procurement workflow."
+        assert card.attributes.get("processType") == "Core"
+
     async def test_commit_persists_after_dry_run(self, client, db, bpm_env):
         admin = bpm_env["admin"]
         process = bpm_env["process"]

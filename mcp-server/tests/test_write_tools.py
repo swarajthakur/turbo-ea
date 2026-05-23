@@ -336,6 +336,157 @@ class TestImportBpmn:
         assert data["diagram_result"]["element_count"] == 7
 
     @pytest.mark.asyncio
+    async def test_create_new_passes_description_through(self, fake_token):
+        """When the card doesn't exist and the agent provides description /
+        attributes, the new BusinessProcess card lands with them."""
+        get_mock = AsyncMock(return_value={"items": [], "total": 0})
+        post_mock = AsyncMock(
+            return_value={
+                "results": [{"row_index": 0, "status": "created", "id": "bp-new"}],
+                "created": 1,
+                "failed": 0,
+                "dry_run": False,
+            }
+        )
+        put_mock = AsyncMock(
+            return_value={"version": 1, "element_count": 3, "dry_run": False}
+        )
+        with (
+            patch.object(server.TurboEAClient, "get", get_mock),
+            patch.object(server.TurboEAClient, "post", post_mock),
+            patch.object(server.TurboEAClient, "put", put_mock),
+        ):
+            await server.import_bpmn(
+                business_process_name="New Process",
+                bpmn_xml="<bpmn:definitions/>",
+                description="Order intake to shipment",
+                attributes={"processType": "Core"},
+                dry_run=False,
+            )
+        _, post_kwargs = post_mock.call_args
+        card_row = post_kwargs["json"]["cards"][0]
+        assert card_row["description"] == "Order intake to shipment"
+        assert card_row["attributes"] == {"processType": "Core"}
+
+    @pytest.mark.asyncio
+    async def test_create_new_falls_back_to_bpmn_documentation(self, fake_token):
+        """When the agent omits a description, the tool seeds it from the
+        BPMN's <bpmn:process><bpmn:documentation> child if present."""
+        get_mock = AsyncMock(return_value={"items": [], "total": 0})
+        post_mock = AsyncMock(
+            return_value={
+                "results": [{"row_index": 0, "status": "created", "id": "bp-new"}],
+                "created": 1,
+                "failed": 0,
+                "dry_run": False,
+            }
+        )
+        put_mock = AsyncMock(
+            return_value={"version": 1, "element_count": 0, "dry_run": False}
+        )
+        bpmn = (
+            '<bpmn:definitions xmlns:bpmn="http://example/">'
+            '<bpmn:process id="P1" name="X">'
+            "  <bpmn:documentation>Auto-extracted process docs.</bpmn:documentation>"
+            "</bpmn:process>"
+            "</bpmn:definitions>"
+        )
+        with (
+            patch.object(server.TurboEAClient, "get", get_mock),
+            patch.object(server.TurboEAClient, "post", post_mock),
+            patch.object(server.TurboEAClient, "put", put_mock),
+        ):
+            await server.import_bpmn(
+                business_process_name="X", bpmn_xml=bpmn, dry_run=False
+            )
+        _, post_kwargs = post_mock.call_args
+        assert (
+            post_kwargs["json"]["cards"][0]["description"]
+            == "Auto-extracted process docs."
+        )
+
+    @pytest.mark.asyncio
+    async def test_existing_card_warns_when_description_supplied(
+        self, fake_token
+    ):
+        """Description/attributes passed against a card that already exists
+        are ignored (no mutation of pre-existing cards) — but the response
+        flags this so the agent can tell the user."""
+        get_mock = AsyncMock(
+            return_value={
+                "items": [{"id": "bp-1", "name": "OnSale", "parent_id": None}],
+                "total": 1,
+            }
+        )
+        put_mock = AsyncMock(
+            return_value={"version": 1, "element_count": 5, "dry_run": False}
+        )
+        post_mock = AsyncMock()
+        with (
+            patch.object(server.TurboEAClient, "get", get_mock),
+            patch.object(server.TurboEAClient, "put", put_mock),
+            patch.object(server.TurboEAClient, "post", post_mock),
+        ):
+            out = await server.import_bpmn(
+                business_process_name="OnSale",
+                bpmn_xml="<bpmn:definitions/>",
+                description="trying to set a description",
+                attributes={"processType": "Core"},
+                dry_run=False,
+            )
+        post_mock.assert_not_called()  # no card created
+        data = _parse(out)
+        assert "warning" in data
+        assert "description" in data["warning"]
+        assert "attributes" in data["warning"]
+
+    @pytest.mark.asyncio
+    async def test_commit_response_signals_committed_true(self, fake_token):
+        get_mock = AsyncMock(
+            return_value={
+                "items": [{"id": "bp-1", "name": "X", "parent_id": None}],
+                "total": 1,
+            }
+        )
+        put_mock = AsyncMock(
+            return_value={"version": 1, "element_count": 2, "dry_run": False}
+        )
+        with (
+            patch.object(server.TurboEAClient, "get", get_mock),
+            patch.object(server.TurboEAClient, "put", put_mock),
+        ):
+            out = await server.import_bpmn(
+                business_process_name="X",
+                bpmn_xml="<bpmn:definitions/>",
+                dry_run=False,
+            )
+        data = _parse(out)
+        assert data["committed"] is True
+        assert "next_action" not in data  # only on dry-run
+
+    @pytest.mark.asyncio
+    async def test_dry_run_response_signals_not_committed(self, fake_token):
+        get_mock = AsyncMock(
+            return_value={
+                "items": [{"id": "bp-1", "name": "X", "parent_id": None}],
+                "total": 1,
+            }
+        )
+        put_mock = AsyncMock(
+            return_value={"version": 1, "element_count": 2, "dry_run": True}
+        )
+        with (
+            patch.object(server.TurboEAClient, "get", get_mock),
+            patch.object(server.TurboEAClient, "put", put_mock),
+        ):
+            out = await server.import_bpmn(
+                business_process_name="X", bpmn_xml="<bpmn:definitions/>"
+            )
+        data = _parse(out)
+        assert data["committed"] is False
+        assert "NOT" in data["next_action"]
+
+    @pytest.mark.asyncio
     async def test_create_new_dry_run_skips_diagram_step(self, fake_token):
         # No matching BusinessProcess card — in dry-run, we preview the
         # would-be card create but skip step 3 (no card_id to attach to).
