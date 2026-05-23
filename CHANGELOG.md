@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.28.0] - 2026-05-23
+
+### Changed
+- **Platform-migration importer is now source-pluggable.** The LeanIX-only importer was refactored into a pluggable adapter pattern so additional source platforms (Ardoq, Mega HOPEX, BiZZdesign, Avolution Abacus, …) slot in as self-contained modules without schema churn or pipeline rewrites. The upload dialog now exposes a **Source platform** picker (single option today — SAP LeanIX — populated from a new `GET /api/v1/migration/sources` endpoint). DB tables renamed to source-neutral names (`migrations`, `staged_records`, `migration_identity_map`) with a new `source_type` discriminator column; identity-map uniqueness widened to `(source_id, entity_kind, source_type)` so the same external id can legitimately exist across sources. HTTP routes moved from `/migration/leanix/*` to `/migration/*` with `source_key` carried on the upload form. The `admin.migrate` permission and end-to-end behaviour for LeanIX imports are unchanged.
+
 ## [1.27.0] - 2026-05-23
 
 ### Added
