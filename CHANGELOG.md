@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.26.2] - 2026-05-23
+
+### Fixed
+- **SSO login no longer blocked by Cloudflare-fronted OIDC providers.** The JWKS fetch used during id_token verification now sends an explicit `User-Agent` header instead of the stdlib `Python-urllib/x.y` default, which was being 403'd by Cloudflare Bot Fight Mode and similar WAFs in front of providers like Authentik. Token exchange succeeded but signature verification failed with `HTTP Error 403: Forbidden` from the JWKS endpoint; sign-in now completes against the same providers.
+
 ## [1.26.1] - 2026-05-22
 
 ### Added
