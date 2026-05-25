@@ -73,8 +73,12 @@ jobs:
           trivyignores: .github/trivy-allowlist
 
       # Docker Scout — second-opinion scanner. Observe-only here too.
+      # Gated on the `DOCKERHUB_PAT` secret (Scout cannot run anonymously);
+      # see the rationale in docker-publish.yml.
       - name: Docker Scout CVE scan
-        if: always()
+        if: always() && env.DOCKERHUB_PAT != ''
+        env:
+          DOCKERHUB_PAT: ${{ secrets.DOCKERHUB_PAT }}
         uses: docker/scout-action@v1
         with:
           command: cves
@@ -83,6 +87,8 @@ jobs:
           sarif-file: scout-${{ matrix.image }}.sarif
           exit-code: false
           summary: true
+          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PAT }}
 
       - name: Upload Docker Scout SARIF to Security tab
         if: always() && hashFiles(format('scout-{0}.sarif', matrix.image)) != ''

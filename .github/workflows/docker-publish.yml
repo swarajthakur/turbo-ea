@@ -151,13 +151,16 @@ jobs:
       # Docker Scout — second-opinion scanner using Docker's own vuln DB.
       # Observe-only (`exit-code: false`) until we see how its findings overlap
       # with Trivy's; SARIF is uploaded to the Security tab under a separate
-      # category so duplicate findings are clearly de-duped. Without a Docker
-      # Hub token the action runs anonymously and is subject to the public
-      # rate limit; add `DOCKERHUB_USER` / `DOCKERHUB_PAT` secrets and pass
-      # them via `dockerhub-user` / `dockerhub-password` inputs if we ever
-      # hit it.
+      # category so duplicate findings are clearly de-duped. Scout cannot run
+      # anonymously — the action authenticates against Docker Hub to verify
+      # the account is entitled to use Scout. The step is gated on the
+      # `DOCKERHUB_PAT` secret being present so the workflow stays green if
+      # credentials are ever removed; re-add the secret and Scout lights up
+      # again on the next run.
       - name: Docker Scout CVE scan
-        if: always()
+        if: always() && env.DOCKERHUB_PAT != ''
+        env:
+          DOCKERHUB_PAT: ${{ secrets.DOCKERHUB_PAT }}
         uses: docker/scout-action@v1
         with:
           command: cves
@@ -166,6 +169,8 @@ jobs:
           sarif-file: scout-${{ matrix.image }}.sarif
           exit-code: false
           summary: true
+          dockerhub-user: ${{ secrets.DOCKERHUB_USER }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PAT }}
 
       - name: Upload Docker Scout SARIF to Security tab
         if: always() && hashFiles(format('scout-{0}.sarif', matrix.image)) != ''
