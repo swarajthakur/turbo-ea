@@ -5,6 +5,16 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.29.1] - 2026-05-25
+
+### Security
+- **Pinned the `frontend` and `nginx` (edge) images past CVE-2026-42945 ("NGINX Rift").** The previously-unpinned `FROM nginx:alpine` lines in `Dockerfile` resolved to whatever the moving tag pointed at, which today is still nginx 1.30.0 — vulnerable to a critical heap buffer overflow in `ngx_http_rewrite_module` disclosed and actively exploited in May 2026. Both stages now pin to `nginx:1.30.1-alpine`, the upstream stable-branch fix. Turbo EA's stock nginx configs (`nginx/default.conf`, `frontend/nginx.conf`) don't use the `rewrite` / `if` / `set` directives that trigger the bug, so a deployed stock install was not directly exposed — but the vulnerable binary was still shipped, and one config edit away from being reachable. Patch-only, no behavioural change.
+- **Closed the detection gap that let "NGINX Rift" slip past CI in the first place.** Three additive changes to the security pipeline:
+  - **Dependabot now tracks Docker base images** (`.github/dependabot.yml`). When upstream ships a patched nginx / python / postgres / node / alpine-git tag, Dependabot opens a security PR automatically — same security-only strategy already used for `pip` and `npm`.
+  - **Trivy is now blocking on CRITICAL findings** in `.github/workflows/docker-publish.yml`. A new gate step fails the publish on any unallowlisted CRITICAL CVE; the existing HIGH + CRITICAL scan stays as observe-only and continues feeding the Security tab. HIGH will be flipped to blocking once the existing backlog is drained.
+  - **New daily scan of published `:latest` manifests** (`.github/workflows/security-scan-published.yml`). Re-scans the live GHCR images every day at 06:00 UTC so CVEs disclosed *after* the last image build no longer go unnoticed during code-quiet weeks. Also surfaces unfixed advisories (`ignore-unfixed: false`) for early warning before upstream patches land.
+- **Added Docker Scout as a second-opinion scanner** alongside Trivy in both the publish and daily-scan workflows. Different vuln DB, different blind spots — findings flow to the Security tab under a separate SARIF category so duplicate CVEs are clearly de-duped. Observe-only initially (`exit-code: false`); will be flipped to blocking once the overlap with Trivy is characterised.
+
 ## [1.29.0] - 2026-05-23
 
 ### Added

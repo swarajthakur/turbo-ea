@@ -103,17 +103,20 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
-      # Trivy is intentionally non-blocking (`exit-code: 0`). Each runtime
-      # stage in the Dockerfile runs `apk upgrade --no-cache` so apk-package
-      # CVEs in the pinned alpine bases are picked up automatically; the
-      # build-stage-only and upstream-binary findings that we can't fix from
-      # this repo are captured with rationale in
-      # `.github/trivy-allowlist.yaml`. Findings are uploaded as SARIF to
-      # the Security tab so they remain visible and triageable. Flip
-      # `exit-code` to `1` in a follow-up once the apk-upgrade chain has
-      # drained the backlog and we're comfortable that the allowlist
-      # captures everything we mean to accept.
-      - name: Trivy image scan
+      # Two-step Trivy strategy:
+      #   1. Observe step (`severity: HIGH,CRITICAL`, `exit-code: 0`) — captures
+      #      the full picture as SARIF for the Security tab; never fails CI.
+      #   2. Gate step (`severity: CRITICAL`, `exit-code: 1`) — fails the
+      #      publish on any CRITICAL not on the allowlist. Introduced after
+      #      CVE-2026-42945 ("NGINX Rift") slipped through the non-blocking
+      #      observe-only setup. HIGH stays observe-only until the backlog
+      #      is drained.
+      # Each runtime stage in the Dockerfile runs `apk upgrade --no-cache`
+      # so apk-package CVEs in the pinned alpine bases are picked up
+      # automatically; the build-stage-only and upstream-binary findings
+      # that we can't fix from this repo are captured with rationale in
+      # `.github/trivy-allowlist`.
+      - name: Trivy image scan (observe, HIGH + CRITICAL)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
@@ -134,3 +137,39 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.image }}.sarif
           category: trivy-${{ matrix.image }}
+
+      - name: Trivy image scan (gate, CRITICAL only)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .github/trivy-allowlist
+
+      # Docker Scout — second-opinion scanner using Docker's own vuln DB.
+      # Observe-only (`exit-code: false`) until we see how its findings overlap
+      # with Trivy's; SARIF is uploaded to the Security tab under a separate
+      # category so duplicate findings are clearly de-duped. Without a Docker
+      # Hub token the action runs anonymously and is subject to the public
+      # rate limit; add `DOCKERHUB_USER` / `DOCKERHUB_PAT` secrets and pass
+      # them via `dockerhub-user` / `dockerhub-password` inputs if we ever
+      # hit it.
+      - name: Docker Scout CVE scan
+        if: always()
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ghcr.io/${{ github.repository }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          only-severities: critical,high
+          sarif-file: scout-${{ matrix.image }}.sarif
+          exit-code: false
+          summary: true
+
+      - name: Upload Docker Scout SARIF to Security tab
+        if: always() && hashFiles(format('scout-{0}.sarif', matrix.image)) != ''
+        uses: github/codeql-action/upload-sarif@53e96ec3b35fce51c141c0d6f0e31028a448722d # v3
+        with:
+          sarif_file: scout-${{ matrix.image }}.sarif
+          category: scout-${{ matrix.image }}

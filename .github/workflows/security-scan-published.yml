@@ -1,0 +1,92 @@
+name: Daily security scan of published images
+
+# Re-scans the *currently-published* `:latest` manifests on GHCR every day
+# at 06:00 UTC. The `docker-publish.yml` workflow only re-scans when an image
+# is rebuilt; this loop catches CVEs disclosed *after* the last push (which
+# is exactly how CVE-2026-42945 / "NGINX Rift" landed against our deployed
+# images without any signal).
+#
+# Findings flow to the Security tab as SARIF, same as the publish workflow.
+# A failure on any CRITICAL finding triggers GitHub's standard scheduled-
+# workflow-failure email to repo watchers.
+#
+# Manual run: `gh workflow run security-scan-published.yml`.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan ${{ matrix.image }}:latest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [db, backend, frontend, nginx, mcp-server]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Observe step — surfaces HIGH + CRITICAL, including unfixed advisories
+      # (`ignore-unfixed: false`) so actively-exploited zero-days appear here
+      # before an upstream fix is available. Never fails the job; the gate
+      # step below is responsible for that.
+      - name: Trivy scan (observe, HIGH + CRITICAL, incl. unfixed)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          ignore-unfixed: false
+          trivyignores: .github/trivy-allowlist
+
+      - name: Upload Trivy SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@53e96ec3b35fce51c141c0d6f0e31028a448722d # v3
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: daily-trivy-${{ matrix.image }}
+
+      # Gate step — fails the job on any CRITICAL with a fix available that
+      # isn't on the allowlist. Mirrors the publish workflow's gate so the
+      # two stay in lock-step.
+      - name: Trivy gate (CRITICAL only, fixed)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .github/trivy-allowlist
+
+      # Docker Scout — second-opinion scanner. Observe-only here too.
+      - name: Docker Scout CVE scan
+        if: always()
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
+          only-severities: critical,high
+          sarif-file: scout-${{ matrix.image }}.sarif
+          exit-code: false
+          summary: true
+
+      - name: Upload Docker Scout SARIF to Security tab
+        if: always() && hashFiles(format('scout-{0}.sarif', matrix.image)) != ''
+        uses: github/codeql-action/upload-sarif@53e96ec3b35fce51c141c0d6f0e31028a448722d # v3
+        with:
+          sarif_file: scout-${{ matrix.image }}.sarif
+          category: daily-scout-${{ matrix.image }}
