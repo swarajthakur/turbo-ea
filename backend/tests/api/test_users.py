@@ -757,3 +757,45 @@ class TestDeleteUser:
             headers=auth_headers(admin),
         )
         assert resp.status_code == 404
+
+
+# -------------------------------------------------------------------
+# PATCH /users/me/ui-preferences
+# -------------------------------------------------------------------
+
+
+class TestUiPreferences:
+    @pytest.mark.parametrize("tab", ["overview", "workspace", "admin"])
+    async def test_accepts_each_valid_dashboard_tab(self, client, db, users_env, tab):
+        admin = users_env["admin"]
+        resp = await client.patch(
+            "/api/v1/users/me/ui-preferences",
+            json={"dashboard_default_tab": tab},
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["dashboard_default_tab"] == tab
+
+    async def test_null_clears_pinned_tab(self, client, db, users_env):
+        admin = users_env["admin"]
+        await client.patch(
+            "/api/v1/users/me/ui-preferences",
+            json={"dashboard_default_tab": "admin"},
+            headers=auth_headers(admin),
+        )
+        resp = await client.patch(
+            "/api/v1/users/me/ui-preferences",
+            json={"dashboard_default_tab": None},
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        assert "dashboard_default_tab" not in resp.json()
+
+    async def test_rejects_unknown_tab(self, client, db, users_env):
+        admin = users_env["admin"]
+        resp = await client.patch(
+            "/api/v1/users/me/ui-preferences",
+            json={"dashboard_default_tab": "not-a-tab"},
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 422

@@ -112,4 +112,26 @@ describe("Dashboard tab routing", () => {
     });
     expect(refreshUser).toHaveBeenCalled();
   });
+
+  it("admins can pin the Admin tab as default (regression for #606)", async () => {
+    vi.mocked(api.patch).mockResolvedValue({});
+    const { refreshUser } = renderWith(
+      { permissions: { "admin.users": true } },
+      "/?tab=admin",
+    );
+
+    // Three tabs render in order: overview (pinned by default) / workspace / admin.
+    // The two non-pinned ones share the "Pin as default tab" label; the admin
+    // pin is the last one in DOM order.
+    const pinButtons = screen.getAllByLabelText("Pin as default tab");
+    expect(pinButtons.length).toBe(2);
+    await userEvent.click(pinButtons[pinButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/users/me/ui-preferences", {
+        dashboard_default_tab: "admin",
+      });
+    });
+    expect(refreshUser).toHaveBeenCalled();
+  });
 });

@@ -114,9 +114,8 @@ export default function Dashboard() {
           dashboard_default_tab: nextValue,
         });
         await refreshUser();
-      } catch {
-        // Best effort — user can retry; we don't surface a toast here to
-        // keep the dashboard quiet.
+      } catch (err) {
+        console.error("Failed to persist dashboard pin preference", err);
       }
     },
     [preferredTab, refreshUser],

@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.29.3] - 2026-05-26
+
+### Fixed
+- **Pinning the dashboard's Admin tab now persists.** Clicking the pin icon on the Admin tab used to silently fail with a `422 Unprocessable Entity` because the backend's `PATCH /users/me/ui-preferences` validator only accepted `"overview"` and `"workspace"` — `"admin"` was never added when the Admin tab shipped in [#528](https://github.com/vincentmakes/turbo-ea/pull/528). The frontend swallowed the error in an empty `catch {}`, so the user got no feedback. The validator now accepts all three tabs, and the failure path logs to the console instead of being silent. Fixes [#606](https://github.com/vincentmakes/turbo-ea/issues/606).
+
 ## [1.29.2] - 2026-05-25
 
 ### Fixed
