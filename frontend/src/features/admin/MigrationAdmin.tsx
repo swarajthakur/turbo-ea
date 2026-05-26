@@ -104,6 +104,7 @@ interface StagedRecord {
   diff: Record<string, unknown> | null;
   error_message: string | null;
   target_id: string | null;
+  display_name: string | null;
 }
 
 interface PreviewPage {
@@ -829,10 +830,16 @@ interface StagedTableProps {
 
 function StagedTable({ rows }: StagedTableProps) {
   const { t } = useTranslation(["admin", "common"]);
+  // Show the Name column whenever at least one row has a resolved
+  // display_name (cards, users, tags, …). Tabs whose rows are
+  // anonymous join-table edges (card_tag) skip it so the layout
+  // stays tight.
+  const showName = rows.some((r) => !!r.display_name);
   return (
     <Table size="small">
       <TableHead>
         <TableRow>
+          {showName && <TableCell>{t("migration.col.name", "Name")}</TableCell>}
           <TableCell>{t("migration.col.sourceId", "Source ID")}</TableCell>
           <TableCell>{t("migration.col.type", "Type")}</TableCell>
           <TableCell>{t("migration.col.action", "Action")}</TableCell>
@@ -843,6 +850,11 @@ function StagedTable({ rows }: StagedTableProps) {
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
+            {showName && (
+              <TableCell sx={{ wordBreak: "break-word" }}>
+                {row.display_name || "—"}
+              </TableCell>
+            )}
             <TableCell>
               <code>{row.source_id}</code>
             </TableCell>

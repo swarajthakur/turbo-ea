@@ -126,6 +126,12 @@ class StagedRecordOut(BaseModel):
     diff: dict | None
     error_message: str | None
     target_id: str | None
+    # Human-readable label for the row — card name for ``card``, field
+    # label for ``metamodel_field``, user display-name for ``user``,
+    # etc. Computed server-side from ``source_data`` so the response
+    # stays compact (we don't send the full payload over the wire on
+    # 10 000-row previews).
+    display_name: str | None = None
 
 
 class PreviewPage(BaseModel):
@@ -155,6 +161,54 @@ def _migration_to_out(m: Migration) -> MigrationOut:
     )
 
 
+def _compute_display_name(r: StagedRecord) -> str | None:
+    """Best-effort human-readable label per staged-record kind.
+
+    Pulls from ``source_data`` so the wire payload only carries the one
+    string the admin UI actually needs to render — cards on a 10 000-row
+    preview would otherwise blow up the response with full attribute
+    payloads. Returns ``None`` when nothing better than ``source_id`` is
+    available; the frontend falls back to ``source_id`` in that case.
+    """
+    sd = r.source_data or {}
+    kind = r.entity_kind
+    if kind == "card":
+        payload = sd.get("payload") or {}
+        name = payload.get("name") or payload.get("displayName")
+        return str(name) if name else None
+    if kind == "metamodel_field":
+        # Surface the field's display label; fall back to its key.
+        name = sd.get("label") or sd.get("field_key")
+        return str(name) if name else None
+    if kind == "metamodel_type":
+        name = sd.get("proposed_tea_key") or sd.get("native_name")
+        return str(name) if name else None
+    if kind == "metamodel_relation_type":
+        name = sd.get("label") or sd.get("native_name")
+        return str(name) if name else None
+    if kind == "user":
+        name = sd.get("display_name") or sd.get("email")
+        return str(name) if name else None
+    if kind == "tag" or kind == "tag_group":
+        name = sd.get("name") or sd.get("group_name")
+        return str(name) if name else None
+    if kind == "relation":
+        # ``source_data`` carries the resolved ``type`` plus the
+        # endpoint source ids; the type alone is the most useful label.
+        name = sd.get("type") or sd.get("native_type")
+        return str(name) if name else None
+    if kind == "subscription":
+        email = sd.get("user_email")
+        role = sd.get("role_name") or sd.get("role_type")
+        if email and role:
+            return f"{email} ({role})"
+        return str(email) if email else None
+    if kind == "document" or kind == "comment":
+        name = sd.get("name") or sd.get("title")
+        return str(name) if name else None
+    return None
+
+
 def _staged_to_out(r: StagedRecord) -> StagedRecordOut:
     return StagedRecordOut(
         id=str(r.id),
@@ -167,6 +221,7 @@ def _staged_to_out(r: StagedRecord) -> StagedRecordOut:
         diff=r.diff,
         error_message=r.error_message,
         target_id=str(r.target_id) if r.target_id else None,
+        display_name=_compute_display_name(r),
     )
 
 
