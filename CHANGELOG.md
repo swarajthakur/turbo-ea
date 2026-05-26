@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - **Pinning the dashboard's Admin tab now persists.** Clicking the pin icon on the Admin tab used to silently fail with a `422 Unprocessable Entity` because the backend's `PATCH /users/me/ui-preferences` validator only accepted `"overview"` and `"workspace"` — `"admin"` was never added when the Admin tab shipped in [#528](https://github.com/vincentmakes/turbo-ea/pull/528). The frontend swallowed the error in an empty `catch {}`, so the user got no feedback. The validator now accepts all three tabs, and the failure path logs to the console instead of being silent. Fixes [#606](https://github.com/vincentmakes/turbo-ea/issues/606).
 
+### Security
+- **Pinned away from `fastapi 0.136.3` (MAL-2026-4750).** Upstream silently added an undocumented `fastar` dependency to fastapi's `[standard]` optional-deps group — a typosquat-shaped namespace-abuse vector that gives whoever controls `fastar` on PyPI code execution at install time on every fresh `pip install "fastapi[standard]"`. Turbo EA's backend uses `fastapi[standard]` indirectly via `uvicorn[standard]` / dev tooling, so the safest move is to cap the dep. `backend/pyproject.toml` now reads `fastapi>=0.115.0,!=0.136.3`; pip resolves to `0.136.1` (last clean release). Will be re-evaluated when a clean upstream version ships.
+
 ## [1.29.2] - 2026-05-25
 
 ### Fixed

@@ -4,7 +4,11 @@ version = "0.0.0"  # Placeholder — real version read from /VERSION at runtime
 description = "Turbo EA - Enterprise Architecture Management API"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0",
+    # 0.136.3 silently added an undocumented `fastar` dependency to the
+    # [standard] extra (MAL-2026-4750 — supply-chain / typosquat-shaped
+    # namespace abuse). Pin away from that single release; re-evaluate
+    # when upstream ships a clean version.
+    "fastapi>=0.115.0,!=0.136.3",
     "uvicorn[standard]>=0.32.0",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30.0",
