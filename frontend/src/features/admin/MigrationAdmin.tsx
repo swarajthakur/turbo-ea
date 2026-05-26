@@ -243,7 +243,12 @@ export default function MigrationAdmin() {
   }, [migrations, loadList]);
 
   const fetchPreview = useCallback(async (id: string, kind: EntityKind): Promise<PreviewPage> => {
-    return api.get<PreviewPage>(`/migration/${id}/preview?entity_kind=${kind}&limit=100`);
+    // metamodel_field can run into the hundreds on large LeanIX exports
+    // (272 fields on the demo snapshot). Bump the cap so the per-type
+    // grouping in the tab actually shows every field; the backend
+    // accepts up to 500.
+    const limit = kind === "metamodel_field" ? 500 : 100;
+    return api.get<PreviewPage>(`/migration/${id}/preview?entity_kind=${kind}&limit=${limit}`);
   }, []);
 
   const refreshSelected = useCallback(async () => {
@@ -816,6 +821,21 @@ function MetamodelFieldTab({
     return out;
   }, [mappingOptions]);
 
+  // Group rows by their target card type so the admin sees one section
+  // per type — a flat 272-row list is impossible to navigate.
+  const rowsByTarget = useMemo(() => {
+    const out = new Map<string, StagedRecord[]>();
+    for (const row of rows) {
+      const payload = (row as unknown as { source_data?: Record<string, unknown> }).source_data;
+      const targetType =
+        row.card_type_key || (payload?.target_type as string | undefined) || "—";
+      if (!out.has(targetType)) out.set(targetType, []);
+      out.get(targetType)!.push(row);
+    }
+    // Stable alphabetical type order.
+    return new Map([...out.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  }, [rows]);
+
   const setOne = (nativeType: string, fieldKey: string, value: string) => {
     onChange({
       ...draft,
@@ -867,178 +887,216 @@ function MetamodelFieldTab({
           {error}
         </Alert>
       )}
-      <Table size="small" sx={{ tableLayout: "fixed" }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ width: "30%" }}>
-              {t("migration.mapping.col.sourceField", "Source field")}
-            </TableCell>
-            <TableCell sx={{ width: "14%" }}>
-              {t("migration.mapping.col.targetType", "Target card type")}
-            </TableCell>
-            <TableCell sx={{ width: "12%" }}>
-              {t("migration.mapping.col.sourceType", "Source type")}
-            </TableCell>
-            <TableCell sx={{ width: "32%" }}>
-              {t("migration.mapping.col.target", "Map to Turbo EA field")}
-            </TableCell>
-            <TableCell sx={{ width: "12%" }}>
-              {t("migration.col.statusShort", "Status")}
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => {
-            const sd = (row.diff || {}) as Record<string, unknown>;
-            const payload = (row as unknown as { source_data?: Record<string, unknown> })
-              .source_data;
-            // Pull field metadata from source_data if available, fall back to
-            // parsing source_id (``<NativeType>:<field_key>``).
-            const [nativeType, ...rest] = (row.source_id || "").split(":");
-            const fieldKey =
-              (payload?.field_key as string | undefined) || rest.join(":") || row.source_id;
-            const label =
-              (payload?.label as string | undefined) ||
-              (payload?.field_key as string | undefined) ||
-              fieldKey;
-            const nativeDataType =
-              (payload?.native_data_type as string | undefined) ||
-              (payload?.tea_type as string | undefined) ||
-              null;
-            const targetType = row.card_type_key || (payload?.target_type as string | undefined) || "—";
-            const block = blockByTargetType.get(targetType);
-            const value = draft[nativeType]?.[fieldKey] || "";
-            const reason = (sd.reason as string | undefined) || null;
-            const targetByKey = new Map(
-              (block?.available_targets || []).map((o) => [o.key, o]),
-            );
-            const canMap = editable && row.action !== "conflict" && block !== undefined;
-            return (
-              <TableRow key={row.id} hover>
-                <TableCell sx={{ wordBreak: "break-word" }}>
-                  <Typography variant="body2">{label}</Typography>
-                  {label !== fieldKey && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ wordBreak: "break-all" }}
-                    >
-                      <code>{fieldKey}</code>
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={block?.target_type_label || targetType}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Chip size="small" variant="outlined" label={nativeDataType || "—"} />
-                </TableCell>
-                <TableCell>
-                  {row.action === "conflict" ? (
-                    <Typography variant="caption" color="warning.main">
-                      {reason ||
-                        t(
-                          "migration.mapping.unmappable",
-                          "Unmappable — see status note.",
-                        )}
-                    </Typography>
-                  ) : !block ? (
-                    <Typography variant="caption" color="text.secondary">
-                      {t(
-                        "migration.mapping.noTargets",
-                        "No target type yet — will land as a new custom field.",
-                      )}
-                    </Typography>
-                  ) : (
-                    <FormControl fullWidth size="small" disabled={!canMap}>
-                      <Select
-                        displayEmpty
-                        value={value}
-                        onChange={(e) => setOne(nativeType, fieldKey, String(e.target.value))}
-                        renderValue={(selected) => {
-                          const s = String(selected || "");
-                          if (s === "") {
-                            return (
-                              <Box
-                                component="em"
-                                sx={{ color: "text.secondary", fontStyle: "italic" }}
-                              >
-                                {t(
-                                  "migration.mapping.option.newCustom",
-                                  "(Import as new custom field — default)",
-                                )}
-                              </Box>
-                            );
-                          }
-                          if (s === SKIP_VALUE) {
-                            return (
-                              <Box
-                                component="em"
-                                sx={{ color: "text.secondary", fontStyle: "italic" }}
-                              >
-                                {t(
-                                  "migration.mapping.option.skip",
-                                  "(Do not import this field)",
-                                )}
-                              </Box>
-                            );
-                          }
-                          const opt = targetByKey.get(s);
-                          return opt ? opt.label : s;
-                        }}
-                      >
-                        <MenuItem value="">
-                          <em>
-                            {t(
-                              "migration.mapping.option.newCustom",
-                              "(Import as new custom field — default)",
-                            )}
-                          </em>
-                        </MenuItem>
-                        <MenuItem value={SKIP_VALUE}>
-                          <em>
-                            {t(
-                              "migration.mapping.option.skip",
-                              "(Do not import this field)",
-                            )}
-                          </em>
-                        </MenuItem>
-                        {(block.available_targets || []).map((opt) => (
-                          <MenuItem
-                            key={opt.key}
-                            value={opt.key}
-                            sx={{
-                              flexDirection: "column",
-                              alignItems: "flex-start",
-                              py: 0.75,
-                            }}
-                          >
-                            <Typography variant="body2">{opt.label}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {[opt.section, opt.type].filter(Boolean).join(" · ")}
+      <Alert severity="info" icon={<MaterialSymbol icon="info" />} sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ mb: 0.5 }}>
+          {t(
+            "migration.mapping.coreFieldsTitle",
+            "Source-platform core columns are auto-mapped to Turbo EA standard fields and don't appear in the list below:",
+          )}
+        </Typography>
+        <Typography variant="caption" component="div" color="text.secondary">
+          <code>name</code> · <code>displayName</code> · <code>description</code> ·{" "}
+          <code>status</code> · <code>category</code> →{" "}
+          <em>{t("migration.mapping.coreFieldsTeaSubtype", "subtype")}</em> ·{" "}
+          <code>lifecycle:*</code> ·{" "}
+          <code>qualitySeal</code> · <code>completion</code>
+        </Typography>
+      </Alert>
+      {rowsByTarget.size === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          {t("migration.detail.noStaged", "No items staged for this kind.")}
+        </Typography>
+      ) : (
+        [...rowsByTarget.entries()].map(([targetType, typeRows]) => {
+          const block = blockByTargetType.get(targetType);
+          return (
+            <Box key={targetType} sx={{ mb: 3 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                <Typography variant="subtitle2">
+                  {block?.target_type_label || targetType}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  · {typeRows.length}{" "}
+                  {t("migration.mapping.fieldsCount", { count: typeRows.length, defaultValue: "fields" })}
+                </Typography>
+              </Stack>
+              <Table size="small" sx={{ tableLayout: "fixed" }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: "34%" }}>
+                      {t("migration.mapping.col.sourceField", "Source field")}
+                    </TableCell>
+                    <TableCell sx={{ width: "14%" }}>
+                      {t("migration.mapping.col.sourceType", "Source type")}
+                    </TableCell>
+                    <TableCell sx={{ width: "40%" }}>
+                      {t("migration.mapping.col.target", "Map to Turbo EA field")}
+                    </TableCell>
+                    <TableCell sx={{ width: "12%" }}>
+                      {t("migration.col.statusShort", "Status")}
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {typeRows.map((row) => {
+                    const sd = (row.diff || {}) as Record<string, unknown>;
+                    const payload = (row as unknown as { source_data?: Record<string, unknown> })
+                      .source_data;
+                    const [nativeType, ...rest] = (row.source_id || "").split(":");
+                    const fieldKey =
+                      (payload?.field_key as string | undefined) ||
+                      rest.join(":") ||
+                      row.source_id;
+                    const label =
+                      (payload?.label as string | undefined) ||
+                      (payload?.field_key as string | undefined) ||
+                      fieldKey;
+                    const nativeDataType =
+                      (payload?.native_data_type as string | undefined) ||
+                      (payload?.tea_type as string | undefined) ||
+                      null;
+                    const value = draft[nativeType]?.[fieldKey] || "";
+                    const reason = (sd.reason as string | undefined) || null;
+                    const targetByKey = new Map(
+                      (block?.available_targets || []).map((o) => [o.key, o]),
+                    );
+                    const canMap =
+                      editable && row.action !== "conflict" && block !== undefined;
+                    return (
+                      <TableRow key={row.id} hover>
+                        <TableCell sx={{ wordBreak: "break-word" }}>
+                          <Typography variant="body2">{label}</Typography>
+                          {label !== fieldKey && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ wordBreak: "break-all" }}
+                            >
+                              <code>{fieldKey}</code>
                             </Typography>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={row.action}
-                    color={ACTION_COLORS[row.action] || "default"}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={nativeDataType || "—"}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {row.action === "conflict" ? (
+                            <Typography variant="caption" color="warning.main">
+                              {reason ||
+                                t(
+                                  "migration.mapping.unmappable",
+                                  "Unmappable — see status note.",
+                                )}
+                            </Typography>
+                          ) : !block ? (
+                            <Typography variant="caption" color="text.secondary">
+                              {t(
+                                "migration.mapping.noTargets",
+                                "No target type yet — will land as a new custom field.",
+                              )}
+                            </Typography>
+                          ) : (
+                            <FormControl fullWidth size="small" disabled={!canMap}>
+                              <Select
+                                displayEmpty
+                                value={value}
+                                onChange={(e) =>
+                                  setOne(nativeType, fieldKey, String(e.target.value))
+                                }
+                                renderValue={(selected) => {
+                                  const s = String(selected || "");
+                                  if (s === "") {
+                                    return (
+                                      <Box
+                                        component="em"
+                                        sx={{
+                                          color: "text.secondary",
+                                          fontStyle: "italic",
+                                        }}
+                                      >
+                                        {t(
+                                          "migration.mapping.option.newCustom",
+                                          "(Import as new custom field — default)",
+                                        )}
+                                      </Box>
+                                    );
+                                  }
+                                  if (s === SKIP_VALUE) {
+                                    return (
+                                      <Box
+                                        component="em"
+                                        sx={{
+                                          color: "text.secondary",
+                                          fontStyle: "italic",
+                                        }}
+                                      >
+                                        {t(
+                                          "migration.mapping.option.skip",
+                                          "(Do not import this field)",
+                                        )}
+                                      </Box>
+                                    );
+                                  }
+                                  const opt = targetByKey.get(s);
+                                  return opt ? opt.label : s;
+                                }}
+                              >
+                                <MenuItem value="">
+                                  <em>
+                                    {t(
+                                      "migration.mapping.option.newCustom",
+                                      "(Import as new custom field — default)",
+                                    )}
+                                  </em>
+                                </MenuItem>
+                                <MenuItem value={SKIP_VALUE}>
+                                  <em>
+                                    {t(
+                                      "migration.mapping.option.skip",
+                                      "(Do not import this field)",
+                                    )}
+                                  </em>
+                                </MenuItem>
+                                {(block.available_targets || []).map((opt) => (
+                                  <MenuItem
+                                    key={opt.key}
+                                    value={opt.key}
+                                    sx={{
+                                      flexDirection: "column",
+                                      alignItems: "flex-start",
+                                      py: 0.75,
+                                    }}
+                                  >
+                                    <Typography variant="body2">{opt.label}</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {[opt.section, opt.type].filter(Boolean).join(" · ")}
+                                    </Typography>
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={row.action}
+                            color={ACTION_COLORS[row.action] || "default"}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Box>
+          );
+        })
+      )}
     </Box>
   );
 }
