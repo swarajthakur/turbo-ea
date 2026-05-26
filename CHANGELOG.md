@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.30.4] - 2026-05-26
+
+### Changed
+- **Migration "Map imported fields" tab now reads the auto-mapped column list from the source adapter.** The info banner at the top of the metamodel-field tab used to enumerate LeanIX-specific column names (`displayName`, `qualitySeal`, …) directly in the React tree. Future Ardoq / HOPEX / BiZZdesign adapters would have had to either ship those LeanIX names or carry a frontend patch. The list now lives on each `MigrationSource` adapter as an `auto_mapped_columns: tuple[tuple[str, str], ...]` table and is returned by `GET /migration/{id}/field-mappings`, so the frontend renders whatever the adapter declares. LeanIX continues to declare the same eight columns as before — no behavioural change for existing users.
+
 ## [1.30.3] - 2026-05-26
 
 ### Changed

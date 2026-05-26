@@ -31,6 +31,23 @@ class LeanixSource:
     subscription_role_mapping: dict[str, str] = mappings.SUBSCRIPTION_ROLE_MAPPING
     hierarchy_relations: frozenset[str] = mappings.HIERARCHY_RELATIONS
 
+    # LeanIX export columns the xlsx parser pulls into canonical
+    # ``SourceEntity`` slots before custom_fields is populated, so they
+    # never reach the per-field mapping UI. Listed here verbatim so the
+    # admin's "Map imported fields" tab can show what's already covered.
+    # Pairs are ``(LeanIX column, Turbo EA target slot)``; the human
+    # label on the right matches what the admin sees on a TEA card.
+    auto_mapped_columns: tuple[tuple[str, str], ...] = (
+        ("name", "name"),
+        ("displayName", "name"),
+        ("description", "description"),
+        ("status", "status"),
+        ("category", "subtype"),
+        ("lifecycle:*", "lifecycle"),
+        ("qualitySeal", "data quality"),
+        ("completion", "data quality"),
+    )
+
     # ---- Parsing ----
     def validate_payload(self, head: bytes) -> bool:
         return xlsx_parser.is_xlsx_payload(head)

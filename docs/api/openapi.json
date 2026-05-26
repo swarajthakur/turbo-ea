@@ -636,6 +636,25 @@
         "title": "ArchiveImpactResponse",
         "type": "object"
       },
+      "AutoMappedColumn": {
+        "description": "One source-platform column that the parser auto-routes to a TEA slot.\n\nSourced from the adapter's ``auto_mapped_columns`` table. Surfaced\nverbatim in the admin's \"Map imported fields\" tab so the admin can\nsee at a glance which native columns are already handled and don't\nneed an entry in the per-field list.",
+        "properties": {
+          "source_column": {
+            "title": "Source Column",
+            "type": "string"
+          },
+          "tea_target": {
+            "title": "Tea Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_column",
+          "tea_target"
+        ],
+        "title": "AutoMappedColumn",
+        "type": "object"
+      },
       "Body_import_bpmn_api_v1_bpm_processes__process_id__diagram_import_post": {
         "properties": {
           "file": {
@@ -4118,6 +4137,14 @@
       "FieldMappingOptions": {
         "description": "Payload for the field-mapping admin UI.\n\nOne block per ``(native_type, target_tea_type)`` pair surfacing the\nsource fields the parser discovered alongside the list of TEA\ntarget fields the admin can map them onto.",
         "properties": {
+          "auto_mapped_columns": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AutoMappedColumn"
+            },
+            "title": "Auto Mapped Columns",
+            "type": "array"
+          },
           "blocks": {
             "items": {
               "$ref": "#/components/schemas/FieldMappingTypeBlock"

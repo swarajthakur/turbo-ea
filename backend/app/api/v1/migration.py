@@ -410,6 +410,19 @@ class FieldMappingTypeBlock(BaseModel):
     available_targets: list[TargetFieldOption]
 
 
+class AutoMappedColumn(BaseModel):
+    """One source-platform column that the parser auto-routes to a TEA slot.
+
+    Sourced from the adapter's ``auto_mapped_columns`` table. Surfaced
+    verbatim in the admin's "Map imported fields" tab so the admin can
+    see at a glance which native columns are already handled and don't
+    need an entry in the per-field list.
+    """
+
+    source_column: str
+    tea_target: str
+
+
 class FieldMappingOptions(BaseModel):
     """Payload for the field-mapping admin UI.
 
@@ -419,6 +432,13 @@ class FieldMappingOptions(BaseModel):
     """
 
     blocks: list[FieldMappingTypeBlock]
+    # Source-platform columns the adapter routes directly into Turbo EA
+    # standard slots without ever surfacing in the per-field list.
+    # Comes from the adapter's ``auto_mapped_columns`` table — adapter-
+    # specific spelling (LeanIX ``displayName``, future Ardoq
+    # ``descriptionLong``, …) so the admin recognises it from the
+    # source platform's own UI.
+    auto_mapped_columns: list[AutoMappedColumn] = []
 
 
 class FieldMappingUpdate(BaseModel):
@@ -588,7 +608,20 @@ async def get_field_mappings(
             )
         )
 
-    return FieldMappingOptions(blocks=out)
+    # Pull the adapter's static auto-mapped column list so the UI can
+    # show what's already covered without hardcoding LeanIX terms in
+    # the frontend. Missing attribute (older adapters that haven't
+    # opted in yet) → empty list, which the frontend simply skips.
+    auto_mapped: list[AutoMappedColumn] = []
+    try:
+        source = get_source(m.source_type)
+    except KeyError:
+        source = None
+    if source is not None:
+        for col, target in getattr(source, "auto_mapped_columns", ()) or ():
+            auto_mapped.append(AutoMappedColumn(source_column=col, tea_target=target))
+
+    return FieldMappingOptions(blocks=out, auto_mapped_columns=auto_mapped)
 
 
 @router.put("/{migration_id}/field-mappings", response_model=MigrationOut)

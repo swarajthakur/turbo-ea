@@ -89,8 +89,14 @@ interface FieldMappingBlock {
   available_targets: FieldMappingTargetOption[];
 }
 
+interface AutoMappedColumn {
+  source_column: string;
+  tea_target: string;
+}
+
 interface FieldMappingOptions {
   blocks: FieldMappingBlock[];
+  auto_mapped_columns: AutoMappedColumn[];
 }
 
 interface StagedRecord {
@@ -1156,21 +1162,30 @@ function MetamodelFieldTab({
           {error}
         </Alert>
       )}
-      <Alert severity="info" icon={<MaterialSymbol icon="info" />} sx={{ mb: 2 }}>
-        <Typography variant="body2" sx={{ mb: 0.5 }}>
-          {t(
-            "migration.mapping.coreFieldsTitle",
-            "Source-platform core columns are auto-mapped to Turbo EA standard fields and don't appear in the list below:",
-          )}
-        </Typography>
-        <Typography variant="caption" component="div" color="text.secondary">
-          <code>name</code> · <code>displayName</code> · <code>description</code> ·{" "}
-          <code>status</code> · <code>category</code> →{" "}
-          <em>{t("migration.mapping.coreFieldsTeaSubtype", "subtype")}</em> ·{" "}
-          <code>lifecycle:*</code> ·{" "}
-          <code>qualitySeal</code> · <code>completion</code>
-        </Typography>
-      </Alert>
+      {(mappingOptions?.auto_mapped_columns?.length ?? 0) > 0 && (
+        <Alert severity="info" icon={<MaterialSymbol icon="info" />} sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            {t(
+              "migration.mapping.coreFieldsTitle",
+              "Source-platform core columns are auto-mapped to Turbo EA standard fields and don't appear in the list below:",
+            )}
+          </Typography>
+          <Typography variant="caption" component="div" color="text.secondary">
+            {mappingOptions!.auto_mapped_columns.map((col, idx) => (
+              <span key={col.source_column}>
+                {idx > 0 && " · "}
+                <code>{col.source_column}</code>
+                {col.tea_target !== col.source_column && (
+                  <>
+                    {" → "}
+                    <em>{col.tea_target}</em>
+                  </>
+                )}
+              </span>
+            ))}
+          </Typography>
+        </Alert>
+      )}
       {rowsByTarget.size === 0 ? (
         <Typography variant="body2" color="text.secondary">
           {t("migration.detail.noStaged", "No items staged for this kind.")}

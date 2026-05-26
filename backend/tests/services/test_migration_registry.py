@@ -20,6 +20,26 @@ def test_leanix_source_is_registered_at_import_time() -> None:
     assert src.accepted_extensions == (".xlsx",)
 
 
+def test_leanix_source_declares_auto_mapped_columns() -> None:
+    """The "Map imported fields" UI reads the source-platform columns
+    that the parser pulls into canonical SourceEntity slots from the
+    adapter, so the frontend doesn't carry adapter-specific spelling.
+    Make sure LeanIX still declares its list (and includes the LeanIX-
+    specific ``displayName`` / ``qualitySeal`` columns that other
+    adapters won't have)."""
+    src = SOURCES["leanix"]
+    auto = dict(src.auto_mapped_columns)
+    # Common-across-EA-platforms columns.
+    for col in ("name", "description", "status"):
+        assert col in auto
+    # LeanIX-specific columns — confirm the adapter is the source of
+    # truth for these (used to be hardcoded in the frontend Alert).
+    assert "displayName" in auto
+    assert "qualitySeal" in auto
+    assert auto["category"] == "subtype"
+    assert auto["lifecycle:*"] == "lifecycle"
+
+
 def test_get_source_unknown_raises() -> None:
     with pytest.raises(KeyError, match="Unknown migration source"):
         get_source("not-a-real-source")
@@ -37,6 +57,7 @@ def test_register_source_replaces_existing(snapshot_sources_registry) -> None:
         relation_mapping: dict[str, str] = {}
         flip_direction: frozenset[str] = frozenset()
         field_type_mapping: dict[str, str] = {}
+        auto_mapped_columns: tuple[tuple[str, str], ...] = ()
 
         def validate_payload(self, head: bytes) -> bool:
             return True

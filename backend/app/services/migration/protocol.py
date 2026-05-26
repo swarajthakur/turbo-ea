@@ -68,6 +68,18 @@ class MigrationSource(Protocol):
     # Native field-data-type string → Turbo EA ``fields_schema`` type.
     field_type_mapping: dict[str, str]
 
+    # Source-platform column names that the parser already routes into
+    # canonical ``SourceEntity`` slots (name / description / category /
+    # lifecycle / status / …) and therefore *don't* appear in the
+    # per-field mapping UI. Surfaced verbatim in the admin's "Map
+    # imported fields" tab so the admin sees that those columns are
+    # handled automatically. Each tuple is
+    # ``(source_column_name, tea_target_human_label)``; both halves are
+    # rendered verbatim, so use the spelling the admin will recognise
+    # from the source platform's own UI (LeanIX ``displayName``,
+    # Ardoq ``descriptionLong``, …).
+    auto_mapped_columns: tuple[tuple[str, str], ...]
+
     # ---- Extension hooks ----
     def post_build_card_payload(
         self,
