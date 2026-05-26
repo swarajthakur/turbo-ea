@@ -21274,8 +21274,8 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 500,
+              "default": 100,
+              "maximum": 10000,
               "minimum": 1,
               "title": "Limit",
               "type": "integer"

@@ -185,6 +185,9 @@ export default function MigrationAdmin() {
   const [selected, setSelected] = useState<Migration | null>(null);
   const [previews, setPreviews] = useState<Record<string, PreviewPage | null>>({});
   const [activeKind, setActiveKind] = useState<EntityKind>("card");
+  // Filter pill state — keyed by EntityKind so switching tabs preserves
+  // the selection per tab. ``null`` means "no filter / All".
+  const [pillFilter, setPillFilter] = useState<Partial<Record<EntityKind, string | null>>>({});
   const [mappingOptions, setMappingOptions] = useState<FieldMappingOptions | null>(null);
   const [mappingDraft, setMappingDraft] = useState<Record<string, Record<string, string>>>({});
   const [mappingSaving, setMappingSaving] = useState(false);
@@ -243,12 +246,13 @@ export default function MigrationAdmin() {
   }, [migrations, loadList]);
 
   const fetchPreview = useCallback(async (id: string, kind: EntityKind): Promise<PreviewPage> => {
-    // metamodel_field can run into the hundreds on large LeanIX exports
-    // (272 fields on the demo snapshot). Bump the cap so the per-type
-    // grouping in the tab actually shows every field; the backend
-    // accepts up to 500.
-    const limit = kind === "metamodel_field" ? 500 : 100;
-    return api.get<PreviewPage>(`/migration/${id}/preview?entity_kind=${kind}&limit=${limit}`);
+    // Pull the full set in one request so the per-card-type filter
+    // pills + client-side filtering work without re-fetching. The
+    // backend caps at 10 000 per call; tabs that exceed that on real
+    // tenants would need server-side pagination but we haven't seen
+    // it in practice yet (the largest single bucket on the demo
+    // snapshot is 272 ``metamodel_field`` rows).
+    return api.get<PreviewPage>(`/migration/${id}/preview?entity_kind=${kind}&limit=10000`);
   }, []);
 
   const refreshSelected = useCallback(async () => {
@@ -370,6 +374,7 @@ export default function MigrationAdmin() {
     setSelected(m);
     setPreviews({});
     setActiveKind("card");
+    setPillFilter({});
     setMappingOptions(null);
     setMappingDraft({});
     setMappingError(null);
@@ -679,19 +684,39 @@ export default function MigrationAdmin() {
             <Typography variant="body2" color="text.secondary">
               {t("migration.detail.noStaged", "No items staged for this kind.")}
             </Typography>
-          ) : activeKind === "metamodel_field" ? (
-            <MetamodelFieldTab
-              rows={previews[activeKind]!.items}
-              mappingOptions={mappingOptions}
-              draft={mappingDraft}
-              onChange={setMappingDraft}
-              onSave={handleSaveMappings}
-              saving={mappingSaving}
-              error={mappingError}
-              editable={selected?.status === "parsed" || selected?.status === "previewed"}
-            />
           ) : (
-            <StagedTable rows={previews[activeKind]!.items} />
+            (() => {
+              const allRows = previews[activeKind]!.items;
+              const selectedPill = pillFilter[activeKind] ?? null;
+              const filteredRows = selectedPill
+                ? allRows.filter((r) => filterDimension(r) === selectedPill)
+                : allRows;
+              return (
+                <>
+                  <FilterPills
+                    rows={allRows}
+                    selected={selectedPill}
+                    onChange={(v) => setPillFilter({ ...pillFilter, [activeKind]: v })}
+                  />
+                  {activeKind === "metamodel_field" ? (
+                    <MetamodelFieldTab
+                      rows={filteredRows}
+                      mappingOptions={mappingOptions}
+                      draft={mappingDraft}
+                      onChange={setMappingDraft}
+                      onSave={handleSaveMappings}
+                      saving={mappingSaving}
+                      error={mappingError}
+                      editable={
+                        selected?.status === "parsed" || selected?.status === "previewed"
+                      }
+                    />
+                  ) : (
+                    <StagedTable rows={filteredRows} />
+                  )}
+                </>
+              );
+            })()
           )}
         </DialogContent>
         <DialogActions>
@@ -723,6 +748,74 @@ export default function MigrationAdmin() {
         </DialogActions>
       </Dialog>
     </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Filter pills — one pill per distinct dimension value above the table
+// ---------------------------------------------------------------------------
+
+/**
+ * Pick the value a row contributes to the filter pills. Default to the
+ * staged ``card_type_key`` when it's set (covers ``card``, ``card_tag``,
+ * ``metamodel_field``); otherwise fall back to the ``action`` column so
+ * every tab gets a useful set of pills (e.g. user-staging: create / skip).
+ */
+function filterDimension(row: StagedRecord): string {
+  return row.card_type_key || row.action || "—";
+}
+
+interface FilterPillsProps {
+  rows: StagedRecord[];
+  selected: string | null;
+  onChange: (value: string | null) => void;
+}
+
+function FilterPills({ rows, selected, onChange }: FilterPillsProps) {
+  const { t } = useTranslation(["admin", "common"]);
+  // Count rows per dimension value, preserving first-seen order so
+  // pills don't reshuffle between renders.
+  const counts: { key: string; count: number }[] = [];
+  const seen = new Map<string, number>();
+  for (const r of rows) {
+    const k = filterDimension(r);
+    if (seen.has(k)) {
+      counts[seen.get(k)!].count += 1;
+    } else {
+      seen.set(k, counts.length);
+      counts.push({ key: k, count: 1 });
+    }
+  }
+  // No useful filter when everything collapses to a single bucket.
+  if (counts.length <= 1) return null;
+  // Sort alphabetically so re-opens are deterministic; "All" comes
+  // first and is always visible.
+  counts.sort((a, b) => a.key.localeCompare(b.key));
+  const total = rows.length;
+  return (
+    <Stack
+      direction="row"
+      spacing={0.5}
+      sx={{ mb: 1.5, flexWrap: "wrap", rowGap: 0.5 }}
+    >
+      <Chip
+        size="small"
+        label={`${t("migration.filter.all", "All")} (${total})`}
+        color={selected === null ? "primary" : "default"}
+        variant={selected === null ? "filled" : "outlined"}
+        onClick={() => onChange(null)}
+      />
+      {counts.map((c) => (
+        <Chip
+          key={c.key}
+          size="small"
+          label={`${c.key} (${c.count})`}
+          color={selected === c.key ? "primary" : "default"}
+          variant={selected === c.key ? "filled" : "outlined"}
+          onClick={() => onChange(selected === c.key ? null : c.key)}
+        />
+      ))}
+    </Stack>
   );
 }
 

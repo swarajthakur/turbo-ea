@@ -291,7 +291,15 @@ async def preview_migration(
     card_type_key: str | None = Query(None),
     action: str | None = Query(None, description="filter by action: create/update/skip/conflict"),
     offset: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500),
+    # Big LeanIX exports can stage thousands of rows in a single bucket
+    # (the demo snapshot lands 272 ``metamodel_field`` rows; real
+    # customer tenants land tens of thousands of ``card`` rows). The
+    # admin UI pulls one page per tab and filters client-side, so the
+    # cap needs to be high enough that "show everything for this kind"
+    # works in one request. 10 000 is well below what the JSON payload
+    # can carry without paging woes (each ``StagedRecordOut`` is
+    # ~500 B → ~5 MB) and is plenty for the snapshots we've seen.
+    limit: int = Query(100, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> PreviewPage:
