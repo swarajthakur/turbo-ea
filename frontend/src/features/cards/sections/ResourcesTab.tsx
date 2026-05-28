@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { useMetamodel } from "@/hooks/useMetamodel";
+import { useFileUploadsEnabled } from "@/hooks/useFileUploadsEnabled";
 import { api } from "@/api/client";
 import CreateAdrDialog from "@/features/ea-delivery/CreateAdrDialog";
 import type { ArchitectureDecision, DiagramSummary, FileAttachment } from "@/types";
@@ -106,6 +107,7 @@ function ResourcesTab({
   const { t } = useTranslation(["cards", "common"]);
   const navigate = useNavigate();
   const { types: metamodelTypes } = useMetamodel();
+  const { fileUploadsEnabled } = useFileUploadsEnabled();
 
   const typeColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -448,6 +450,7 @@ function ResourcesTab({
       </Accordion>
 
       {/* ── File Attachments ── */}
+      {(fileUploadsEnabled || files.length > 0) && (
       <Accordion defaultExpanded>
         <AccordionSummary
           expandIcon={<MaterialSymbol icon="expand_more" size={20} />}
@@ -461,7 +464,7 @@ function ResourcesTab({
           </Box>
         </AccordionSummary>
         <AccordionDetails>
-          {canManageDocuments && (
+          {canManageDocuments && fileUploadsEnabled && (
             <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
               <input
                 ref={fileInputRef}
@@ -559,6 +562,7 @@ function ResourcesTab({
           </List>
         </AccordionDetails>
       </Accordion>
+      )}
 
       {/* ── Document Links ── */}
       <Accordion defaultExpanded>
@@ -908,7 +912,7 @@ function ResourcesTab({
 
       {/* ── Upload File Dialog ── */}
       <Dialog
-        open={uploadDialogOpen}
+        open={uploadDialogOpen && fileUploadsEnabled}
         onClose={() => {
           setUploadDialogOpen(false);
           pendingFileRef.current = null;

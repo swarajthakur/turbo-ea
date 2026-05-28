@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.32.0] - 2026-05-28
+
+### Added
+- **Admin setting to disable card file uploads.** A new **File uploads** toggle in **Admin → Settings → Modules** lets administrators turn off the binary-file upload feature on cards for tenants that prefer to keep documents in an external DMS (SharePoint, Confluence, …) and link to them by URL. When disabled, the **Upload File** button and dialog disappear from the Card Detail → Resources tab and `POST /cards/{id}/file-attachments` returns HTTP 403; existing attachments stay visible and downloadable so admins can clean up, and URL document links continue to work unchanged. The flag ships **on** for existing installs and is stored in `app_settings.general_settings.fileUploadsEnabled`; exposed via `GET/PATCH /settings/file-uploads-enabled` and `GET /settings/bootstrap`.
+
 ## [1.31.0] - 2026-05-28
 
 ### Added

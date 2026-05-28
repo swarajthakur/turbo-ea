@@ -4273,6 +4273,19 @@
         "title": "FieldMappingUpdate",
         "type": "object"
       },
+      "FileUploadsEnabledPayload": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "FileUploadsEnabledPayload",
+        "type": "object"
+      },
       "FiscalYearStartPayload": {
         "properties": {
           "month": {
@@ -28096,6 +28109,64 @@
           }
         },
         "summary": "Get Favicon Info",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/file-uploads-enabled": {
+      "get": {
+        "description": "Public endpoint \u2014 returns whether card file uploads are enabled.",
+        "operationId": "get_file_uploads_enabled_api_v1_settings_file_uploads_enabled_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get File Uploads Enabled",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Admin endpoint \u2014 enable or disable card file uploads.",
+        "operationId": "update_file_uploads_enabled_api_v1_settings_file_uploads_enabled_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUploadsEnabledPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update File Uploads Enabled",
         "tags": [
           "settings"
         ]

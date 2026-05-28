@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.app_settings import AppSettings
 from app.models.file_attachment import FileAttachment
 from app.models.user import User
 from app.services.event_bus import event_bus
@@ -82,6 +83,12 @@ async def upload_file_attachment(
         db, user, "documents.manage", card_uuid, "card.manage_documents"
     ):
         raise HTTPException(403, "Not enough permissions")
+
+    settings_result = await db.execute(select(AppSettings).where(AppSettings.id == "default"))
+    settings_row = settings_result.scalar_one_or_none()
+    general = (settings_row.general_settings if settings_row else None) or {}
+    if not general.get("fileUploadsEnabled", True):
+        raise HTTPException(403, "File uploads are disabled by the administrator")
 
     # Validate MIME type
     content_type = file.content_type or ""

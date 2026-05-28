@@ -29,6 +29,7 @@ import {
 } from "@/hooks/useDateFormat";
 import { invalidateAppTitle, DEFAULT_APP_TITLE } from "@/hooks/useAppTitle";
 import { invalidateGrcEnabled } from "@/hooks/useGrcEnabled";
+import { invalidateFileUploadsEnabled } from "@/hooks/useFileUploadsEnabled";
 import { invalidateLoginBranding } from "@/hooks/useLoginBranding";
 import { useMetamodel } from "@/hooks/useMetamodel";
 import { useEnabledLocales } from "@/hooks/useEnabledLocales";
@@ -181,6 +182,10 @@ function GeneralTab() {
   const [grcEnabled, setGrcEnabled] = useState(true);
   const [savingGrc, setSavingGrc] = useState(false);
 
+  // File uploads toggle state
+  const [fileUploadsEnabled, setFileUploadsEnabled] = useState(true);
+  const [savingFileUploads, setSavingFileUploads] = useState(false);
+
   // Fiscal year start
   const [fiscalYearStart, setFiscalYearStart] = useState(1);
   const [savingFiscal, setSavingFiscal] = useState(false);
@@ -223,6 +228,7 @@ function GeneralTab() {
       api.get<{ app_title: string }>("/settings/app-title"),
       api.get<{ date_format: string }>("/settings/date-format"),
       api.get<{ enabled: boolean }>("/settings/grc-enabled"),
+      api.get<{ enabled: boolean }>("/settings/file-uploads-enabled"),
       api.get<{
         login_tagline: string;
         login_tagline_hidden: boolean;
@@ -230,7 +236,7 @@ function GeneralTab() {
         login_help_link: string;
       }>("/settings/login-branding"),
     ])
-      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, appTitleData, dateFormatData, grcData, loginBrandingData]) => {
+      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, appTitleData, dateFormatData, grcData, fileUploadsData, loginBrandingData]) => {
         setSmtpHost(emailData.smtp_host);
         setSmtpPort(emailData.smtp_port);
         setSmtpUser(emailData.smtp_user);
@@ -245,6 +251,7 @@ function GeneralTab() {
         setBpmEnabled(bpmData.enabled);
         setPpmEnabled(ppmData.enabled);
         setGrcEnabled(grcData.enabled);
+        setFileUploadsEnabled(fileUploadsData.enabled);
         setFiscalYearStart(fiscalData.month);
         setAppTitle(appTitleData.app_title || DEFAULT_APP_TITLE);
         const fmt = (DATE_FORMAT_OPTIONS as string[]).includes(dateFormatData.date_format)
@@ -421,6 +428,25 @@ function GeneralTab() {
       setError(e instanceof Error ? e.message : t("common:errors.generic"));
     } finally {
       setSavingGrc(false);
+    }
+  };
+
+  const handleFileUploadsToggle = async (enabled: boolean) => {
+    setSavingFileUploads(true);
+    setError("");
+    try {
+      await api.patch("/settings/file-uploads-enabled", { enabled });
+      setFileUploadsEnabled(enabled);
+      invalidateFileUploadsEnabled(enabled);
+      setSnack(
+        enabled
+          ? t("settings.fileUploads.enabledSuccess")
+          : t("settings.fileUploads.disabledSuccess"),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common:errors.generic"));
+    } finally {
+      setSavingFileUploads(false);
     }
   };
 
@@ -997,6 +1023,74 @@ function GeneralTab() {
         </Button>
       </Paper>
 
+      {/* Fiscal Year Start */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+          <MaterialSymbol icon="calendar_month" size={22} color="#555" />
+          <Typography variant="h6" fontWeight={600}>
+            {t("settings.fiscal.title")}
+          </Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("settings.fiscal.description")}
+        </Typography>
+        <TextField
+          select
+          size="small"
+          label={t("settings.fiscal.startMonth")}
+          value={fiscalYearStart}
+          onChange={(e) => handleFiscalYearSave(Number(e.target.value))}
+          disabled={savingFiscal}
+          sx={{ minWidth: 220 }}
+        >
+          {Array.from({ length: 12 }, (_, i) => {
+            const d = new Date(2000, i, 1);
+            return (
+              <MenuItem key={i + 1} value={i + 1}>
+                {d.toLocaleString(undefined, { month: "long" })} ({i + 1})
+              </MenuItem>
+            );
+          })}
+        </TextField>
+      </Paper>
+
+      {/* File Uploads Toggle */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+          <MaterialSymbol icon="attach_file" size={22} color="#555" />
+          <Typography variant="h6" fontWeight={600}>
+            {t("settings.fileUploads.title")}
+          </Typography>
+          <Chip
+            label={
+              fileUploadsEnabled
+                ? t("settings.fileUploads.enabled")
+                : t("settings.fileUploads.disabled")
+            }
+            size="small"
+            color={fileUploadsEnabled ? "success" : "default"}
+            sx={{ ml: 1 }}
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("settings.fileUploads.description")}
+        </Typography>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={fileUploadsEnabled}
+              onChange={(e) => handleFileUploadsToggle(e.target.checked)}
+              disabled={savingFileUploads}
+            />
+          }
+          label={
+            fileUploadsEnabled
+              ? t("settings.fileUploads.visible")
+              : t("settings.fileUploads.hidden")
+          }
+        />
+      </Paper>
+
       {/* ── Modules ───────────────────────────────────────────────── */}
       <SectionHeader>{t("settings.section.modules")}</SectionHeader>
 
@@ -1085,37 +1179,6 @@ function GeneralTab() {
           }
           label={grcEnabled ? t("settings.grc.visible") : t("settings.grc.hidden")}
         />
-      </Paper>
-
-      {/* Fiscal Year Start */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
-          <MaterialSymbol icon="calendar_month" size={22} color="#555" />
-          <Typography variant="h6" fontWeight={600}>
-            {t("settings.fiscal.title")}
-          </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t("settings.fiscal.description")}
-        </Typography>
-        <TextField
-          select
-          size="small"
-          label={t("settings.fiscal.startMonth")}
-          value={fiscalYearStart}
-          onChange={(e) => handleFiscalYearSave(Number(e.target.value))}
-          disabled={savingFiscal}
-          sx={{ minWidth: 220 }}
-        >
-          {Array.from({ length: 12 }, (_, i) => {
-            const d = new Date(2000, i, 1);
-            return (
-              <MenuItem key={i + 1} value={i + 1}>
-                {d.toLocaleString(undefined, { month: "long" })} ({i + 1})
-              </MenuItem>
-            );
-          })}
-        </TextField>
       </Paper>
 
       {/* ── Email ─────────────────────────────────────────────────── */}
