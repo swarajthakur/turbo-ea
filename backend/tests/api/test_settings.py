@@ -231,6 +231,56 @@ class TestGrcEnabledSettings:
 
 
 # -------------------------------------------------------------------
+# GET /settings/file-uploads-enabled + PATCH /settings/file-uploads-enabled
+# -------------------------------------------------------------------
+
+
+class TestFileUploadsEnabledSettings:
+    async def test_get_default_file_uploads_enabled(self, client, db, settings_env):
+        """File uploads endpoint is public and defaults to True."""
+        resp = await client.get("/api/v1/settings/file-uploads-enabled")
+        assert resp.status_code == 200
+        assert resp.json()["enabled"] is True
+
+    async def test_admin_can_toggle_file_uploads(self, client, db, settings_env):
+        admin = settings_env["admin"]
+
+        resp = await client.patch(
+            "/api/v1/settings/file-uploads-enabled",
+            json={"enabled": False},
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+        get_resp = await client.get("/api/v1/settings/file-uploads-enabled")
+        assert get_resp.json()["enabled"] is False
+
+        # Bootstrap mirrors the change.
+        boot = await client.get("/api/v1/settings/bootstrap")
+        assert boot.json()["file_uploads_enabled"] is False
+
+        resp2 = await client.patch(
+            "/api/v1/settings/file-uploads-enabled",
+            json={"enabled": True},
+            headers=auth_headers(admin),
+        )
+        assert resp2.status_code == 200
+
+        get_resp2 = await client.get("/api/v1/settings/file-uploads-enabled")
+        assert get_resp2.json()["enabled"] is True
+
+    async def test_member_cannot_toggle_file_uploads(self, client, db, settings_env):
+        member = settings_env["member"]
+        resp = await client.patch(
+            "/api/v1/settings/file-uploads-enabled",
+            json={"enabled": False},
+            headers=auth_headers(member),
+        )
+        assert resp.status_code == 403
+
+
+# -------------------------------------------------------------------
 # GET /settings/registration + PATCH /settings/registration
 # -------------------------------------------------------------------
 
@@ -336,6 +386,7 @@ class TestBootstrapSettings:
         assert data["ppm_enabled"] is False
         assert data["turbolens_enabled"] is True
         assert data["grc_enabled"] is True
+        assert data["file_uploads_enabled"] is True
         assert "en" in data["enabled_locales"]
         assert data["fiscal_year_start"] == 1
         assert data["bpm_row_order"] == ["management", "core", "support"]

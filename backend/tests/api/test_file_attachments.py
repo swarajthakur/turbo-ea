@@ -73,6 +73,60 @@ class TestUploadFile:
         )
         assert resp.status_code == 403
 
+    async def test_upload_blocked_when_disabled_by_admin(self, client, db, file_env):
+        """When the admin toggle is off, POST /file-attachments returns 403."""
+        admin = file_env["admin"]
+        card = file_env["card"]
+
+        # First upload succeeds (feature defaults to enabled).
+        ok_resp = await client.post(
+            f"/api/v1/cards/{card.id}/file-attachments",
+            files={"file": ("before.pdf", b"before-bytes", "application/pdf")},
+            headers=auth_headers(admin),
+        )
+        assert ok_resp.status_code == 201
+        existing_id = ok_resp.json()["id"]
+
+        # Admin disables the feature.
+        toggle_resp = await client.patch(
+            "/api/v1/settings/file-uploads-enabled",
+            json={"enabled": False},
+            headers=auth_headers(admin),
+        )
+        assert toggle_resp.status_code == 200
+
+        # Subsequent uploads are rejected.
+        blocked_resp = await client.post(
+            f"/api/v1/cards/{card.id}/file-attachments",
+            files={"file": ("after.pdf", b"after-bytes", "application/pdf")},
+            headers=auth_headers(admin),
+        )
+        assert blocked_resp.status_code == 403
+        assert "disabled" in blocked_resp.json()["detail"].lower()
+
+        # Listing existing attachments still works (admins must be able to
+        # audit and clean up after disabling).
+        list_resp = await client.get(
+            f"/api/v1/cards/{card.id}/file-attachments",
+            headers=auth_headers(admin),
+        )
+        assert list_resp.status_code == 200
+        assert any(f["id"] == existing_id for f in list_resp.json())
+
+        # Downloading existing attachments still works.
+        dl_resp = await client.get(
+            f"/api/v1/file-attachments/{existing_id}/download",
+            headers=auth_headers(admin),
+        )
+        assert dl_resp.status_code == 200
+
+        # Deleting existing attachments still works.
+        del_resp = await client.delete(
+            f"/api/v1/file-attachments/{existing_id}",
+            headers=auth_headers(admin),
+        )
+        assert del_resp.status_code == 204
+
 
 # -------------------------------------------------------------------
 # GET /cards/{card_id}/file-attachments  (list)
