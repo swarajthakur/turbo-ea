@@ -38,7 +38,7 @@ Leverandøranalyse bruger AI til at kategorisere dine teknologileverandører i 4
 3. AI'en behandler din leverandørportefølje i batches og kategoriserer hver leverandør med begrundelse
 4. Resultaterne viser en kategori-nedbrydning og en detaljeret leverandør-tabel
 
-Hver leverandør-post indeholder kategorien, sub-kategorien, antal tilknyttede applications, samlet årlig omkostning og AI'ens begrundelse for kategoriseringen. Skift mellem gitter- og tabel-visninger ved hjælp af visnings-skifteren.
+Hver leverandør-post indeholder kategorien, sub-kategorien, antal tilknyttede applikationer, samlet årlig omkostning og AI'ens begrundelse for kategoriseringen. Skift mellem gitter- og tabel-visninger ved hjælp af visnings-skifteren.
 
 ## Leverandør-resolution
 
@@ -51,7 +51,7 @@ Leverandør-resolution bygger et kanonisk leverandør-hierarki ved at løse alia
 3. AI'en identificerer leverandør-aliasser (f.eks. "MSFT" = "Microsoft"), moderselskaber og produkt-grupperinger
 4. Resultaterne viser det løste hierarki med konfidens-scorer
 
-Hierarkiet organiserer leverandører i fire niveauer: vendor, product, platform og module. Hver post viser antallet af linkede applications og IT components, samlet omkostning og en konfidens-procent.
+Hierarkiet organiserer leverandører i fire niveauer: vendor, product, platform og module. Hver post viser antallet af linkede applikationer og IT-komponenter, samlet omkostning og en konfidens-procent.
 
 ## Dublet-detektion
 

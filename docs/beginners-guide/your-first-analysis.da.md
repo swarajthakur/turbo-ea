@@ -94,7 +94,7 @@ Du har nu en forsvarlig porteføljevisning. Læg de to rapporter foran salgs-CIO
 
 - Bekræft TIME-vurderingerne på de top-10 højest-omkostende applikationer.
 - Identificér de top-3 varme celler i heatmappet som kandidat-rationaliseringsprojekter.
-- Fang opfølgninger som kommentarer eller todos på applikationerne selv — Turbo EA sporer dem pr. kort.
+- Fang opfølgninger som kommentarer eller opgaver på applikationerne selv — Turbo EA sporer dem pr. kort.
 
 Det er det. Du har en fungerende EA-praksis på Turbo EA.
 

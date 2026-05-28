@@ -71,7 +71,7 @@ I alle tilfælde kan du søge og linke yderligere kort under oprettelsen. Initia
 Editoren tilbyder:
 
 - Rich text-redigering for hver sektion (Context, Decision, Consequences, Alternatives Considered)
-- Kort-linking — forbind ADR'en til relevante kort (applications, IT components, initiatives, …). Initiativer linkes via standard kort-linking-funktionen, ikke et dedikeret felt, så en ADR kan referere til flere initiativer
+- Kort-linking — forbind ADR'en til relevante kort (applikationer, IT-komponenter, initiativer, …). Initiativer linkes via standard kort-linking-funktionen, ikke et dedikeret felt, så en ADR kan referere til flere initiativer
 - Relaterede beslutninger — refer til andre ADR'er
 
 #### Underskrifts­arbejdsproces

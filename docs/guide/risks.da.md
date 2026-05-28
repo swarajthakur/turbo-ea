@@ -39,7 +39,7 @@ Det samme system affyres uafhængigt for **hver afhjælpningsopgave** på risiko
 
 ## Linke risici til kort
 
-Risici er **mange-til-mange** med kort. En risiko kan påvirke flere applications eller IT components, og et kort kan have flere risici linket til sig:
+Risici er **mange-til-mange** med kort. En risiko kan påvirke flere applikationer eller IT-komponenter, og et kort kan have flere risici linket til sig:
 
 - Fra risikodetaljesiden: **Affected cards**-panelet → søg og tilføj. Klik på et `×` for at afkoble.
 - Fra enhver Kortdetaljeside: en ny **Risks**-fane viser hver risiko linket til det kort med en ét-klik-vej tilbage til registret.

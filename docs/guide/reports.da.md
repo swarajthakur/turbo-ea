@@ -15,7 +15,7 @@ Turbo EA indeholder et kraftfuldt **visuelt rapporteringsmodul**, der gør det m
 - **Boblestørrelse** — Tildel et numerisk felt (f.eks. Annual Cost)
 - **Boblefarve** — Tildel et select-felt eller livscyklus­tilstand
 
-Dette er ideelt til porteføljeanalyse — for eksempel at plotte applications efter forretningsværdi vs. teknisk egnethed for at identificere kandidater til investering, udskiftning eller pensionering.
+Dette er ideelt til porteføljeanalyse — for eksempel at plotte applikationer efter forretningsværdi vs. teknisk egnethed for at identificere kandidater til investering, udskiftning eller pensionering.
 
 ### AI Portfolio Insights
 
@@ -38,8 +38,8 @@ Ved skift af korttype ryddes valg af gruppering, farvelægning og filtre (de ref
 **Kompetencekortet** viser et hierarkisk **heatmap** over organisationens forretningskompetencer. Hver blok repræsenterer en kompetence med:
 
 - **Hierarki** — Hovedkompetencer indeholder deres underkompetencer
-- **Heatmap-farvelægning** — Blokke er farvet baseret på en valgt metrik (f.eks. antal understøttende applications, gennemsnitlig datakvalitet eller risikoniveau)
-- **Klik for at udforske** — Klik på en kompetence for at drille ned i dens detaljer og understøttende applications
+- **Heatmap-farvelægning** — Blokke er farvet baseret på en valgt metrik (f.eks. antal understøttende applikationer, gennemsnitlig datakvalitet eller risikoniveau)
+- **Klik for at udforske** — Klik på en kompetence for at drille ned i dens detaljer og understøttende applikationer
 
 ## Livscyklusrapport
 
@@ -131,7 +131,7 @@ Tidslinjeskyderen, Cost Source-valget og andre filtre bevares, mens du driller, 
 - **Kolonner** — Business Capabilities
 - **Celler** — Indikerer om en relation eksisterer (og hvor mange)
 
-Dette er nyttigt til at identificere dækningshuller (kompetencer uden understøttende applications) eller redundanser (kompetencer understøttet af for mange applications).
+Dette er nyttigt til at identificere dækningshuller (kompetencer uden understøttende applikationer) eller redundanser (kompetencer understøttet af for mange applikationer).
 
 ## Datakvalitetsrapport
 

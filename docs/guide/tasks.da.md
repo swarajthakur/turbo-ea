@@ -4,9 +4,9 @@
 
 ![Mine opgaver-sektion](../assets/img/en/18_tasks.png)
 
-## Mine todos
+## Mine opgaver
 
-Todos er opgaver tildelt dig eller oprettet af dig. De kan være knyttet til specifikke kort eller stå alene.
+Opgaver er arbejdsemner tildelt dig eller oprettet af dig. De kan være knyttet til specifikke kort eller stå alene.
 
 ### Filtrering
 
@@ -16,20 +16,20 @@ Brug statusfanerne til at filtrere:
 - **Færdige** — Fuldførte opgaver
 - **Alle** — Alt
 
-### Håndtering af todos
+### Håndtering af opgaver
 
-- **Hurtig skifter** — Klik på afkrydsningsfeltet for at markere en todo som færdig (eller genåbne den)
-- **Kortlink** — Hvis en todo er knyttet til et kort, klik på kortnavnet for at navigere til dets detaljeside
-- **System-todos** — Nogle todos genereres automatisk af systemet (f.eks. "Besvar undersøgelse for kort X"). Disse inkluderer et direkte link til den relevante handling
+- **Hurtig skifter** — Klik på afkrydsningsfeltet for at markere en opgave som færdig (eller genåbne den)
+- **Kortlink** — Hvis en opgave er knyttet til et kort, klik på kortnavnet for at navigere til dets detaljeside
+- **Systemopgaver** — Nogle opgaver genereres automatisk af systemet (f.eks. "Besvar undersøgelse for kort X"). Disse inkluderer et direkte link til den relevante handling
 
-### Oprettelse af todos
+### Oprettelse af opgaver
 
-Du kan oprette todos fra to steder:
+Du kan oprette opgaver fra to steder:
 
-1. **Fra denne side** — Klik på **+ Ny todo**, indtast en titel, og indstil eventuelt en modtager, forfaldsdato og link til et kort
-2. **Fra et korts Todos-fane** — Opret en todo, der automatisk er knyttet til det kort
+1. **Fra denne side** — Klik på **+ Ny opgave**, indtast en titel, og indstil eventuelt en modtager, forfaldsdato og link til et kort
+2. **Fra et korts Opgaver-fane** — Opret en opgave, der automatisk er knyttet til det kort
 
-Hver todo sporer:
+Hver opgave sporer:
 
 | Felt | Beskrivelse |
 |-------|-------------|

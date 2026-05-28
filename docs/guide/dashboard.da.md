@@ -15,7 +15,7 @@ Dashboardet er den første skærm, du ser efter login. Det giver et **hurtigt ov
 - **BPM**: Business Process Management (hvis aktiveret)
 - **Diagrammer**: Visuel arkitekturdiagrameditor
 - **EA-levering**: Styring af arkitekturinitiativer
-- **Todos**: Ventende opgaver og tildelte undersøgelser
+- **Opgaver**: Ventende opgaver og tildelte undersøgelser
 - **Søg kort**: Hurtig søgelinje med autoudfyldning
 - **+ Opret**: Knap til hurtigt at oprette nye kort
 - **Notifikationsklokke**: Systemadvarsler og [notifikationer](notifications.md)
@@ -44,7 +44,7 @@ I den nederste sektion af dashboardet finder du:
 
 ## Arbejdsområde-fane
 
-Fanen **Arbejdsområde** samler alt, der er tildelt dig: favoritter, todos, ventende undersøgelser, seneste aktivitet på dine kort og sektionen **Kort, jeg har en rolle i**.
+Fanen **Arbejdsområde** samler alt, der er tildelt dig: favoritter, opgaver, ventende undersøgelser, seneste aktivitet på dine kort og sektionen **Kort, jeg har en rolle i**.
 
 Den sidste sektion grupperer kort efter den interessentrolle, du har (applikationsejer, forretningsejer osv.) og lister kortene under hver. Hvis din rolle giver `stakeholders.view`-tilladelsen (admin-, member- og viewer-roller som standard), lader et lille **personsøgnings**-ikon ved siden af sektionstitlen dig pege den mod **en anden** — vælg en bruger fra autoudfyldningen, og sektionen genhentes og gengiver med den brugers roller og kort. Sektionstitlen skifter til "Roller besat af {name}". Klik på det lille luk-ikon for at vende tilbage til dine egne roller. Nyttigt til at besvare "hvad ejer denne person?" med ét klik.
 
