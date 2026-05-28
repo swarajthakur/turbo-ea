@@ -39,7 +39,7 @@ Hvis det er første gang, du tilgår platformen, kan du registrere dig ved at kl
 
 ## Skift sprog
 
-Platformen understøtter otte sprog. For at skifte sprog:
+Platformen understøtter ni sprog. For at skifte sprog:
 
 1. Klik på dit profilikon (øverste højre hjørne)
 2. Vælg **Sprog**
@@ -52,3 +52,4 @@ Platformen understøtter otte sprog. For at skifte sprog:
    - Português
    - 中文 (kinesisk)
    - Русский (russisk)
+   - Dansk

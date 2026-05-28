@@ -18,7 +18,7 @@ Denne guide er til **alle, der bruger Turbo EA** — enterprisearkitekter, it-ch
 - **Visuelle diagrammer**: Opret arkitekturdiagrammer med den indlejrede DrawIO-editor, fuldt synkroniseret med dit kortlager.
 - **Forretningsprocesmodellering**: BPMN 2.0-arbejdsproceseditor med elementtilknytning, godkendelsesarbejdsprocesser og modenhedsvurderinger.
 - **ServiceNow-integration**: Tovejssynkronisering med ServiceNow CMDB for at holde dit EA-landskab forbundet med it-driftsdata.
-- **Flersproget**: Tilgængelig på engelsk, spansk, fransk, tysk, italiensk, portugisisk og kinesisk.
+- **Flersproget**: Tilgængelig på engelsk, spansk, fransk, tysk, italiensk, portugisisk, kinesisk, russisk og dansk.
 
 ### Nøglebegreber
 

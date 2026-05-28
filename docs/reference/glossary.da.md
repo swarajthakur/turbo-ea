@@ -6,7 +6,7 @@
 | **Godkendelsesstatus** | Et korts gennemgangstilstand: Kladde, Godkendt, Brudt eller Afvist. Godkendte kort skifter til Brudt, når de redigeres |
 | **Bogmærke / Gemt visning** | En gemt filter-, kolonne- og sorteringskonfiguration i lageret, der kan genindlæses med ét klik |
 | **BPM** | Business Process Management — disciplinen at modellere, analysere og forbedre forretningsprocesser |
-| **BPM rækkerækkefølge** | Visningsrækkefølgen af procestyperækker (Core, Support, Management) i BPM-procesnavigatoren, kan konfigureres ved at trække rækker |
+| **BPM rækkefølge** | Visningsrækkefølgen af procestyperækker (Core, Support, Management) i BPM-procesnavigatoren, kan konfigureres ved at trække rækker |
 | **BPMN** | Business Process Model and Notation — standardnotationen for modellering af forretningsprocesser (version 2.0) |
 | **Forretningskompetence** | Hvad en organisation kan, uanset hvordan den gør det |
 | **Beregning** | En administratordefineret formel, der automatisk beregner en feltværdi, når et kort gemmes |
