@@ -142,8 +142,8 @@ To add an Ardoq / HOPEX / BiZZdesign / etc. adapter, the only surface area is a 
 
 ### Internationalization (i18n)
 - **All user-facing strings must use translation keys**, never hardcoded English text. Use `useTranslation()` from `react-i18next` with the appropriate namespace.
-- **12 namespaces**: `common`, `auth`, `nav`, `inventory`, `cards`, `reports`, `admin`, `bpm`, `diagrams`, `delivery`, `notifications`, `validation`. Use the namespace that matches the feature area.
-- **8 supported locales**: `en` (English, baseline), `de` (German), `fr` (French), `es` (Spanish), `it` (Italian), `pt` (Portuguese), `zh` (Chinese Simplified), `ru` (Russian).
+- **14 namespaces**: `common`, `auth`, `nav`, `inventory`, `cards`, `reports`, `admin`, `bpm`, `ppm`, `diagrams`, `delivery`, `grc`, `notifications`, `validation`. Use the namespace that matches the feature area.
+- **9 supported locales**: `en` (English, baseline), `de` (German), `fr` (French), `es` (Spanish), `it` (Italian), `pt` (Portuguese), `zh` (Chinese Simplified), `ru` (Russian), `da` (Danish).
 - **English is the source of truth**. All keys must exist in `frontend/src/i18n/locales/en/{namespace}.json` first. The i18n config uses `fallbackLng: "en"` and `returnEmptyString: false`, so missing or empty translations gracefully fall back to English.
 - **Interpolation**: Use `{{variable}}` syntax for dynamic values (e.g., `"Selected {{count}} cards"`). Preserve these placeholders exactly when translating.
 - **Plurals**: i18next uses `_one` / `_other` suffixes (e.g., `"count_one": "{{count}} item"`, `"count_other": "{{count}} items"`). All locales need both forms.
@@ -152,22 +152,32 @@ To add an Ardoq / HOPEX / BiZZdesign / etc. adapter, the only surface area is a 
 
 #### Adding a New Language
 
-1. **Create locale files**: Copy `frontend/src/i18n/locales/en/` to `frontend/src/i18n/locales/{code}/` (use ISO 639-1 code). Translate all values; leave keys unchanged.
-2. **Register in i18n config** (`frontend/src/i18n/index.ts`):
-   - Add imports for all 12 namespace files
-   - Add the locale to the `resources` object in `i18n.init()`
-   - Add the code to `SUPPORTED_LOCALES` array
-   - Add a display label to `LOCALE_LABELS`
-3. **Add metamodel translations**: In `backend/app/services/seed.py`, add entries for the new locale in the `translations` dict of each card type and relation type definition.
-4. **Backend locale column** (`users.locale`): The Alembic migration already stores locale as a free-form string, so no migration is needed.
-5. **Validate**: Run `python3 -c "import json, glob; [json.load(open(f)) for f in glob.glob('src/i18n/locales/{code}/*.json')]"` to check JSON validity. Then run `npm run build` and `npm run test:run`.
+The locale code is the ISO 639-1 two-letter code throughout (`da`, not `da-DK`). The recipe touches code in three layers (frontend, backend, docs) plus a one-shot data migration. PR [#623](https://github.com/vincentmakes/turbo-ea/pull/623) (Danish) is the canonical worked example.
+
+1. **Frontend locale files**: copy `frontend/src/i18n/locales/en/` to `frontend/src/i18n/locales/{code}/` and translate the values in all 14 JSON files. Keys, placeholders, and `_one`/`_other` plural variants must match the English source exactly — verify with the JSON-parity check below.
+2. **Frontend i18n config** (`frontend/src/i18n/index.ts`): add imports for all 14 namespace files, extend the `resources` object, append the code to the `SUPPORTED_LOCALES` tuple, and add a display label to `LOCALE_LABELS`. The `SupportedLocale` type updates automatically.
+3. **Metamodel translations** (`backend/app/services/seed.py`): every `translations` dict on card types, subtypes, fields, sections, options, and relation types (label + reverse_label) needs the new locale. A Python regex pass that walks every leaf `"de":` dict and injects the matching value before the closing brace works well — see PR #623's `/tmp/add_da_seed.py` helper for the pattern.
+4. **Backend allow-lists** — extend the hardcoded `SUPPORTED_LOCALES` in **both** places: `backend/app/api/v1/settings.py` (governs the `/settings/enabled-locales` validator and the `/settings/bootstrap` fallback) and `backend/app/api/v1/users.py` (governs the `users.locale` write validator). Keeping them in sync is enforced by convention only — there is no shared constant today.
+5. **Test fixtures** — bump the hardcoded locale lists in `backend/tests/services/test_i18n_seed.py` (metamodel translation completeness check) and `frontend/src/i18n/i18n.test.ts` (placeholder/plural parity check). Both are pinned arrays, not imports, so they will not pick up the new locale automatically.
+6. **MkDocs config** (`mkdocs.yml`) — **two places**: (a) a new language block under `plugins.i18n.languages` with `locale`, `name`, `build: true`, and a full `nav_translations` map mirroring the existing locales; (b) a matching entry in `theme.alternate` (the header dropdown). Omitting `theme.alternate` builds the `/{code}/` site but leaves users no way to switch into it from the UI. Add the code to `plugins.search.lang` as well — `lunr-languages` supports `da` and the major locales out of the box.
+7. **Backend `User.locale`**: no migration needed — the column is `String(10)` with no enum constraint.
+8. **Backfill existing installs**: an admin who has touched **Admin → Settings → Languages** at least once has the full locale list persisted as `app_settings.general_settings.enabledLocales` (JSONB). That stored list will not pick up the new locale on its own, so the picker hides it even though the constant exposes it. Ship a small Alembic migration that walks the singleton `app_settings` row and appends the new locale if missing. The canonical implementation is `backend/alembic/versions/099_backfill_danish_enabled_locale.py` — Python-side fetch-mutate-update with a `CAST(:s AS jsonb)` write. Don't use a single SQL `UPDATE … jsonb_set(…) WHERE general_settings ? '...' AND … @> …`; the `?` JSONB key-existence operator interacts badly with SQLAlchemy's `text()` named-parameter scanner and silently rolls back in the migration runner.
+9. **Docs translations**: create `.{code}.md` siblings for every English `.md` under `docs/` (top-level index, `getting-started/`, `beginners-guide/`, `guide/`, `admin/`, `reference/`). The site builds without them — mkdocs-static-i18n falls back to English per page — but the language picker existing without translated pages confuses users.
+10. **Validate**:
+    - `python3 -c "import json, glob; [json.load(open(f)) for f in glob.glob('frontend/src/i18n/locales/{code}/*.json')]"` — JSON validity.
+    - A second parity script (en keys == new-locale keys, en placeholders == new-locale placeholders) catches the common omissions.
+    - `cd backend && ruff format . && ruff check . && python -m pytest tests/services/test_i18n_seed.py -q`.
+    - `cd frontend && npm run build && npm run test:run`.
+    - `mkdocs build --strict` (catches broken links in the new docs).
+
+Screenshots can stay in `docs/assets/img/en/` and the new docs can reference `../assets/img/en/...` — translating UI screenshots is a separate, optional pass.
 
 #### Translation Checklist for Code Changes
 
 Every change that introduces user-visible content must include translations. Before marking a task as complete, verify:
 
-- [ ] **New UI strings**: Added translation keys to `frontend/src/i18n/locales/en/{namespace}.json` and all 7 non-English locale files (`de`, `fr`, `es`, `it`, `pt`, `zh`, `ru`). Never hardcode English text in components.
-- [ ] **New metamodel content** (card types, subtypes, fields, options, sections, relation types): Added `"translations"` dicts with all 7 non-English locales in `backend/app/services/seed.py`.
+- [ ] **New UI strings**: Added translation keys to `frontend/src/i18n/locales/en/{namespace}.json` and all 8 non-English locale files (`de`, `fr`, `es`, `it`, `pt`, `zh`, `ru`, `da`). Never hardcode English text in components.
+- [ ] **New metamodel content** (card types, subtypes, fields, options, sections, relation types): Added `"translations"` dicts with all 8 non-English locales in `backend/app/services/seed.py`.
 - [ ] **New select options** (in seed data or reusable option arrays): Each option object includes a `"translations"` dict.
 - [ ] **New field labels**: Each field in `fields_schema` includes a `"translations"` dict.
 - [ ] **New section names**: Each section in `fields_schema` includes a `"translations"` dict.
@@ -249,7 +259,7 @@ Files use **suffix-based** i18n: `page.md` is English (default), `page.es.md` is
 
 | Change Type | Required Doc Update |
 |-------------|-------------------|
-| **New feature** | Add or update the relevant guide/admin page in **all supported languages** (currently `en` + locale suffixes for `es`, `de`, `fr`, `it`, `pt`, `zh`, `ru`). |
+| **New feature** | Add or update the relevant guide/admin page in **all supported languages** (currently `en` + locale suffixes for `es`, `de`, `fr`, `it`, `pt`, `zh`, `ru`, `da`). |
 | **UI change** | Replace affected screenshots in **all locale folders** under `docs/assets/img/`. |
 | **New admin setting** | Update the appropriate admin page (e.g., `docs/admin/settings.md`). |
 | **New API endpoint** | Document in the relevant guide page if user-facing. |
