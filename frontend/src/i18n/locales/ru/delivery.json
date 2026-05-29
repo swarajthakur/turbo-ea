@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Показать {{count}} предыдущих циклов",
   "risks.tasks.history.collapse": "Свернуть историю",
   "risks.export.sheetRisks": "Риски",
-  "risks.export.sheetTasks": "Меры по снижению"
+  "risks.export.sheetTasks": "Меры по снижению",
+  "risks.import.title": "Импорт рисков",
+  "risks.import.intro": "Загрузите файл .xlsx для массового создания рисков. Каждая строка становится новым риском; имеющиеся в файле ссылки игнорируются. Владельцы сопоставляются по электронной почте, а карточки — по точному названию; всё, что не удалось сопоставить, пропускается с предупреждением.",
+  "risks.import.downloadTemplate": "Скачать шаблон",
+  "risks.import.chooseFile": "Выбрать файл .xlsx",
+  "risks.import.parsing": "Чтение файла…",
+  "risks.import.emptyFile": "В файле не найдено ни одной строки.",
+  "risks.import.parseError": "Не удалось прочитать таблицу. Убедитесь, что это корректный файл .xlsx.",
+  "risks.import.willCreate": "{{count}} к созданию",
+  "risks.import.willFail": "{{count}} с ошибками",
+  "risks.import.warningCount": "{{count}} предупреждений",
+  "risks.import.errorsBlock": "В некоторых строках есть ошибки, и они будут пропущены. Исправьте их и загрузите снова или импортируйте только корректные строки.",
+  "risks.import.warningsBlock": "Не удалось сопоставить некоторых владельцев или карточки. Риски всё равно будут импортированы без них.",
+  "risks.import.rowLabel": "Строка {{row}}",
+  "risks.import.apply": "Импортировать {{count}} рисков",
+  "risks.import.doneTitle": "Импортировано рисков: {{count}}",
+  "risks.import.doneFailed": "{{count}} строк пропущено из-за ошибок."
 }

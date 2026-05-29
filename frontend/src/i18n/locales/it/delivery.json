@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Mostra {{count}} cicli precedenti",
   "risks.tasks.history.collapse": "Comprimi cronologia",
   "risks.export.sheetRisks": "Rischi",
-  "risks.export.sheetTasks": "Attività di mitigazione"
+  "risks.export.sheetTasks": "Attività di mitigazione",
+  "risks.import.title": "Importa rischi",
+  "risks.import.intro": "Carica un file .xlsx per creare rischi in blocco. Ogni riga diventa un nuovo rischio; i riferimenti esistenti vengono ignorati. I responsabili vengono abbinati tramite e-mail e le schede tramite nome esatto — tutto ciò che non può essere abbinato viene saltato con un avviso.",
+  "risks.import.downloadTemplate": "Scarica modello",
+  "risks.import.chooseFile": "Scegli file .xlsx",
+  "risks.import.parsing": "Lettura del file…",
+  "risks.import.emptyFile": "Nessuna riga trovata nel file.",
+  "risks.import.parseError": "Impossibile leggere il foglio di calcolo. Assicurati che sia un file .xlsx valido.",
+  "risks.import.willCreate": "{{count}} da creare",
+  "risks.import.willFail": "{{count}} con errori",
+  "risks.import.warningCount": "{{count}} avvisi",
+  "risks.import.errorsBlock": "Alcune righe contengono errori e verranno saltate. Correggile e ricarica, oppure importa solo le righe valide.",
+  "risks.import.warningsBlock": "Non è stato possibile abbinare alcuni responsabili o schede. I rischi verranno comunque importati senza di essi.",
+  "risks.import.rowLabel": "Riga {{row}}",
+  "risks.import.apply": "Importa {{count}} rischi",
+  "risks.import.doneTitle": "{{count}} rischi importati",
+  "risks.import.doneFailed": "{{count}} righe sono state saltate a causa di errori."
 }

@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Mostrar {{count}} ciclos anteriores",
   "risks.tasks.history.collapse": "Recolher histórico",
   "risks.export.sheetRisks": "Riscos",
-  "risks.export.sheetTasks": "Tarefas de mitigação"
+  "risks.export.sheetTasks": "Tarefas de mitigação",
+  "risks.import.title": "Importar riscos",
+  "risks.import.intro": "Carregue um ficheiro .xlsx para criar riscos em massa. Cada linha torna-se um novo risco; as referências existentes são ignoradas. Os responsáveis são associados por e-mail e as fichas por nome exato — tudo o que não puder ser associado é ignorado com um aviso.",
+  "risks.import.downloadTemplate": "Descarregar modelo",
+  "risks.import.chooseFile": "Escolher ficheiro .xlsx",
+  "risks.import.parsing": "A ler o ficheiro…",
+  "risks.import.emptyFile": "Nenhuma linha encontrada no ficheiro.",
+  "risks.import.parseError": "Não foi possível ler a folha de cálculo. Certifique-se de que é um ficheiro .xlsx válido.",
+  "risks.import.willCreate": "{{count}} a criar",
+  "risks.import.willFail": "{{count}} com erros",
+  "risks.import.warningCount": "{{count}} avisos",
+  "risks.import.errorsBlock": "Algumas linhas têm erros e serão ignoradas. Corrija-as e volte a carregar, ou importe apenas as linhas válidas.",
+  "risks.import.warningsBlock": "Não foi possível associar alguns responsáveis ou fichas. Os riscos serão importados na mesma sem eles.",
+  "risks.import.rowLabel": "Linha {{row}}",
+  "risks.import.apply": "Importar {{count}} riscos",
+  "risks.import.doneTitle": "{{count}} riscos importados",
+  "risks.import.doneFailed": "{{count}} linhas foram ignoradas devido a erros."
 }

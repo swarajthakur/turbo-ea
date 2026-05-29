@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Vis {{count}} ældre cyklusser",
   "risks.tasks.history.collapse": "Skjul historik",
   "risks.export.sheetRisks": "Risici",
-  "risks.export.sheetTasks": "Afbødningsopgaver"
+  "risks.export.sheetTasks": "Afbødningsopgaver",
+  "risks.import.title": "Importér risici",
+  "risks.import.intro": "Upload en .xlsx-fil for at oprette risici i massevis. Hver række bliver til en ny risiko; eksisterende referencer ignoreres. Ejere matches via e-mail og kort via præcist navn — alt, der ikke kan matches, springes over med en advarsel.",
+  "risks.import.downloadTemplate": "Download skabelon",
+  "risks.import.chooseFile": "Vælg .xlsx-fil",
+  "risks.import.parsing": "Læser fil…",
+  "risks.import.emptyFile": "Ingen rækker fundet i filen.",
+  "risks.import.parseError": "Regnearket kunne ikke læses. Sørg for, at det er en gyldig .xlsx-fil.",
+  "risks.import.willCreate": "{{count}} skal oprettes",
+  "risks.import.willFail": "{{count}} med fejl",
+  "risks.import.warningCount": "{{count}} advarsler",
+  "risks.import.errorsBlock": "Nogle rækker indeholder fejl og springes over. Ret dem, og upload igen, eller importér kun de gyldige rækker.",
+  "risks.import.warningsBlock": "Nogle ejere eller kort kunne ikke matches. Risiciene importeres alligevel uden dem.",
+  "risks.import.rowLabel": "Række {{row}}",
+  "risks.import.apply": "Importér {{count}} risici",
+  "risks.import.doneTitle": "Importerede {{count}} risici",
+  "risks.import.doneFailed": "{{count}} rækker blev sprunget over på grund af fejl."
 }

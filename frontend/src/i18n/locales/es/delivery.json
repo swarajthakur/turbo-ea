@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Mostrar {{count}} ciclos anteriores",
   "risks.tasks.history.collapse": "Contraer historial",
   "risks.export.sheetRisks": "Riesgos",
-  "risks.export.sheetTasks": "Tareas de mitigación"
+  "risks.export.sheetTasks": "Tareas de mitigación",
+  "risks.import.title": "Importar riesgos",
+  "risks.import.intro": "Suba un archivo .xlsx para crear riesgos de forma masiva. Cada fila se convierte en un nuevo riesgo; las referencias existentes se ignoran. Los responsables se asocian por correo electrónico y las fichas por nombre exacto — todo lo que no se pueda asociar se omite con una advertencia.",
+  "risks.import.downloadTemplate": "Descargar plantilla",
+  "risks.import.chooseFile": "Elegir archivo .xlsx",
+  "risks.import.parsing": "Leyendo archivo…",
+  "risks.import.emptyFile": "No se encontraron filas en el archivo.",
+  "risks.import.parseError": "No se pudo leer la hoja de cálculo. Asegúrese de que sea un archivo .xlsx válido.",
+  "risks.import.willCreate": "{{count}} para crear",
+  "risks.import.willFail": "{{count}} con errores",
+  "risks.import.warningCount": "{{count}} advertencias",
+  "risks.import.errorsBlock": "Algunas filas tienen errores y se omitirán. Corríjalas y vuelva a subir el archivo, o importe solo las filas válidas.",
+  "risks.import.warningsBlock": "No se pudieron asociar algunos responsables o fichas. Los riesgos se importarán igualmente sin ellos.",
+  "risks.import.rowLabel": "Fila {{row}}",
+  "risks.import.apply": "Importar {{count}} riesgos",
+  "risks.import.doneTitle": "{{count}} riesgos importados",
+  "risks.import.doneFailed": "{{count}} filas se omitieron debido a errores."
 }

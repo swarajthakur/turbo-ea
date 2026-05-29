@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "显示更早的 {{count}} 次执行",
   "risks.tasks.history.collapse": "收起历史",
   "risks.export.sheetRisks": "风险",
-  "risks.export.sheetTasks": "缓解任务"
+  "risks.export.sheetTasks": "缓解任务",
+  "risks.import.title": "导入风险",
+  "risks.import.intro": "上传 .xlsx 文件以批量创建风险。每一行都会成为一条新风险；文件中已有的编号将被忽略。负责人按电子邮件匹配，卡片按名称精确匹配——无法匹配的内容将被跳过并给出警告。",
+  "risks.import.downloadTemplate": "下载模板",
+  "risks.import.chooseFile": "选择 .xlsx 文件",
+  "risks.import.parsing": "正在读取文件…",
+  "risks.import.emptyFile": "文件中未找到任何行。",
+  "risks.import.parseError": "无法读取该表格。请确保它是有效的 .xlsx 文件。",
+  "risks.import.willCreate": "将创建 {{count}} 条",
+  "risks.import.willFail": "{{count}} 条有错误",
+  "risks.import.warningCount": "{{count}} 条警告",
+  "risks.import.errorsBlock": "部分行存在错误，将被跳过。请修正后重新上传，或仅导入有效的行。",
+  "risks.import.warningsBlock": "部分负责人或卡片无法匹配。这些风险仍将在不包含它们的情况下导入。",
+  "risks.import.rowLabel": "第 {{row}} 行",
+  "risks.import.apply": "导入 {{count}} 条风险",
+  "risks.import.doneTitle": "已导入 {{count}} 条风险",
+  "risks.import.doneFailed": "由于错误，{{count}} 行被跳过。"
 }

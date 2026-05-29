@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Show {{count}} older cycles",
   "risks.tasks.history.collapse": "Collapse history",
   "risks.export.sheetRisks": "Risks",
-  "risks.export.sheetTasks": "Mitigation tasks"
+  "risks.export.sheetTasks": "Mitigation tasks",
+  "risks.import.title": "Import risks",
+  "risks.import.intro": "Upload an .xlsx file to create risks in bulk. Each row becomes a new risk; existing references are ignored. Owners are matched by email and cards by exact name — anything that can't be matched is skipped with a warning.",
+  "risks.import.downloadTemplate": "Download template",
+  "risks.import.chooseFile": "Choose .xlsx file",
+  "risks.import.parsing": "Reading file…",
+  "risks.import.emptyFile": "No rows found in the file.",
+  "risks.import.parseError": "Could not read the spreadsheet. Make sure it is a valid .xlsx file.",
+  "risks.import.willCreate": "{{count}} to create",
+  "risks.import.willFail": "{{count}} with errors",
+  "risks.import.warningCount": "{{count}} warnings",
+  "risks.import.errorsBlock": "Some rows have errors and will be skipped. Fix them and re-upload, or import the valid rows only.",
+  "risks.import.warningsBlock": "Some owners or cards couldn't be matched. The risks will still import without them.",
+  "risks.import.rowLabel": "Row {{row}}",
+  "risks.import.apply": "Import {{count}} risks",
+  "risks.import.doneTitle": "Imported {{count}} risks",
+  "risks.import.doneFailed": "{{count}} rows were skipped due to errors."
 }

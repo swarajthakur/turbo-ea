@@ -97,6 +97,56 @@ class RiskCardLinkRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Bulk import (spreadsheet)
+# ---------------------------------------------------------------------------
+
+
+class RiskImportItem(BaseModel):
+    """One spreadsheet row for the risk importer.
+
+    Enum-ish fields are typed as ``str`` (not ``Literal``) on purpose: a bad
+    value should produce a clean per-row error in the response rather than a
+    422 that fails the entire batch. The handler validates them against the
+    ``*_VALUES`` tuples in ``risk_service``.
+    """
+
+    row_index: int
+    title: str = Field(..., min_length=1, max_length=500)
+    description: str = ""
+    category: str = "operational"
+    initial_probability: str = "medium"
+    initial_impact: str = "medium"
+    residual_probability: str | None = None
+    residual_impact: str | None = None
+    status: str = "identified"
+    owner_email: str | None = None
+    owner_name: str | None = None
+    target_resolution_date: date | None = None
+    card_names: list[str] = Field(default_factory=list)
+
+
+class RiskImportRequest(BaseModel):
+    items: list[RiskImportItem] = Field(..., min_length=1, max_length=2000)
+    dry_run: bool = False
+
+
+class RiskImportResult(BaseModel):
+    row_index: int
+    status: Literal["created", "failed"]
+    id: str | None = None
+    reference: str | None = None
+    error: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RiskImportResponse(BaseModel):
+    results: list[RiskImportResult]
+    created: int
+    failed: int
+    dry_run: bool = False
+
+
+# ---------------------------------------------------------------------------
 # Outputs
 # ---------------------------------------------------------------------------
 

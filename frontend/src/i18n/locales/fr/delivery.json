@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "Afficher {{count}} cycles plus anciens",
   "risks.tasks.history.collapse": "Réduire l'historique",
   "risks.export.sheetRisks": "Risques",
-  "risks.export.sheetTasks": "Actions de mitigation"
+  "risks.export.sheetTasks": "Actions de mitigation",
+  "risks.import.title": "Importer des risques",
+  "risks.import.intro": "Téléchargez un fichier .xlsx pour créer des risques en masse. Chaque ligne devient un nouveau risque ; les références existantes sont ignorées. Les responsables sont identifiés par e-mail et les fiches par nom exact — tout ce qui ne peut pas être identifié est ignoré avec un avertissement.",
+  "risks.import.downloadTemplate": "Télécharger le modèle",
+  "risks.import.chooseFile": "Choisir un fichier .xlsx",
+  "risks.import.parsing": "Lecture du fichier…",
+  "risks.import.emptyFile": "Aucune ligne trouvée dans le fichier.",
+  "risks.import.parseError": "Impossible de lire le tableur. Assurez-vous qu'il s'agit d'un fichier .xlsx valide.",
+  "risks.import.willCreate": "{{count}} à créer",
+  "risks.import.willFail": "{{count}} avec erreurs",
+  "risks.import.warningCount": "{{count}} avertissements",
+  "risks.import.errorsBlock": "Certaines lignes comportent des erreurs et seront ignorées. Corrigez-les et réimportez, ou importez uniquement les lignes valides.",
+  "risks.import.warningsBlock": "Certains responsables ou fiches n'ont pas pu être identifiés. Les risques seront tout de même importés sans eux.",
+  "risks.import.rowLabel": "Ligne {{row}}",
+  "risks.import.apply": "Importer {{count}} risques",
+  "risks.import.doneTitle": "{{count}} risques importés",
+  "risks.import.doneFailed": "{{count}} lignes ont été ignorées en raison d'erreurs."
 }

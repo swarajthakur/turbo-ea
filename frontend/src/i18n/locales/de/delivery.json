@@ -649,5 +649,21 @@
   "risks.tasks.history.showOlder_other": "{{count}} ältere Durchgänge anzeigen",
   "risks.tasks.history.collapse": "Verlauf einklappen",
   "risks.export.sheetRisks": "Risiken",
-  "risks.export.sheetTasks": "Maßnahmen"
+  "risks.export.sheetTasks": "Maßnahmen",
+  "risks.import.title": "Risiken importieren",
+  "risks.import.intro": "Laden Sie eine .xlsx-Datei hoch, um Risiken in großer Menge anzulegen. Jede Zeile wird zu einem neuen Risiko; vorhandene Referenzen werden ignoriert. Eigentümer werden per E-Mail und Karten anhand des exakten Namens zugeordnet — alles, was nicht zugeordnet werden kann, wird mit einer Warnung übersprungen.",
+  "risks.import.downloadTemplate": "Vorlage herunterladen",
+  "risks.import.chooseFile": ".xlsx-Datei auswählen",
+  "risks.import.parsing": "Datei wird gelesen…",
+  "risks.import.emptyFile": "Keine Zeilen in der Datei gefunden.",
+  "risks.import.parseError": "Die Tabelle konnte nicht gelesen werden. Stellen Sie sicher, dass es sich um eine gültige .xlsx-Datei handelt.",
+  "risks.import.willCreate": "{{count}} anzulegen",
+  "risks.import.willFail": "{{count}} mit Fehlern",
+  "risks.import.warningCount": "{{count}} Warnungen",
+  "risks.import.errorsBlock": "Einige Zeilen enthalten Fehler und werden übersprungen. Korrigieren Sie sie und laden Sie erneut hoch oder importieren Sie nur die gültigen Zeilen.",
+  "risks.import.warningsBlock": "Einige Eigentümer oder Karten konnten nicht zugeordnet werden. Die Risiken werden trotzdem ohne sie importiert.",
+  "risks.import.rowLabel": "Zeile {{row}}",
+  "risks.import.apply": "{{count}} Risiken importieren",
+  "risks.import.doneTitle": "{{count}} Risiken importiert",
+  "risks.import.doneFailed": "{{count}} Zeilen wurden aufgrund von Fehlern übersprungen."
 }
