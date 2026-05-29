@@ -34,6 +34,7 @@
 | **Portfolio** | Una collezione di applicazioni o tecnologie gestite come gruppo |
 | **PPM** | Gestione del Portafoglio Progetti — la disciplina di gestione di un portafoglio di progetti e iniziative con budget, rischi, attività e report di stato |
 | **Numero di riferimento** | Un identificatore sequenziale generato automaticamente per gli ADR (es. ADR-001, ADR-002) che fornisce un'etichetta univoca e leggibile |
+| **Todo ricorrente** | Un todo di card impostato per ripetersi secondo un calendario (ogni N giorni/settimane/mesi/anni). Completandolo viene creata la prossima occorrenza; le occorrenze lontane restano «pianificate» finché non si apre una finestra di anticipo, poi compaiono nella pagina Attività e notificano il responsabile |
 | **Relazione** | Una connessione tra due card che descrive come sono correlate (es. "utilizza", "dipende da", "funziona su") |
 | **Scheda Risorse** | Una scheda nella pagina di dettaglio della card che consolida Decisioni architetturali, file allegati e link ai documenti in un unico luogo |
 | **Revisione (ADR)** | Una nuova versione di un ADR firmato che eredita il contenuto e i collegamenti alle card dalla versione precedente, con un numero di revisione incrementato |

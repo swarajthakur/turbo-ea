@@ -34,6 +34,7 @@
 | **Portfólio** | Uma coleção de aplicações ou tecnologias gerenciadas como um grupo |
 | **PPM** | Gerenciamento de Portfólio de Projetos — a disciplina de gerenciar um portfólio de projetos e iniciativas com orçamentos, riscos, tarefas e relatórios de status |
 | **Número de referência** | Um identificador sequencial gerado automaticamente para ADRs (ex.: ADR-001, ADR-002) que fornece um rótulo único e legível |
+| **Tarefa recorrente** | Uma tarefa de card configurada para repetir conforme um cronograma (a cada N dias/semanas/meses/anos). Ao concluí-la, a próxima ocorrência é criada; ocorrências distantes ficam «agendadas» até abrir uma janela de antecedência, então aparecem na página de Tarefas e notificam o responsável |
 | **Relacionamento** | Uma conexão entre dois cards que descreve como eles se relacionam (ex.: "utiliza", "depende de", "executa em") |
 | **Aba Recursos** | Uma aba na página de detalhes do card que consolida Decisões de Arquitetura, anexos de arquivo e links de documentos em um só lugar |
 | **Revisão (ADR)** | Uma nova versão de um ADR assinado que herda o conteúdo e os vínculos de cards da versão anterior, com um número de revisão incrementado |

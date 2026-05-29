@@ -122,6 +122,7 @@ Se la card è collegata a un prodotto [endoflife.date]( (tramite [Amministrazion
 - **Assegna** — Impostate un responsabile per ogni attività
 - **Data di scadenza** — Impostate scadenze
 - **Stato** — Alternate tra Aperto e Completato
+- **Ricorrente** — Attivate **Ripeti** per far ripetere un todo secondo un calendario (ogni N giorni, settimane, mesi o anni); completandolo viene creata automaticamente la prossima occorrenza
 
 ## Scheda Stakeholder
 

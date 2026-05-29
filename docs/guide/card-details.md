@@ -122,6 +122,7 @@ If the card is linked to an [endoflife.date](https://endoflife.date/) product (v
 - **Assign** — Set a responsible person for each task
 - **Due date** — Set deadlines
 - **Status** — Toggle between Open and Done
+- **Recurring** — Switch on **Repeats** to make a todo repeat on a schedule (every N days, weeks, months, or years); completing it automatically creates the next occurrence
 
 ## Stakeholders Tab
 

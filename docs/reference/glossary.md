@@ -34,6 +34,7 @@
 | **Portfolio** | A collection of applications or technologies managed as a group |
 | **PPM** | Project Portfolio Management — the discipline of managing a portfolio of projects and initiatives with budgets, risks, tasks, and status reporting |
 | **Reference Number** | An auto-generated sequential identifier for ADRs (e.g., ADR-001, ADR-002) that provides a unique, human-readable label |
+| **Recurring Todo** | A card todo set to repeat on a schedule (every N days/weeks/months/years). Completing it spawns the next occurrence; far-future occurrences sit "scheduled" until a lead-time window opens, when they surface on the Tasks page and notify the assignee |
 | **Relation** | A connection between two cards that describes how they relate (e.g., "uses", "depends on", "runs on") |
 | **Resources Tab** | A card detail tab that consolidates Architecture Decision Records, file attachments, and document links in one place |
 | **RAG Status** | Red-Amber-Green health indicator used in PPM status reports for schedule, cost, and scope (mapped to Off Track, At Risk, On Track) |

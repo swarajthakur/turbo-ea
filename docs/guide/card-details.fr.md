@@ -122,6 +122,7 @@ Si la fiche est liée à un produit [endoflife.date]( (via [Administration EOL](
 - **Assigner** -- Définissez un responsable pour chaque tâche
 - **Date d'échéance** -- Fixez des délais
 - **Statut** -- Basculer entre Ouvert et Terminé
+- **Récurrent** -- Activez **Répéter** pour qu'une tâche se répète selon un calendrier (tous les N jours, semaines, mois ou années) ; sa réalisation crée automatiquement la prochaine occurrence
 
 ## Onglet Parties prenantes
 

@@ -34,6 +34,7 @@
 | **Portfolio** | Eine Sammlung von Anwendungen oder Technologien, die als Gruppe verwaltet werden |
 | **PPM** | Projektportfoliomanagement — die Disziplin der Verwaltung eines Portfolios von Projekten und Initiativen mit Budgets, Risiken, Aufgaben und Statusberichten |
 | **Referenznummer** | Eine automatisch generierte fortlaufende Kennung für ADRs (z.B. ADR-001, ADR-002), die ein eindeutiges, lesbares Label bietet |
+| **Wiederkehrendes Todo** | Ein Karten-Todo, das nach einem Zeitplan wiederkehrt (alle N Tage/Wochen/Monate/Jahre). Beim Abschließen entsteht das nächste Vorkommen; weit entfernte Vorkommen bleiben «geplant», bis sich ein Vorlaufzeitfenster öffnet, dann erscheinen sie auf der Aufgabenseite und benachrichtigen den Zuständigen |
 | **Beziehung** | Eine Verbindung zwischen zwei Karten, die beschreibt, wie sie zusammenhängen (z.B. «nutzt», «hängt ab von», «läuft auf») |
 | **Ressourcen-Tab** | Ein Tab auf der Kartendetailseite, der Architekturentscheidungen, Dateianhänge und Dokumentenlinks an einem Ort zusammenfasst |
 | **Revision (ADR)** | Eine neue Version eines unterzeichneten ADR, die Inhalt und Kartenverknüpfungen der vorherigen Version übernimmt, mit einer erhöhten Revisionsnummer |

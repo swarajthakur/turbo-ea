@@ -122,6 +122,7 @@ Si la ficha está vinculada a un producto de [endoflife.date](https://endoflife.
 - **Asignar** — Establezca una persona responsable para cada tarea
 - **Fecha límite** — Establezca plazos
 - **Estado** — Alterne entre Abierta y Completada
+- **Recurrente** — Active **Repetir** para que una tarea se repita según un calendario (cada N días, semanas, meses o años); al completarla se crea automáticamente la siguiente repetición
 
 ## Pestaña de Partes Interesadas
 

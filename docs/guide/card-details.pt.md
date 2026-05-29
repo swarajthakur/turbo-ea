@@ -122,6 +122,7 @@ Se o card estiver vinculado a um produto do [endoflife.date](https://endoflife.d
 - **Atribuir** — Defina uma pessoa responsável para cada tarefa
 - **Data de vencimento** — Defina prazos
 - **Status** — Alterne entre Aberto e Concluído
+- **Recorrente** — Ative **Repetir** para que uma tarefa se repita conforme um cronograma (a cada N dias, semanas, meses ou anos); ao concluí-la, a próxima ocorrência é criada automaticamente
 
 ## Aba de Partes Interessadas
 

@@ -34,6 +34,7 @@
 | **Portefeuille** | Un ensemble d'applications ou de technologies gérées en tant que groupe |
 | **PPM** | Gestion de Portefeuille de Projets — la discipline de gestion d'un portefeuille de projets et d'initiatives avec budgets, risques, tâches et rapports de statut |
 | **Numéro de référence** | Un identifiant séquentiel généré automatiquement pour les ADR (par ex. ADR-001, ADR-002) fournissant une étiquette unique et lisible |
+| **Tâche récurrente** | Une tâche de fiche configurée pour se répéter selon un calendrier (tous les N jours/semaines/mois/années). Sa réalisation crée la prochaine occurrence ; les occurrences lointaines restent « planifiées » jusqu'à l'ouverture d'une fenêtre d'anticipation, puis apparaissent sur la page Tâches et notifient le responsable |
 | **Relation** | Une connexion entre deux fiches qui décrit comment elles sont liées (par ex. « utilise », « dépend de », « s'exécute sur ») |
 | **Onglet Ressources** | Un onglet de la page de détail de la fiche qui regroupe les Décisions d'architecture, les fichiers joints et les liens documentaires |
 | **Révision (ADR)** | Une nouvelle version d'un ADR signé qui hérite du contenu et des liaisons avec les fiches de la version précédente, avec un numéro de révision incrémenté |

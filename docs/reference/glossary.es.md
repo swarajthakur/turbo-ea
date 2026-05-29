@@ -34,6 +34,7 @@
 | **Portafolio** | Un conjunto de aplicaciones o tecnologías gestionadas como un grupo |
 | **PPM** | Gestión de Cartera de Proyectos — la disciplina de gestionar un portafolio de proyectos e iniciativas con presupuestos, riesgos, tareas e informes de estado |
 | **Número de referencia** | Un identificador secuencial generado automáticamente para los ADR (ej., ADR-001, ADR-002) que proporciona una etiqueta única y legible |
+| **Tarea recurrente** | Una tarea de ficha configurada para repetirse según un calendario (cada N días/semanas/meses/años). Al completarla se crea la siguiente repetición; las repeticiones lejanas quedan «programadas» hasta que se abre una ventana de anticipación, momento en que aparecen en la página de Tareas y notifican al responsable |
 | **Relación** | Una conexión entre dos fichas que describe cómo se relacionan (ej., «utiliza», «depende de», «se ejecuta en») |
 | **Pestaña Recursos** | Una pestaña en el detalle de ficha que consolida Decisiones de Arquitectura, archivos adjuntos y enlaces a documentos en un solo lugar |
 | **Revisión (ADR)** | Una nueva versión de un ADR firmado que hereda el contenido y los vínculos de fichas de la versión anterior, con un número de revisión incrementado |

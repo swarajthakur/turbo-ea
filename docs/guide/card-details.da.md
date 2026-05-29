@@ -122,6 +122,7 @@ Hvis kortet er linket til et [endoflife.date](https://endoflife.date/)-produkt (
 - **Tildel** — Sæt en ansvarlig person for hver opgave
 - **Forfaldsdato** — Sæt frister
 - **Status** — Skift mellem Open og Done
+- **Tilbagevendende** — Slå **Gentag** til, så en opgave gentages efter en tidsplan (hver N dage, uger, måneder eller år); når den fuldføres, oprettes den næste forekomst automatisk
 
 ## Stakeholders-fane
 

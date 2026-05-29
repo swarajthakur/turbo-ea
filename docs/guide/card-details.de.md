@@ -122,6 +122,7 @@ Wenn die Karte mit einem [endoflife.date](https://endoflife.date/)-Produkt verkn
 - **Zuweisen** — Einen verantwortlichen Benutzer für jede Aufgabe festlegen
 - **Fälligkeitsdatum** — Fristen setzen
 - **Status** — Zwischen Offen und Erledigt umschalten
+- **Wiederkehrend** — Aktivieren Sie **Wiederholen**, damit ein Todo nach einem Zeitplan wiederkehrt (alle N Tage, Wochen, Monate oder Jahre); beim Abschließen wird automatisch das nächste Vorkommen erstellt
 
 ## Stakeholder-Tab
 

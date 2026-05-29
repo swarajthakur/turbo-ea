@@ -34,6 +34,7 @@
 | **Portefølje** | En samling af applikationer eller teknologier, der administreres som en gruppe |
 | **PPM** | Project Portfolio Management — disciplinen at administrere en portefølje af projekter og initiativer med budgetter, risici, opgaver og statusrapportering |
 | **Referencenummer** | En automatisk genereret sekventiel identifikator for ADR'er (f.eks. ADR-001, ADR-002), der giver en unik, menneskeligt læsbar etiket |
+| **Tilbagevendende opgave** | En kortopgave, der gentages efter en tidsplan (hver N dage/uger/måneder/år). Når den fuldføres, oprettes den næste forekomst; fjerne forekomster forbliver «planlagt», indtil et varslingsvindue åbner, hvorefter de vises på Opgaver-siden og giver den ansvarlige besked |
 | **Relation** | En forbindelse mellem to kort, der beskriver, hvordan de er relaterede (f.eks. "bruger", "afhænger af", "kører på") |
 | **Fanen Ressourcer** | En kortdetaljefane, der konsoliderer Architecture Decision Records, filvedhæftninger og dokumentlinks ét sted |
 | **RAG-status** | Rød-Gul-Grøn sundhedsindikator brugt i PPM-statusrapporter for tidsplan, omkostninger og omfang (mappet til Off Track, At Risk, On Track) |
