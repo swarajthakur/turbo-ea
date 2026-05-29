@@ -15,17 +15,21 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.card import Card
 from app.models.risk import Risk, RiskCard
 from app.models.todo import Todo
 from app.models.user import User
 from app.schemas.risk import (
     RiskCardLinkRequest,
     RiskCreate,
+    RiskImportRequest,
+    RiskImportResponse,
+    RiskImportResult,
     RiskListPage,
     RiskMetricsOut,
     RiskOut,
@@ -36,6 +40,10 @@ from app.services import notification_service
 from app.services.event_bus import event_bus
 from app.services.permission_service import PermissionService
 from app.services.risk_service import (
+    _REFERENCE_RE,
+    CATEGORY_VALUES,
+    IMPACT_VALUES,
+    PROBABILITY_VALUES,
     STATUS_VALUES,
     compute_metrics,
     derive_level,
@@ -429,6 +437,225 @@ async def create_risk(
     await db.commit()
     await db.refresh(risk)
     return RiskOut.model_validate(await risk_to_dict(db, risk))
+
+
+async def _load_reference_state(db: AsyncSession) -> tuple[int, set[str]]:
+    """Read every existing risk reference once.
+
+    Returns ``(highest, existing)`` where ``highest`` is the largest
+    ``R-NNNNNN`` integer (bulk import allocates sequentially from
+    ``highest + 1`` instead of calling :func:`next_reference` per row, which
+    would re-read the same max until the first flush and hand out duplicates)
+    and ``existing`` is the set of upper-cased references already in use, so
+    the importer can skip rows whose reference matches an existing risk.
+    """
+    result = await db.execute(select(Risk.reference))
+    highest = 0
+    existing: set[str] = set()
+    for (ref,) in result.all():
+        if not ref:
+            continue
+        existing.add(ref.strip().upper())
+        match = _REFERENCE_RE.match(ref)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return highest, existing
+
+
+@router.post("/bulk-import", response_model=RiskImportResponse)
+async def bulk_import_risks(
+    body: RiskImportRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> RiskImportResponse:
+    """Spreadsheet importer for the Risk Register — create-only.
+
+    Each row carries its own ``row_index`` so the caller can pair the
+    response back to its spreadsheet row. A row whose ``reference`` matches
+    an existing risk is **skipped** — the importer never updates existing
+    risks, so re-importing a previously exported register is idempotent.
+    Every other row creates a brand-new risk with a freshly generated
+    ``R-NNNNNN`` reference. Owner is resolved best-effort by email
+    (preferred) or exact display name; cards are linked best-effort by exact
+    name. Unresolved / ambiguous values produce a non-blocking warning and
+    are skipped — the risk still imports.
+
+    ``dry_run=True`` runs every validator and resolver, then rolls back so
+    the UI can preview the outcome without persisting anything (and without
+    emitting owner Todos, notifications, or card-timeline events).
+    Permission: ``risks.manage``.
+    """
+    await PermissionService.require_permission(db, user, "risks.manage")
+
+    # Dry-run isolation: wrap the whole batch in our own savepoint so the
+    # discard at the end only undoes our work and never reaches a wrapping
+    # transaction (e.g. the savepoint backing the integration-test fixture).
+    dry_run_savepoint = await db.begin_nested() if body.dry_run else None
+
+    base, existing_refs = await _load_reference_state(db)
+    results: list[RiskImportResult] = []
+    created_count = 0
+    skipped_count = 0
+    next_seq = base
+
+    for item in body.items:
+        # Skip rows whose reference already belongs to a risk — the importer
+        # never updates existing risks. Checked before the savepoint/creation
+        # so a skipped row consumes nothing.
+        existing_ref = (item.reference or "").strip().upper()
+        if existing_ref and existing_ref in existing_refs:
+            skipped_count += 1
+            results.append(
+                RiskImportResult(
+                    row_index=item.row_index,
+                    status="skipped",
+                    reference=existing_ref,
+                )
+            )
+            continue
+
+        warnings: list[str] = []
+        # Per-row savepoint so a single bad row can't poison the batch.
+        row_savepoint = await db.begin_nested()
+        try:
+            # --- enum validation -------------------------------------------
+            category = (item.category or "operational").strip().lower()
+            if category not in CATEGORY_VALUES:
+                raise ValueError(f"Invalid category: {item.category!r}")
+            probability = (item.initial_probability or "medium").strip().lower()
+            if probability not in PROBABILITY_VALUES:
+                raise ValueError(f"Invalid initial_probability: {item.initial_probability!r}")
+            impact = (item.initial_impact or "medium").strip().lower()
+            if impact not in IMPACT_VALUES:
+                raise ValueError(f"Invalid initial_impact: {item.initial_impact!r}")
+            status = (item.status or "identified").strip().lower()
+            if status not in STATUS_VALUES:
+                raise ValueError(f"Invalid status: {item.status!r}")
+
+            residual_prob: str | None = None
+            residual_impact: str | None = None
+            if item.residual_probability:
+                residual_prob = item.residual_probability.strip().lower()
+                if residual_prob not in PROBABILITY_VALUES:
+                    raise ValueError(f"Invalid residual_probability: {item.residual_probability!r}")
+            if item.residual_impact:
+                residual_impact = item.residual_impact.strip().lower()
+                if residual_impact not in IMPACT_VALUES:
+                    raise ValueError(f"Invalid residual_impact: {item.residual_impact!r}")
+
+            # --- owner resolution (best-effort) ----------------------------
+            owner_uid: uuid.UUID | None = None
+            if item.owner_email:
+                email = item.owner_email.strip().lower()
+                res = await db.execute(select(User.id).where(func.lower(User.email) == email))
+                row = res.first()
+                if row is not None:
+                    owner_uid = row[0]
+                else:
+                    warnings.append(f"Owner email not found: {item.owner_email}")
+            elif item.owner_name:
+                name = item.owner_name.strip()
+                res = await db.execute(select(User.id).where(User.display_name == name))
+                rows = res.all()
+                if len(rows) == 1:
+                    owner_uid = rows[0][0]
+                elif len(rows) == 0:
+                    warnings.append(f"Owner not found: {item.owner_name}")
+                else:
+                    warnings.append(f"Owner name is ambiguous: {item.owner_name}")
+
+            # --- card resolution (best-effort, by exact name) -------------
+            card_ids: list[uuid.UUID] = []
+            for raw_name in item.card_names:
+                cname = raw_name.strip()
+                if not cname:
+                    continue
+                res = await db.execute(select(Card.id).where(Card.name == cname))
+                matches = res.all()
+                if len(matches) == 1:
+                    card_ids.append(matches[0][0])
+                elif len(matches) == 0:
+                    warnings.append(f"Card not found: {cname}")
+                else:
+                    warnings.append(f"Card name is ambiguous: {cname}")
+
+            # --- create ----------------------------------------------------
+            next_seq += 1
+            reference = f"R-{next_seq:06d}"
+            risk = Risk(
+                id=uuid.uuid4(),
+                reference=reference,
+                title=item.title,
+                description=item.description or "",
+                category=category,
+                source_type="manual",
+                source_ref=None,
+                initial_probability=probability,
+                initial_impact=impact,
+                initial_level=derive_level(probability, impact) or "medium",
+                residual_probability=residual_prob,
+                residual_impact=residual_impact,
+                residual_level=derive_level(residual_prob, residual_impact),
+                owner_id=owner_uid,
+                target_resolution_date=item.target_resolution_date,
+                # Import sets status directly — this is a data load, not a
+                # workflow transition, so validate_status_transition is bypassed.
+                status=status,
+                created_by=user.id,
+            )
+            db.add(risk)
+            await db.flush()
+
+            if card_ids:
+                await link_cards(db, risk.id, card_ids)
+
+            if not body.dry_run:
+                await sync_owner_todo(db, risk, actor_id=user.id, previous_owner=None)
+                linked = await _linked_card_ids(db, risk.id)
+                await _publish_risk_event(db, risk, "risk.added", linked, actor_id=user.id)
+
+            await row_savepoint.commit()
+            created_count += 1
+            results.append(
+                RiskImportResult(
+                    row_index=item.row_index,
+                    status="created",
+                    id=str(risk.id),
+                    reference=reference,
+                    warnings=warnings,
+                )
+            )
+        except (ValueError, HTTPException) as exc:
+            await row_savepoint.rollback()
+            # A row that fails at flush leaves a gap in the reference
+            # sequence — that's fine, references only need to be unique.
+            detail = exc.detail if isinstance(exc, HTTPException) else str(exc)
+            results.append(
+                RiskImportResult(
+                    row_index=item.row_index,
+                    status="failed",
+                    error=str(detail),
+                    warnings=warnings,
+                )
+            )
+
+    failed_count = sum(1 for r in results if r.status == "failed")
+
+    if body.dry_run:
+        assert dry_run_savepoint is not None
+        await dry_run_savepoint.rollback()
+    elif created_count == 0:
+        await db.rollback()
+    else:
+        await db.commit()
+
+    return RiskImportResponse(
+        results=results,
+        created=created_count,
+        skipped=skipped_count,
+        failed=failed_count,
+        dry_run=body.dry_run,
+    )
 
 
 @router.patch("/{risk_id}", response_model=RiskOut)

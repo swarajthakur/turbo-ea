@@ -1496,6 +1496,43 @@ export interface RiskListPage {
   page_size: number;
 }
 
+/** One parsed spreadsheet row for the risk importer. Enum-ish fields are
+ *  plain strings — the backend validates them and reports per-row errors. */
+export interface RiskImportItem {
+  row_index: number;
+  title: string;
+  description?: string;
+  category?: string;
+  initial_probability?: string;
+  initial_impact?: string;
+  residual_probability?: string | null;
+  residual_impact?: string | null;
+  status?: string;
+  owner_email?: string | null;
+  owner_name?: string | null;
+  target_resolution_date?: string | null;
+  card_names?: string[];
+  /** When it matches an existing risk's reference, the row is skipped. */
+  reference?: string | null;
+}
+
+export interface RiskImportResult {
+  row_index: number;
+  status: "created" | "skipped" | "failed";
+  id: string | null;
+  reference: string | null;
+  error: string | null;
+  warnings: string[];
+}
+
+export interface RiskImportResponse {
+  results: RiskImportResult[];
+  created: number;
+  skipped: number;
+  failed: number;
+  dry_run: boolean;
+}
+
 export type RecurrenceUnit = "none" | "days" | "weeks" | "months" | "years";
 // "scheduled" is the lead-time gated pre-state — the cycle exists for
 // audit but owns no Todo until the daily promotion loop (or a manual

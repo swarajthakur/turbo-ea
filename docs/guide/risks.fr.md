@@ -92,6 +92,12 @@ Quand vous cliquez sur **Créer un risque** sur un constat non conforme (voir [T
 
 Le bouton **Exporter** du Registre des risques écrit un `.xlsx` à deux feuilles : la feuille 1 est la grille de risques filtrée, la feuille 2 est une ligne par cycle pour chaque tâche de chaque risque dans le même filtre, incluant le délai de préavis et l'horodatage d'activation. Utilisez-le pour les dossiers d'audit ou pour les parties prenantes sans compte Turbo EA. Chaque ligne de tâche dans le panneau de détail dispose aussi de son propre bouton **Exporter l'historique** pour un classeur par tâche.
 
+### Importation {: #import }
+
+Le bouton **Importer** à côté d'« Exporter » charge des risques en masse depuis un fichier `.xlsx`. Cliquez sur **Télécharger le modèle** pour obtenir un classeur de départ avec les bons en-têtes, renseignez un risque par ligne, puis téléchargez-le. Une ligne dont la `reference` correspond à un risque existant est **ignorée** (l'importateur ne met jamais à jour de risques existants), de sorte que la réimportation d'un registre précédemment exporté est idempotente ; chaque autre ligne crée un risque **entièrement nouveau** avec une référence `R-NNNNNN` générée automatiquement. L'aperçu indique combien de lignes seront ignorées avant que vous ne confirmiez.
+
+Colonnes reconnues : `title` (obligatoire), `description`, `category`, `initial_probability`, `initial_impact`, `residual_probability`, `residual_impact`, `status`, `owner_email`, `target_resolution_date` (`YYYY-MM-DD`) et `cards` (noms de fiches séparés par des points-virgules). Les responsables sont identifiés par e-mail et les fiches par nom exact, **au mieux** — tout ce qui ne peut pas être identifié est ignoré avec un avertissement non bloquant et le risque est tout de même importé. Avant toute écriture, un aperçu indique combien de lignes seront créées, lesquelles comportent des erreurs et les éventuels avertissements ; rien n'est enregistré tant que vous n'avez pas confirmé. Nécessite l'autorisation `risks.manage`.
+
 ## Matrice des risques
 
 La Vue d'ensemble Sécurité de TurboLens comme la page du Registre des risques affichent une carte thermique probabilité × impact 4×4. Les cellules sont **cliquables** — cliquez sur une cellule pour filtrer la liste en dessous sur ce compartiment, cliquez à nouveau (ou sur le × du chip) pour effacer. Dans le Registre des risques, vous pouvez basculer la matrice entre les vues **Initiale** et **Résiduelle** pour visualiser les progrès de la mitigation.

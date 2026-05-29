@@ -31,6 +31,16 @@ PROBABILITY_VALUES = ("very_high", "high", "medium", "low")
 IMPACT_VALUES = ("critical", "high", "medium", "low")
 LEVEL_VALUES = ("critical", "high", "medium", "low")
 
+CATEGORY_VALUES = (
+    "security",
+    "compliance",
+    "operational",
+    "technology",
+    "financial",
+    "reputational",
+    "strategic",
+)
+
 STATUS_VALUES = (
     "identified",
     "analysed",

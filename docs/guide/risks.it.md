@@ -92,6 +92,12 @@ Quando cliccate **Crea rischio** su un riscontro non conforme (vedi [TurboLens](
 
 Il pulsante **Esporta** del Registro dei Rischi scrive un `.xlsx` a due fogli: il foglio 1 è la griglia di rischi filtrata, il foglio 2 una riga per ciclo di ciascuna attività di ciascun rischio nello stesso filtro, inclusi tempo di preavviso e timestamp di attivazione. Usatelo per dossier di audit o per stakeholder senza accesso a Turbo EA. Ogni riga di attività nel pannello di dettaglio dispone inoltre del proprio pulsante **Esporta cronologia** per una cartella di lavoro per attività.
 
+### Importazione {: #import }
+
+Il pulsante **Importa** accanto a «Esporta» carica rischi in blocco da un file `.xlsx`. Fai clic su **Scarica modello** per ottenere una cartella di lavoro iniziale con le intestazioni corrette, inserisci un rischio per riga e caricala. Una riga il cui `reference` corrisponde a un rischio esistente viene **saltata** (l'importatore non aggiorna mai i rischi esistenti), così la reimportazione di un registro esportato in precedenza è idempotente; ogni altra riga crea un rischio **completamente nuovo** con un riferimento `R-NNNNNN` generato automaticamente. L'anteprima indica quante righe verranno saltate prima della conferma.
+
+Colonne riconosciute: `title` (obbligatorio), `description`, `category`, `initial_probability`, `initial_impact`, `residual_probability`, `residual_impact`, `status`, `owner_email`, `target_resolution_date` (`YYYY-MM-DD`) e `cards` (nomi delle schede separati da punto e virgola). I responsabili vengono abbinati tramite e-mail e le schede tramite nome esatto, **per quanto possibile** — tutto ciò che non può essere abbinato viene saltato con un avviso non bloccante e il rischio viene comunque importato. Prima che venga scritto qualcosa, viene mostrata un'anteprima con quante righe verranno create, quali contengono errori e gli eventuali avvisi; nulla viene salvato finché non confermi. Richiede l'autorizzazione `risks.manage`.
+
 ## Matrice dei rischi
 
 Sia la Panoramica Sicurezza di TurboLens sia la pagina del Registro dei Rischi mostrano una heatmap probabilità × impatto 4×4. Le celle sono **cliccabili** — cliccate su una per filtrare la lista sottostante su quel bucket, cliccate di nuovo (o sulla × del chip) per pulire. Nel Registro dei Rischi potete alternare la matrice fra le viste **Iniziale** e **Residua** per vedere visivamente il progresso della mitigazione.

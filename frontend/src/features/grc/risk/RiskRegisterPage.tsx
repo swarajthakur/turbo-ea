@@ -46,6 +46,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { useDateFormat } from "@/hooks/useDateFormat";
 import CreateRiskDialog from "./CreateRiskDialog";
+import RiskImportDialog from "./RiskImportDialog";
 import RiskFilterSidebar, {
   EMPTY_RISK_FILTERS,
   OwnerOption,
@@ -158,7 +159,7 @@ function saveRiskPrefs(p: RiskPrefs) {
 // ---------------------------------------------------------------------------
 
 export default function RiskRegisterPage() {
-  const { t } = useTranslation("delivery");
+  const { t } = useTranslation("grc");
   const navigate = useNavigate();
   const { mode } = useThemeMode();
   const { formatDate } = useDateFormat();
@@ -225,6 +226,7 @@ export default function RiskRegisterPage() {
   );
 
   const [dialogSeed, setDialogSeed] = useState<RiskDialogSeed | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [availableOwners, setAvailableOwners] = useState<OwnerOption[]>([]);
 
   // ── Fetch users once for the Owner picker in the sidebar. ──────
@@ -712,6 +714,15 @@ export default function RiskRegisterPage() {
                 {t("common:actions.export", { defaultValue: "Export" })}
               </Button>
               <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<MaterialSymbol icon="upload" size={18} />}
+                onClick={() => setImportOpen(true)}
+                sx={{ textTransform: "none" }}
+              >
+                {t("common:actions.import", { defaultValue: "Import" })}
+              </Button>
+              <Button
                 variant="contained"
                 startIcon={<MaterialSymbol icon="add" size={18} />}
                 onClick={() => setDialogSeed(emptySeed())}
@@ -755,6 +766,15 @@ export default function RiskRegisterPage() {
         seed={dialogSeed}
         onClose={() => setDialogSeed(null)}
         onCreated={handleCreated}
+      />
+      <RiskImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onComplete={() => {
+          setImportOpen(false);
+          reload();
+          reloadMetrics();
+        }}
       />
     </Box>
   );

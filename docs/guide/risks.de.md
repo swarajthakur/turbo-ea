@@ -92,6 +92,12 @@ Wenn Sie auf einem nicht konformen Befund auf **Risiko anlegen** klicken (siehe 
 
 Die Schaltfläche **Exportieren** auf der Risikoregister-Seite schreibt eine zweiteilige `.xlsx`: Blatt 1 enthält das gefilterte Risiko-Grid, Blatt 2 eine Zeile pro Zyklus über alle Aufgaben aller Risiken im gleichen Filter-Set, inklusive Vorlaufzeit und Aktivierungszeitstempel. Nutzen Sie sie für Audit-Pakete oder zur Weitergabe an Stakeholder ohne Turbo-EA-Login. Jede Aufgabenzeile im Detail-Panel verfügt zudem über eine eigene Schaltfläche **Verlauf exportieren** für eine aufgabenbezogene Arbeitsmappe.
 
+### Import {: #import }
+
+Die Schaltfläche **Import** neben „Export“ lädt Risiken in großer Menge aus einer `.xlsx`-Datei. Klicken Sie auf **Vorlage herunterladen**, um eine Startdatei mit den richtigen Spaltenüberschriften zu erhalten, tragen Sie pro Zeile ein Risiko ein und laden Sie die Datei hoch. Eine Zeile, deren `reference` zu einem vorhandenen Risiko passt, wird **übersprungen** (der Import aktualisiert niemals bestehende Risiken), sodass der erneute Import eines zuvor exportierten Registers idempotent ist; jede andere Zeile erstellt ein **völlig neues** Risiko mit einer frisch generierten Referenz `R-NNNNNN`. Die Vorschau zeigt vor der Bestätigung an, wie viele Zeilen übersprungen werden.
+
+Erkannte Spalten: `title` (erforderlich), `description`, `category`, `initial_probability`, `initial_impact`, `residual_probability`, `residual_impact`, `status`, `owner_email`, `target_resolution_date` (`YYYY-MM-DD`) und `cards` (durch Semikolon getrennte Kartennamen). Eigentümer werden per E-Mail und Karten anhand des exakten Namens **nach bestem Bemühen** zugeordnet — alles, was nicht zugeordnet werden kann, wird mit einer nicht blockierenden Warnung übersprungen, und das Risiko wird trotzdem importiert. Bevor etwas geschrieben wird, erhalten Sie eine Vorschau, die zeigt, wie viele Zeilen erstellt werden, welche Fehler enthalten und welche Warnungen es gibt; nichts wird gespeichert, bevor Sie bestätigen. Erfordert die Berechtigung `risks.manage`.
+
 ## Risikomatrix
 
 Sowohl die Sicherheits-Übersicht von TurboLens als auch die Risikoregister-Seite rendern eine 4×4-Heatmap Wahrscheinlichkeit × Auswirkung. Zellen sind **klickbar** — ein Klick filtert die Liste darunter auf diesen Bucket, ein weiterer Klick (oder das × des Chips) löscht den Filter. Im Risikoregister können Sie die Matrix zwischen **Initial**- und **Rest**-Ansicht umschalten, damit sich der Fortschritt der Minderung visuell zeigt.

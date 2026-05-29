@@ -95,6 +95,12 @@ Når du klikker på **Create risk** på et ikke-overholdt fund (se [TurboLens](t
 
 Risikoregistrets **Export**-knap skriver et to-arks `.xlsx`: ark 1 er det filtrerede risikogitter, ark 2 er én række pr. cyklus på tværs af hver opgave på hver risiko i samme filter-sæt, inklusive lead-time og aktiverings-tidsstempler. Brug det til audit-pakker eller til overdragelse til interessenter, der ikke har et Turbo EA-login. Hver opgaverække i detaljepanelet har også sin egen **Export history**-knap til en pr.-opgave-projektmappe.
 
+### Import {: #import }
+
+Knappen **Importér** ved siden af «Eksportér» indlæser risici i massevis fra en `.xlsx`-fil. Klik på **Download skabelon** for at få en startmappe med de rigtige overskrifter, udfyld én risiko pr. række, og upload den. En række, hvis `reference` matcher en eksisterende risiko, **springes over** (importen opdaterer aldrig eksisterende risici), så genimport af et tidligere eksporteret register er idempotent; hver anden række opretter en **helt ny** risiko med en automatisk genereret reference `R-NNNNNN`. Eksemplet viser, hvor mange rækker der springes over, før du bekræfter.
+
+Genkendte kolonner: `title` (påkrævet), `description`, `category`, `initial_probability`, `initial_impact`, `residual_probability`, `residual_impact`, `status`, `owner_email`, `target_resolution_date` (`YYYY-MM-DD`) og `cards` (kortnavne adskilt af semikolon). Ejere matches via e-mail og kort via præcist navn **så vidt muligt** — alt, der ikke kan matches, springes over med en ikke-blokerende advarsel, og risikoen importeres alligevel. Før noget skrives, vises et eksempel, der viser, hvor mange rækker der oprettes, hvilke der har fejl, og eventuelle advarsler; intet gemmes, før du bekræfter. Kræver tilladelsen `risks.manage`.
+
 ## Risikomatrix
 
 Både TurboLens Security Overview og Risikoregister-siden gengiver et 4×4 sandsynlighed × virkning-heatmap. Celler er **klikbare** — klik på en for at filtrere listen nedenfor til bare den bøtte, klik igen (eller chip'ens ×) for at rydde. På Risikoregistret kan du skifte matricen mellem **Initial**- og **Residual**-visninger, så afhjælpningsfremskridt vises visuelt.

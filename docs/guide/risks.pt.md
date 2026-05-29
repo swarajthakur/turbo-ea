@@ -92,6 +92,12 @@ Quando clica em **Criar risco** numa constatação não conforme (ver [TurboLens
 
 O botão **Exportar** do Registo de Riscos escreve um `.xlsx` de duas folhas: a folha 1 é a grelha de riscos filtrada, a folha 2 é uma linha por ciclo de cada tarefa de cada risco no mesmo filtro, incluindo tempo de antecedência e carimbo de ativação. Use-o para pacotes de auditoria ou para partes interessadas sem acesso ao Turbo EA. Cada linha de tarefa no painel de detalhe dispõe também do próprio botão **Exportar histórico** para um livro por tarefa.
 
+### Importação {: #import }
+
+O botão **Importar**, ao lado de «Exportar», carrega riscos em massa a partir de um ficheiro `.xlsx`. Clique em **Descarregar modelo** para obter um livro inicial com os cabeçalhos corretos, preencha um risco por linha e carregue-o. Uma linha cuja `reference` corresponde a um risco existente é **ignorada** (o importador nunca atualiza riscos existentes), pelo que reimportar um registo exportado anteriormente é idempotente; cada outra linha cria um risco **totalmente novo** com uma referência `R-NNNNNN` gerada automaticamente. A pré-visualização indica quantas linhas serão ignoradas antes de confirmar.
+
+Colunas reconhecidas: `title` (obrigatório), `description`, `category`, `initial_probability`, `initial_impact`, `residual_probability`, `residual_impact`, `status`, `owner_email`, `target_resolution_date` (`YYYY-MM-DD`) e `cards` (nomes de fichas separados por ponto e vírgula). Os responsáveis são associados por e-mail e as fichas por nome exato, **na medida do possível** — tudo o que não puder ser associado é ignorado com um aviso não bloqueante e o risco é importado na mesma. Antes de escrever qualquer coisa, é apresentada uma pré-visualização que mostra quantas linhas serão criadas, quais têm erros e os eventuais avisos; nada é guardado até confirmar. Requer a permissão `risks.manage`.
+
 ## Matriz de riscos
 
 Tanto a Visão Geral de Segurança do TurboLens como a página do Registo de Riscos apresentam um mapa de calor probabilidade × impacto 4×4. As células são **clicáveis** — clique numa para filtrar a lista abaixo por esse compartimento, clique novamente (ou no × do chip) para limpar. No Registo de Riscos pode alternar a matriz entre as vistas **Inicial** e **Residual** para que o progresso da mitigação apareça visualmente.
