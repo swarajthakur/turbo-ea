@@ -23,7 +23,6 @@ import { api } from "@/api/client";
 import { LOCALE_LABELS } from "@/i18n";
 import type { FieldDef, FieldOption, TranslationMap } from "@/types";
 import { FIELD_TYPE_OPTIONS } from "./constants";
-import ImportanceSelect from "./ImportanceSelect";
 
 /** Remove empty-string entries from a TranslationMap. Returns undefined if all empty. */
 function cleanTranslationMap(map: TranslationMap | undefined): TranslationMap | undefined {
@@ -181,11 +180,9 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
             }
             label={t("metamodel.fieldEditor.required")}
           />
-          <ImportanceSelect
-            value={field.weight}
-            onChange={(weight) => setField({ ...field, weight })}
-            sx={{ width: 200 }}
-          />
+          <Typography variant="caption" color="text.secondary">
+            {t("metamodel.fieldEditor.weightMovedHint")}
+          </Typography>
         </Box>
         {isSelect && (
           <>

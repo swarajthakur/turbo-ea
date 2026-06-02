@@ -45,7 +45,7 @@ Campos definem os atributos personalizados disponíveis nos cards deste tipo. Ca
 | **Tipo** | text, multiline_text, number, cost, boolean, date, url, single_select ou multiple_select |
 | **Opções** | Para campos de seleção: as escolhas disponíveis com rótulos e cores opcionais |
 | **Obrigatório** | Se o campo deve ser preenchido para pontuação de qualidade dos dados |
-| **Qualidade dos dados** | O quanto este campo conta para a pontuação de qualidade dos dados: **Ignorar** (excluído), **Normal**, **Importante** ou **Crítico** |
+| **Qualidade dos dados** | A contribuição de cada campo para a pontuação é gerida no painel **Qualidade dos dados** (ver abaixo) |
 | **Somente leitura** | Impede edição manual (útil para campos calculados) |
 
 Clique em **+ Adicionar Campo** para criar um novo campo, ou clique em um campo existente para editá-lo no **Diálogo de Editor de Campo**.
@@ -63,11 +63,20 @@ O nome de seção especial `__description` adiciona campos à seção de Descri�
 
 #### Pontuação de qualidade dos dados
 
-A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada campo conta para a pontuação de acordo com a sua importância de **Qualidade dos dados** (definida no Editor de campos): **Ignorar** remove o campo da pontuação, enquanto **Normal**, **Importante** e **Crítico** fazem com que ele conte cada vez mais.
+A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada fator que contribui — cada campo e quatro fatores integrados — é gerido em um único lugar: o painel **Qualidade dos dados** do editor de tipo de card.
 
-Além dos campos, quatro fatores integrados também contribuem: a **Descrição**, o **Ciclo de vida** (se alguma data de ciclo de vida estiver definida) e quaisquer **Relações obrigatórias** ou **Etiquetas obrigatórias** aplicáveis ao tipo. Você pode ajustar ou excluir cada um deles no painel **Qualidade dos dados** na parte inferior do editor de layout do tipo de card, com o mesmo seletor Ignorar / Normal / Importante / Crítico. Por exemplo, defina o **Ciclo de vida** como *Ignorar* para um tipo cujos cards legitimamente nunca têm datas, para que não sejam penalizados.
+A importância de cada fator é definida com um controle deslizante simples de quatro níveis, que também mostra o número subjacente:
 
-Alterar qualquer configuração de importância recalcula imediatamente a pontuação de todos os cards existentes desse tipo. Os campos novos são *Normal* por padrão, portanto contam para a pontuação assim que você os adiciona.
+- **Ignorar (0)** — excluído totalmente da pontuação.
+- **Normal (1)** — conta uma vez (padrão).
+- **Importante (2)** — conta o dobro.
+- **Crítico (3)** — conta o triplo.
+
+O painel lista os quatro **fatores integrados** — **Descrição**, **Ciclo de vida** (se alguma data de ciclo de vida estiver definida), **Relações obrigatórias** e **Etiquetas obrigatórias** — seguidos de cada campo agrupado pela sua seção, cada um com o mesmo controle deslizante. Por exemplo, defina o **Ciclo de vida** como *Ignorar* para um tipo cujos cards legitimamente nunca têm datas, para que não sejam penalizados.
+
+Uma barra de **composição da pontuação** no topo do painel mostra a parcela de cada fator na pontuação máxima possível, para ver rapidamente quais fatores dominam. No editor de layout acima, cada campo também mostra um pequeno selo com o seu nível atual.
+
+Alterar qualquer importância recalcula imediatamente a pontuação de todos os cards existentes desse tipo. Os campos novos são *Normal* por padrão, portanto contam para a pontuação assim que você os adiciona.
 
 #### Subtipos (Sub-modelos)
 

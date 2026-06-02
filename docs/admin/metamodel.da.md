@@ -45,7 +45,7 @@ Felter definerer de brugerdefinerede egenskaber, der er tilgængelige på kort a
 | **Type** | text, multiline_text, number, cost, boolean, date, url, single_select eller multiple_select |
 | **Indstillinger** | For udvælgelsesfelter: de tilgængelige valg med etiketter og valgfri farver |
 | **Påkrævet** | Hvorvidt feltet skal udfyldes for datakvalitetsscoring |
-| **Datakvalitet** | Hvor meget dette felt tæller med i datakvalitetsscoren: **Ignorér** (ekskluderet), **Normal**, **Vigtig** eller **Kritisk** |
+| **Datakvalitet** | Hvert felts bidrag til scoren håndteres i panelet **Datakvalitet** (se nedenfor) |
 | **Skrivebeskyttet** | Forhindrer manuel redigering (nyttigt for beregnede felter) |
 
 Klik på **+ Tilføj felt** for at oprette et nyt felt, eller klik på et eksisterende felt for at redigere det i **Feltredigeringsdialogen**.
@@ -63,11 +63,20 @@ Det særlige sektionsnavn `__description` tilføjer felter til Beskrivelsessekti
 
 #### Datakvalitetsscore
 
-Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hvert felt tæller med i scoren efter sin **Datakvalitet**-vigtighed (angivet i felteditoren): **Ignorér** fjerner feltet fra scoren, mens **Normal**, **Vigtig** og **Kritisk** får det til at tælle gradvist mere.
+Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fire indbyggede faktorer – håndteres ét sted: panelet **Datakvalitet** i korttypeeditoren.
 
-Ud over felterne bidrager fire indbyggede faktorer også: **Beskrivelsen**, **Livscyklus** (om der er angivet en livscyklusdato) samt eventuelle **obligatoriske relationer** eller **obligatoriske tags**, der gælder for typen. Du kan justere eller udelukke hver af disse fra panelet **Datakvalitet** nederst i korttypens layouteditor med den samme vælger Ignorér / Normal / Vigtig / Kritisk. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
+Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også viser det underliggende tal:
 
-Ændring af en vigtighedsindstilling genberegner straks scoren for alle eksisterende kort af den type. Nye felter er som standard *Normal* og tæller derfor med i scoren, så snart du tilføjer dem.
+- **Ignorér (0)** – udelukket helt fra scoren.
+- **Normal (1)** – tæller én gang (standard).
+- **Vigtig (2)** – tæller dobbelt.
+- **Kritisk (3)** – tæller tredobbelt.
+
+Panelet viser de fire **indbyggede faktorer** – **Beskrivelse**, **Livscyklus** (om der er angivet en livscyklusdato), **obligatoriske relationer** og **obligatoriske tags** – efterfulgt af hvert felt grupperet efter sin sektion, hver med den samme skyder. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
+
+En **scorens sammensætning**-bjælke øverst i panelet viser hver faktors andel af den maksimalt mulige score, så du med et blik kan se, hvilke faktorer der dominerer. I layouteditoren ovenfor viser hvert felt også et lille mærke med sit aktuelle niveaunummer.
+
+Ændring af en vigtighed genberegner straks scoren for alle eksisterende kort af den type. Nye felter er som standard *Normal* og tæller derfor med i scoren, så snart du tilføjer dem.
 
 #### Undertyper (sub-skabeloner)
 

@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Type",
   "metamodel.fieldEditor.required": "Påkrævet",
   "metamodel.fieldEditor.weight": "Vægt",
+  "metamodel.fieldEditor.weightMovedHint": "Datakvalitetsvigtighed angives i panelet Datakvalitet nedenfor.",
   "metamodel.importance.label": "Datakvalitet",
   "metamodel.importance.ignore": "Ignorér",
   "metamodel.importance.normal": "Normal",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Livscyklus",
   "metamodel.dataQuality.relations": "Obligatoriske relationer",
   "metamodel.dataQuality.tags": "Obligatoriske tags",
+  "metamodel.dataQuality.builtInGroup": "Indbyggede faktorer",
   "metamodel.fieldEditor.options": "Valgmuligheder",
   "metamodel.fieldEditor.optionKeyLabel": "Nøgle",
   "metamodel.fieldEditor.optionKeyLocked": "Nøglen er låst",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Vis appen som en anden rolle",
   "impersonation.dialog.body": "Vælg en rolle, du vil træde ind i. Din rigtige konto er uændret — alle handlinger under sessionen logges med dit rigtige bruger-id. Stop når som helst fra banneret øverst på siden.",
   "impersonation.dialog.roleLabel": "Rolle",
-  "impersonation.dialog.confirm": "Start visning"
+  "impersonation.dialog.confirm": "Start visning",
+  "metamodel.dataQuality.descriptionSection": "Beskrivelsessektion",
+  "metamodel.dataQuality.composition": "Scorens sammensætning",
+  "metamodel.dataQuality.badgeTooltip": "Datakvalitet: {{tier}} ({{value}})"
 }

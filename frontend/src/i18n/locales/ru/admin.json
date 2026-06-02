@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Тип",
   "metamodel.fieldEditor.required": "Обязательное",
   "metamodel.fieldEditor.weight": "Вес",
+  "metamodel.fieldEditor.weightMovedHint": "Важность для качества данных задаётся на панели «Качество данных» ниже.",
   "metamodel.importance.label": "Качество данных",
   "metamodel.importance.ignore": "Игнорировать",
   "metamodel.importance.normal": "Обычный",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Жизненный цикл",
   "metamodel.dataQuality.relations": "Обязательные связи",
   "metamodel.dataQuality.tags": "Обязательные теги",
+  "metamodel.dataQuality.builtInGroup": "Встроенные факторы",
   "metamodel.fieldEditor.options": "Варианты",
   "metamodel.fieldEditor.optionKeyLabel": "Ключ",
   "metamodel.fieldEditor.optionKeyLocked": "Ключ заблокирован",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Просмотр приложения от другой роли",
   "impersonation.dialog.body": "Выберите роль, в которую хотите перейти. Ваша реальная учётная запись остаётся неизменной — каждое действие во время сеанса записывается в аудит с вашим настоящим идентификатором пользователя. Вы можете остановить просмотр в любой момент через баннер вверху страницы.",
   "impersonation.dialog.roleLabel": "Роль",
-  "impersonation.dialog.confirm": "Начать просмотр"
+  "impersonation.dialog.confirm": "Начать просмотр",
+  "metamodel.dataQuality.descriptionSection": "Секция «Описание»",
+  "metamodel.dataQuality.composition": "Состав оценки",
+  "metamodel.dataQuality.badgeTooltip": "Качество данных: {{tier}} ({{value}})"
 }

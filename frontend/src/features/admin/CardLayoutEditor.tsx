@@ -11,8 +11,7 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Divider from "@mui/material/Divider";
-import ImportanceSelect from "./metamodel/ImportanceSelect";
+import { weightToTier, useTierColor } from "./metamodel/ImportanceSlider";
 import {
   DndContext,
   closestCenter,
@@ -39,7 +38,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import type { CardType, SectionDef, FieldDef, SectionConfig, DataQualityConfig } from "@/types";
+import type { CardType, SectionDef, FieldDef, SectionConfig } from "@/types";
 import { useResolveLabel } from "@/hooks/useResolveLabel";
 import { api } from "@/api/client";
 import MaterialSymbol from "@/components/MaterialSymbol";
@@ -192,6 +191,9 @@ function FieldCard({
   isDragging?: boolean;
 }) {
   const rl = useResolveLabel();
+  const { t } = useTranslation(["admin"]);
+  const tierColor = useTierColor();
+  const tier = weightToTier(field.weight);
   return (
     <Box
       sx={{
@@ -210,6 +212,20 @@ function FieldCard({
         {isProtected ? field.label : rl(field.key, field.translations)}
         {isCalc && <Chip component="span" size="small" label="calc" color="info" sx={{ ml: 0.5, height: 16, fontSize: "0.6rem" }} />}
       </Typography>
+      <Tooltip title={t(`metamodel.dataQuality.badgeTooltip`, { tier: t(`metamodel.importance.${["ignore", "normal", "important", "critical"][tier]}`), value: tier })}>
+        <Box
+          sx={{
+            width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+            bgcolor: tier === 0 ? "transparent" : tierColor(tier),
+            border: tier === 0 ? "1px dashed" : "none",
+            borderColor: "text.disabled",
+            color: "#fff", fontSize: "0.6rem", fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          {tier}
+        </Box>
+      </Tooltip>
       <Chip size="small" label={field.type.replace("_", " ")} sx={{ bgcolor: fieldTypeColor(field.type), color: "#fff", height: 18, fontSize: "0.6rem" }} />
       {(!isProtected && (onEdit || onDelete)) && (
         <Box className="field-actions" sx={{ display: "flex", gap: 0.25, opacity: 0, transition: "opacity 0.15s" }}>
@@ -964,11 +980,6 @@ export default function CardLayoutEditor({
     await persistSectionConfig({ [sectionKey]: { ...(secCfg[sectionKey] || {}), ...prop } });
   };
 
-  const dqConfig = ((secCfg as { __dataQuality?: DataQualityConfig }).__dataQuality || {});
-  const updateDataQuality = async (bucket: keyof DataQualityConfig, weight: number) => {
-    await persistSectionConfig({ __dataQuality: { ...dqConfig, [bucket]: weight } });
-  };
-
   const customToSchemaIdx = (customIdx: number) => {
     let count = 0;
     for (let i = 0; i < cardType.fields_schema.length; i++) {
@@ -1079,37 +1090,6 @@ export default function CardLayoutEditor({
           {t("cardLayout.addSection")}
         </Button>
       )}
-
-      <Divider sx={{ my: 3 }} />
-
-      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
-        {t("metamodel.dataQuality.title")}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {t("metamodel.dataQuality.subtitle")}
-      </Typography>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-        <ImportanceSelect
-          label={t("metamodel.dataQuality.description")}
-          value={dqConfig.description}
-          onChange={(w) => updateDataQuality("description", w)}
-        />
-        <ImportanceSelect
-          label={t("metamodel.dataQuality.lifecycle")}
-          value={dqConfig.lifecycle}
-          onChange={(w) => updateDataQuality("lifecycle", w)}
-        />
-        <ImportanceSelect
-          label={t("metamodel.dataQuality.relations")}
-          value={dqConfig.relations}
-          onChange={(w) => updateDataQuality("relations", w)}
-        />
-        <ImportanceSelect
-          label={t("metamodel.dataQuality.tags")}
-          value={dqConfig.tags}
-          onChange={(w) => updateDataQuality("tags", w)}
-        />
-      </Box>
     </Box>
   );
 }

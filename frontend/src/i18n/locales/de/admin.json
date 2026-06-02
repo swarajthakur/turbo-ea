@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Typ",
   "metamodel.fieldEditor.required": "Pflichtfeld",
   "metamodel.fieldEditor.weight": "Gewicht",
+  "metamodel.fieldEditor.weightMovedHint": "Die Datenqualitäts-Wichtigkeit wird im Bereich Datenqualität unten festgelegt.",
   "metamodel.importance.label": "Datenqualität",
   "metamodel.importance.ignore": "Ignorieren",
   "metamodel.importance.normal": "Normal",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Lebenszyklus",
   "metamodel.dataQuality.relations": "Pflichtbeziehungen",
   "metamodel.dataQuality.tags": "Pflicht-Tags",
+  "metamodel.dataQuality.builtInGroup": "Integrierte Faktoren",
   "metamodel.fieldEditor.options": "Optionen",
   "metamodel.fieldEditor.optionKeyLabel": "Schlüssel",
   "metamodel.fieldEditor.optionKeyLocked": "Schlüssel ist gesperrt",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Die App als andere Rolle anzeigen",
   "impersonation.dialog.body": "Wählen Sie eine Rolle, in deren Sicht Sie wechseln möchten. Ihr eigentliches Konto bleibt unverändert — jede Aktion während der Sitzung wird mit Ihrer tatsächlichen Benutzer-ID protokolliert. Sie können jederzeit über das Banner oben auf der Seite beenden.",
   "impersonation.dialog.roleLabel": "Rolle",
-  "impersonation.dialog.confirm": "Anzeige starten"
+  "impersonation.dialog.confirm": "Anzeige starten",
+  "metamodel.dataQuality.descriptionSection": "Beschreibungsabschnitt",
+  "metamodel.dataQuality.composition": "Zusammensetzung des Werts",
+  "metamodel.dataQuality.badgeTooltip": "Datenqualität: {{tier}} ({{value}})"
 }

@@ -45,7 +45,7 @@ Fields define the custom attributes available on cards of this type. Each field 
 | **Type** | text, multiline_text, number, cost, boolean, date, url, single_select, or multiple_select |
 | **Options** | For select fields: the available choices with labels and optional colors |
 | **Required** | Whether the field must be filled for data quality scoring |
-| **Data quality** | How much this field counts toward the data quality score: **Ignore** (excluded), **Normal**, **Important**, or **Critical** |
+| **Data quality** | Each field's contribution to the score is managed in the **Data quality** panel — see [Data quality scoring](#data-quality-scoring) below |
 | **Read-only** | Prevents manual editing (useful for calculated fields) |
 
 Click **+ Add Field** to create a new field, or click an existing field to edit it in the **Field Editor Dialog**.
@@ -63,11 +63,20 @@ The special section name `__description` adds fields to the Description section 
 
 #### Data quality scoring
 
-A card's **data quality** score is a weighted measure of how complete it is. Each field counts toward the score according to its **Data quality** importance (set in the Field Editor): **Ignore** removes the field from the score, while **Normal**, **Important**, and **Critical** make it count progressively more.
+A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus four built-in factors — is managed in one place: the **Data quality** panel on the card-type editor.
 
-Beyond fields, four built-in factors also contribute: the **Description**, the **Lifecycle** (whether any lifecycle date is set), and any **mandatory Relations** or **mandatory Tags** that apply to the type. You can tune or exclude each of these from the **Data quality** panel at the bottom of the card-type layout editor, using the same Ignore / Normal / Important / Critical picker. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
+Each factor has an importance set with a simple slider across four tiers, which also shows the underlying number:
 
-Changing any importance setting immediately re-scores every existing card of that type. New fields default to *Normal*, so they count toward the score as soon as you add them.
+- **Ignore (0)** — excluded from the score entirely.
+- **Normal (1)** — counts once (the default).
+- **Important (2)** — counts twice as much.
+- **Critical (3)** — counts three times as much.
+
+The panel lists the four **built-in factors** — **Description**, **Lifecycle** (whether any lifecycle date is set), **mandatory Relations**, and **mandatory Tags** — followed by every field grouped by its section, each with the same slider. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
+
+A **score composition** bar at the top of the panel shows each factor's share of the maximum possible score, so you can see at a glance which factors dominate. In the layout editor above, each field also shows a small badge with its current tier number.
+
+Changing any importance immediately re-scores every existing card of that type. New fields default to *Normal*, so they count toward the score as soon as you add them.
 
 #### Subtypes (Sub-Templates)
 

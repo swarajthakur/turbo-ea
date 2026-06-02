@@ -45,7 +45,7 @@ I campi definiscono gli attributi personalizzati disponibili sulle card di quest
 | **Tipo** | text, multiline_text, number, cost, boolean, date, url, single_select o multiple_select |
 | **Opzioni** | Per i campi di selezione: le scelte disponibili con etichette e colori opzionali |
 | **Obbligatorio** | Se il campo deve essere compilato per il punteggio di qualità dei dati |
-| **Qualità dei dati** | Quanto questo campo incide sul punteggio di qualità dei dati: **Ignora** (escluso), **Normale**, **Importante** o **Critico** |
+| **Qualità dei dati** | Il contributo di ciascun campo al punteggio è gestito nel pannello **Qualità dei dati** (vedi sotto) |
 | **Sola lettura** | Impedisce la modifica manuale (utile per i campi calcolati) |
 
 Cliccate su **+ Aggiungi campo** per creare un nuovo campo, o cliccate su un campo esistente per modificarlo nella **Finestra editor campo**.
@@ -63,11 +63,20 @@ Il nome speciale di sezione `__description` aggiunge campi alla sezione Descrizi
 
 #### Punteggio di qualità dei dati
 
-Il punteggio di **qualità dei dati** di una card misura in modo ponderato quanto è completa. Ogni campo incide sul punteggio in base alla sua importanza di **Qualità dei dati** (impostata nell'editor dei campi): **Ignora** esclude il campo dal punteggio, mentre **Normale**, **Importante** e **Critico** lo fanno contare progressivamente di più.
+Il punteggio di **qualità dei dati** di una card misura in modo ponderato quanto è completa. Ogni fattore che contribuisce — ogni campo e quattro fattori integrati — è gestito in un unico posto: il pannello **Qualità dei dati** dell'editor del tipo di card.
 
-Oltre ai campi, contribuiscono quattro fattori integrati: la **Descrizione**, il **Ciclo di vita** (se è impostata almeno una data del ciclo di vita) e tutte le **Relazioni obbligatorie** o i **Tag obbligatori** applicabili al tipo. Puoi regolare o escludere ciascuno di essi dal pannello **Qualità dei dati** in fondo all'editor di layout del tipo di card, con lo stesso selettore Ignora / Normale / Importante / Critico. Ad esempio, imposta il **Ciclo di vita** su *Ignora* per un tipo le cui card legittimamente non riportano mai date, così da non penalizzarle.
+L'importanza di ciascun fattore si imposta con un semplice cursore a quattro livelli, che mostra anche il numero sottostante:
 
-La modifica di qualsiasi impostazione di importanza ricalcola immediatamente il punteggio di ogni card esistente di quel tipo. I nuovi campi sono *Normale* per impostazione predefinita e quindi contano per il punteggio non appena li aggiungi.
+- **Ignora (0)** — escluso completamente dal punteggio.
+- **Normale (1)** — conta una volta (predefinito).
+- **Importante (2)** — conta il doppio.
+- **Critico (3)** — conta il triplo.
+
+Il pannello elenca i quattro **fattori integrati** — **Descrizione**, **Ciclo di vita** (se è impostata almeno una data del ciclo di vita), **Relazioni obbligatorie** e **Tag obbligatori** — seguiti da ogni campo raggruppato per sezione, ciascuno con lo stesso cursore. Ad esempio, imposta il **Ciclo di vita** su *Ignora* per un tipo le cui card legittimamente non riportano mai date, così da non penalizzarle.
+
+Una barra di **composizione del punteggio** in cima al pannello mostra la quota di ciascun fattore sul punteggio massimo possibile, per vedere a colpo d'occhio quali fattori dominano. Nell'editor di layout sopra, ogni campo mostra anche un piccolo badge con il livello attuale.
+
+La modifica di qualsiasi importanza ricalcola immediatamente il punteggio di ogni card esistente di quel tipo. I nuovi campi sono *Normale* per impostazione predefinita e quindi contano per il punteggio non appena li aggiungi.
 
 #### Sottotipi (Sotto-modelli)
 

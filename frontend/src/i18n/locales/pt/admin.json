@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Tipo",
   "metamodel.fieldEditor.required": "Obrigatório",
   "metamodel.fieldEditor.weight": "Peso",
+  "metamodel.fieldEditor.weightMovedHint": "A importância para a qualidade dos dados é definida no painel Qualidade dos dados abaixo.",
   "metamodel.importance.label": "Qualidade dos dados",
   "metamodel.importance.ignore": "Ignorar",
   "metamodel.importance.normal": "Normal",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Ciclo de vida",
   "metamodel.dataQuality.relations": "Relações obrigatórias",
   "metamodel.dataQuality.tags": "Etiquetas obrigatórias",
+  "metamodel.dataQuality.builtInGroup": "Fatores integrados",
   "metamodel.fieldEditor.options": "Opções",
   "metamodel.fieldEditor.optionKeyLabel": "Chave",
   "metamodel.fieldEditor.optionKeyLocked": "Chave bloqueada",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Ver o aplicativo como outra função",
   "impersonation.dialog.body": "Escolha uma função para assumir. Sua conta real não é modificada — cada ação executada durante a sessão é registrada na auditoria com seu identificador de usuário real. Pode parar a qualquer momento pela barra no topo da página.",
   "impersonation.dialog.roleLabel": "Função",
-  "impersonation.dialog.confirm": "Iniciar visualização"
+  "impersonation.dialog.confirm": "Iniciar visualização",
+  "metamodel.dataQuality.descriptionSection": "Seção Descrição",
+  "metamodel.dataQuality.composition": "Composição da pontuação",
+  "metamodel.dataQuality.badgeTooltip": "Qualidade dos dados: {{tier}} ({{value}})"
 }

@@ -45,7 +45,7 @@ Felder definieren die benutzerdefinierten Attribute, die auf Karten dieses Typs 
 | **Typ** | text, multiline_text, number, cost, boolean, date, url, single_select oder multiple_select |
 | **Optionen** | Für Auswahlfelder: die verfügbaren Auswahlmöglichkeiten mit Bezeichnungen und optionalen Farben |
 | **Pflichtfeld** | Ob das Feld für die Datenqualitätsbewertung ausgefüllt sein muss |
-| **Datenqualität** | Wie stark dieses Feld zum Datenqualitätswert zählt: **Ignorieren** (ausgeschlossen), **Normal**, **Wichtig** oder **Kritisch** |
+| **Datenqualität** | Der Beitrag jedes Felds zum Wert wird im Bereich **Datenqualität** verwaltet (siehe unten) |
 | **Nur lesen** | Verhindert manuelle Bearbeitung (nützlich für berechnete Felder) |
 
 Klicken Sie auf **+ Feld hinzufügen**, um ein neues Feld zu erstellen, oder klicken Sie auf ein bestehendes Feld, um es im **Feldeditor-Dialog** zu bearbeiten.
@@ -63,11 +63,20 @@ Der spezielle Abschnittsname `__description` fügt Felder zum Beschreibungsabsch
 
 #### Datenqualitätsbewertung
 
-Der **Datenqualitätswert** einer Karte misst gewichtet, wie vollständig sie ist. Jedes Feld zählt entsprechend seiner **Datenqualität**-Wichtigkeit (im Feldeditor festgelegt) zum Wert: **Ignorieren** entfernt das Feld aus der Bewertung, während **Normal**, **Wichtig** und **Kritisch** es zunehmend stärker gewichten.
+Der **Datenqualitätswert** einer Karte ist ein gewichtetes Maß für ihre Vollständigkeit. Jeder beitragende Faktor – jedes Feld sowie vier integrierte Faktoren – wird an einer Stelle verwaltet: im Bereich **Datenqualität** des Kartentyp-Editors.
 
-Neben den Feldern tragen vier integrierte Faktoren bei: die **Beschreibung**, der **Lebenszyklus** (ob ein Lebenszyklusdatum gesetzt ist) sowie alle für den Typ geltenden **Pflichtbeziehungen** und **Pflicht-Tags**. Jeden dieser Faktoren können Sie im Bereich **Datenqualität** am unteren Ende des Layout-Editors des Kartentyps anpassen oder ausschließen – mit derselben Auswahl Ignorieren / Normal / Wichtig / Kritisch. Setzen Sie zum Beispiel den **Lebenszyklus** auf *Ignorieren* für einen Typ, dessen Karten berechtigterweise nie Datumsangaben tragen, damit sie nicht abgewertet werden.
+Die Wichtigkeit jedes Faktors wird mit einem einfachen Schieberegler über vier Stufen festgelegt, der auch die zugrunde liegende Zahl anzeigt:
 
-Das Ändern einer Wichtigkeitseinstellung bewertet sofort jede vorhandene Karte dieses Typs neu. Neue Felder sind standardmäßig *Normal* und zählen somit zur Bewertung, sobald Sie sie hinzufügen.
+- **Ignorieren (0)** – vollständig aus dem Wert ausgeschlossen.
+- **Normal (1)** – zählt einfach (Standard).
+- **Wichtig (2)** – zählt doppelt.
+- **Kritisch (3)** – zählt dreifach.
+
+Der Bereich listet die vier **integrierten Faktoren** – **Beschreibung**, **Lebenszyklus** (ob ein Lebenszyklusdatum gesetzt ist), **Pflichtbeziehungen** und **Pflicht-Tags** – gefolgt von jedem Feld, gruppiert nach seinem Abschnitt, jeweils mit demselben Schieberegler. Setzen Sie zum Beispiel den **Lebenszyklus** auf *Ignorieren* für einen Typ, dessen Karten berechtigterweise nie Datumsangaben tragen, damit sie nicht abgewertet werden.
+
+Ein Balken zur **Wertzusammensetzung** oben im Bereich zeigt den Anteil jedes Faktors am maximal möglichen Wert, sodass Sie auf einen Blick sehen, welche Faktoren dominieren. Im Layout-Editor darüber zeigt jedes Feld zusätzlich ein kleines Abzeichen mit seiner aktuellen Stufennummer.
+
+Das Ändern einer Wichtigkeit bewertet sofort jede vorhandene Karte dieses Typs neu. Neue Felder sind standardmäßig *Normal* und zählen somit zur Bewertung, sobald Sie sie hinzufügen.
 
 #### Subtypen (Unter-Vorlagen)
 

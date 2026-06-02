@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Tipo",
   "metamodel.fieldEditor.required": "Obbligatorio",
   "metamodel.fieldEditor.weight": "Peso",
+  "metamodel.fieldEditor.weightMovedHint": "L'importanza per la qualità dei dati si imposta nel pannello Qualità dei dati qui sotto.",
   "metamodel.importance.label": "Qualità dei dati",
   "metamodel.importance.ignore": "Ignora",
   "metamodel.importance.normal": "Normale",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Ciclo di vita",
   "metamodel.dataQuality.relations": "Relazioni obbligatorie",
   "metamodel.dataQuality.tags": "Tag obbligatori",
+  "metamodel.dataQuality.builtInGroup": "Fattori integrati",
   "metamodel.fieldEditor.options": "Opzioni",
   "metamodel.fieldEditor.optionKeyLabel": "Chiave",
   "metamodel.fieldEditor.optionKeyLocked": "Chiave bloccata",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Visualizza l'app come un altro ruolo",
   "impersonation.dialog.body": "Scegli un ruolo in cui calarti. Il tuo account reale non viene modificato — ogni azione eseguita durante la sessione viene tracciata nell'audit con il tuo identificativo utente reale. Puoi interrompere in qualsiasi momento dal banner in alto.",
   "impersonation.dialog.roleLabel": "Ruolo",
-  "impersonation.dialog.confirm": "Avvia visualizzazione"
+  "impersonation.dialog.confirm": "Avvia visualizzazione",
+  "metamodel.dataQuality.descriptionSection": "Sezione Descrizione",
+  "metamodel.dataQuality.composition": "Composizione del punteggio",
+  "metamodel.dataQuality.badgeTooltip": "Qualità dei dati: {{tier}} ({{value}})"
 }

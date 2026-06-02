@@ -45,7 +45,7 @@ Los campos definen los atributos personalizados disponibles en fichas de este ti
 | **Tipo** | texto, texto_multilínea, número, costo, booleano, fecha, url, selección_única o selección_múltiple |
 | **Opciones** | Para campos de selección: las opciones disponibles con etiquetas y colores opcionales |
 | **Requerido** | Si el campo debe completarse para la puntuación de calidad de datos |
-| **Calidad de datos** | Cuánto cuenta este campo para la puntuación de calidad de datos: **Ignorar** (excluido), **Normal**, **Importante** o **Crítico** |
+| **Calidad de datos** | La contribución de cada campo a la puntuación se gestiona en el panel **Calidad de datos** (ver más abajo) |
 | **Solo lectura** | Impide la edición manual (útil para campos calculados) |
 
 Haga clic en **+ Agregar Campo** para crear un nuevo campo, o haga clic en un campo existente para editarlo en el **Diálogo Editor de Campos**.
@@ -63,11 +63,20 @@ El nombre de sección especial `__description` agrega campos a la sección Descr
 
 #### Puntuación de calidad de datos
 
-La puntuación de **calidad de datos** de una tarjeta mide de forma ponderada cuán completa está. Cada campo cuenta para la puntuación según su importancia de **Calidad de datos** (definida en el Editor de campos): **Ignorar** elimina el campo de la puntuación, mientras que **Normal**, **Importante** y **Crítico** hacen que cuente progresivamente más.
+La puntuación de **calidad de datos** de una tarjeta mide de forma ponderada cuán completa está. Cada factor que contribuye —cada campo y cuatro factores integrados— se gestiona en un solo lugar: el panel **Calidad de datos** del editor del tipo de tarjeta.
 
-Además de los campos, contribuyen cuatro factores integrados: la **Descripción**, el **Ciclo de vida** (si hay alguna fecha de ciclo de vida establecida) y cualquier **Relación obligatoria** o **Etiqueta obligatoria** aplicable al tipo. Puede ajustar o excluir cada uno de ellos desde el panel **Calidad de datos** en la parte inferior del editor de diseño del tipo de tarjeta, con el mismo selector Ignorar / Normal / Importante / Crítico. Por ejemplo, establezca el **Ciclo de vida** en *Ignorar* para un tipo cuyas tarjetas legítimamente nunca llevan fechas, para que no se penalicen.
+La importancia de cada factor se establece con un control deslizante simple de cuatro niveles, que también muestra el número subyacente:
 
-Cambiar cualquier ajuste de importancia vuelve a puntuar inmediatamente todas las tarjetas existentes de ese tipo. Los campos nuevos son *Normal* de forma predeterminada, por lo que cuentan para la puntuación en cuanto los agrega.
+- **Ignorar (0)**: excluido por completo de la puntuación.
+- **Normal (1)**: cuenta una vez (predeterminado).
+- **Importante (2)**: cuenta el doble.
+- **Crítico (3)**: cuenta el triple.
+
+El panel enumera los cuatro **factores integrados** —**Descripción**, **Ciclo de vida** (si hay alguna fecha de ciclo de vida establecida), **Relaciones obligatorias** y **Etiquetas obligatorias**— seguidos de cada campo agrupado por su sección, todos con el mismo control deslizante. Por ejemplo, establezca el **Ciclo de vida** en *Ignorar* para un tipo cuyas tarjetas legítimamente nunca llevan fechas, para que no se penalicen.
+
+Una barra de **composición de la puntuación** en la parte superior del panel muestra la proporción de cada factor en la puntuación máxima posible, para ver de un vistazo qué factores dominan. En el editor de diseño de arriba, cada campo también muestra una pequeña insignia con su nivel actual.
+
+Cambiar cualquier importancia vuelve a puntuar inmediatamente todas las tarjetas existentes de ese tipo. Los campos nuevos son *Normal* de forma predeterminada, por lo que cuentan para la puntuación en cuanto los agrega.
 
 #### Subtipos (Sub-plantillas)
 

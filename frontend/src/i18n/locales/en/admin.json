@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Type",
   "metamodel.fieldEditor.required": "Required",
   "metamodel.fieldEditor.weight": "Weight",
+  "metamodel.fieldEditor.weightMovedHint": "Data quality importance is set in the Data Quality panel below.",
   "metamodel.importance.label": "Data quality",
   "metamodel.importance.ignore": "Ignore",
   "metamodel.importance.normal": "Normal",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Lifecycle",
   "metamodel.dataQuality.relations": "Mandatory relations",
   "metamodel.dataQuality.tags": "Mandatory tags",
+  "metamodel.dataQuality.builtInGroup": "Built-in factors",
   "metamodel.fieldEditor.options": "Options",
   "metamodel.fieldEditor.optionKeyLabel": "Key",
   "metamodel.fieldEditor.optionKeyLocked": "Key is locked",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "View the app as a different role",
   "impersonation.dialog.body": "Pick a role to step into. Your real account is unchanged — every action you take during the session is audit-stamped with your real user id. Stop at any time from the banner at the top of the page.",
   "impersonation.dialog.roleLabel": "Role",
-  "impersonation.dialog.confirm": "Start viewing"
+  "impersonation.dialog.confirm": "Start viewing",
+  "metamodel.dataQuality.descriptionSection": "Description section",
+  "metamodel.dataQuality.composition": "Score composition",
+  "metamodel.dataQuality.badgeTooltip": "Data quality: {{tier}} ({{value}})"
 }

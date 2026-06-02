@@ -32,6 +32,7 @@ import type {
 } from "@/types";
 import { emptyField } from "./helpers";
 import FieldEditorDialog from "./FieldEditorDialog";
+import DataQualityPanel from "./DataQualityPanel";
 import StakeholderRolePanel from "./StakeholderRolePanel";
 import TranslationDialog from "./TranslationDialog";
 
@@ -698,6 +699,14 @@ export default function TypeDetailDrawer({
             promptDeleteSection={promptDeleteSection}
             calculatedFieldKeys={calculatedFieldKeys}
           />
+        )}
+
+        {/* -- Data Quality -- */}
+        {cardTypeKey && (
+          <>
+            <Divider sx={{ my: 3 }} />
+            <DataQualityPanel cardType={cardTypeKey} onRefresh={onRefresh} />
+          </>
         )}
       </Box>
 

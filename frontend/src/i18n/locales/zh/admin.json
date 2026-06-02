@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "类型",
   "metamodel.fieldEditor.required": "必填",
   "metamodel.fieldEditor.weight": "权重",
+  "metamodel.fieldEditor.weightMovedHint": "数据质量重要性在下方的数据质量面板中设置。",
   "metamodel.importance.label": "数据质量",
   "metamodel.importance.ignore": "忽略",
   "metamodel.importance.normal": "普通",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "生命周期",
   "metamodel.dataQuality.relations": "必填关系",
   "metamodel.dataQuality.tags": "必填标签",
+  "metamodel.dataQuality.builtInGroup": "内置因素",
   "metamodel.fieldEditor.options": "选项",
   "metamodel.fieldEditor.optionKeyLabel": "键",
   "metamodel.fieldEditor.optionKeyLocked": "键已锁定",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "以其他角色身份查看应用",
   "impersonation.dialog.body": "请选择您要切换的角色。您的真实账户保持不变 — 会话期间执行的每个操作都会以您的真实用户 ID 记入审计。您可以随时通过页面顶部的横幅停止。",
   "impersonation.dialog.roleLabel": "角色",
-  "impersonation.dialog.confirm": "开始查看"
+  "impersonation.dialog.confirm": "开始查看",
+  "metamodel.dataQuality.descriptionSection": "描述分区",
+  "metamodel.dataQuality.composition": "评分构成",
+  "metamodel.dataQuality.badgeTooltip": "数据质量：{{tier}}（{{value}}）"
 }

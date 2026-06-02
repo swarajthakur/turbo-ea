@@ -148,6 +148,7 @@
   "metamodel.fieldEditor.typeLabel": "Type",
   "metamodel.fieldEditor.required": "Obligatoire",
   "metamodel.fieldEditor.weight": "Poids",
+  "metamodel.fieldEditor.weightMovedHint": "L'importance pour la qualité des données se règle dans le panneau Qualité des données ci-dessous.",
   "metamodel.importance.label": "Qualité des données",
   "metamodel.importance.ignore": "Ignorer",
   "metamodel.importance.normal": "Normale",
@@ -159,6 +160,7 @@
   "metamodel.dataQuality.lifecycle": "Cycle de vie",
   "metamodel.dataQuality.relations": "Relations obligatoires",
   "metamodel.dataQuality.tags": "Étiquettes obligatoires",
+  "metamodel.dataQuality.builtInGroup": "Facteurs intégrés",
   "metamodel.fieldEditor.options": "Options",
   "metamodel.fieldEditor.optionKeyLabel": "Clé",
   "metamodel.fieldEditor.optionKeyLocked": "Clé verrouillée",
@@ -1450,5 +1452,8 @@
   "impersonation.dialog.title": "Voir l'application en tant qu'un autre rôle",
   "impersonation.dialog.body": "Choisissez un rôle dans lequel vous glisser. Votre compte réel reste inchangé — chaque action effectuée pendant la session est consignée dans l'audit avec votre véritable identifiant utilisateur. Vous pouvez arrêter à tout moment depuis la bannière en haut de la page.",
   "impersonation.dialog.roleLabel": "Rôle",
-  "impersonation.dialog.confirm": "Démarrer l'affichage"
+  "impersonation.dialog.confirm": "Démarrer l'affichage",
+  "metamodel.dataQuality.descriptionSection": "Section Description",
+  "metamodel.dataQuality.composition": "Composition du score",
+  "metamodel.dataQuality.badgeTooltip": "Qualité des données : {{tier}} ({{value}})"
 }
