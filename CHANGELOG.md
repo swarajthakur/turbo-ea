@@ -5,7 +5,10 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.38.1] - 2026-06-03
+## [1.39.0] - 2026-06-03
+
+### Added
+- **Move fields between sections in the card layout editor.** Each field in a card type's layout now has a **move** action (next to edit and delete) that relocates it to any other section in one click, keeping its configuration. Previously fields could only be dragged within their own section, making it tedious to reorganise a type's layout (for example, moving fields into the new Application **Assessment** section).
 
 ### Changed
 - **Application cards separate facts from assessments.** The Application card's attributes used to mix objective facts and subjective ratings in a single "Application Information" section. Following [#632](https://github.com/vincentmakes/turbo-ea/discussions/632), the four rating fields — Business Criticality, Functional Suitability, Technical Suitability, and TIME Model — now live in a dedicated **Assessment** section, leaving Hosting Type, Commercial Application, and Has AI Features in **Application Information** (Cost & Ownership is unchanged). This mirrors how Business Capability cards already split facts from their assessment. Existing installs are migrated automatically; admin-customised Application layouts are left untouched.

@@ -812,6 +812,8 @@
   "cardLayout.removeGroup": "移除分组（字段移到列中）",
   "cardLayout.group": "分组",
   "cardLayout.field": "字段",
+  "cardLayout.moveToSection": "移动到分区",
+  "cardLayout.moveFieldTooltip": "移动到其他分区",
   "cardLayout.groupName": "分组名称",
   "cardLayout.calc": "计算",
   "cardLayout.builtinFields.name": "名称",

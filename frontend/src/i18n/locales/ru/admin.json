@@ -812,6 +812,8 @@
   "cardLayout.removeGroup": "Удалить группу (поля перемещаются в столбец)",
   "cardLayout.group": "Группа",
   "cardLayout.field": "Поле",
+  "cardLayout.moveToSection": "Переместить в раздел",
+  "cardLayout.moveFieldTooltip": "Переместить в другой раздел",
   "cardLayout.groupName": "Название группы",
   "cardLayout.calc": "выч.",
   "cardLayout.builtinFields.name": "Название",

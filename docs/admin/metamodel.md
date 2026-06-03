@@ -57,7 +57,7 @@ Fields are organized into **sections** on the card detail page. You can:
 - Create named sections to group related fields
 - Set sections to **1-column** or **2-column** layout
 - Organize fields into **groups** within a section (rendered as collapsible sub-headers)
-- Drag fields between sections and reorder them
+- Reorder fields within a section by dragging, and move a field to a different section from its **move** action
 
 The special section name `__description` adds fields to the Description section of the card detail page.
 
@@ -208,3 +208,4 @@ For each card type, the **Layout** section in the type drawer controls how the c
 - **Visibility** — Hide sections that are not relevant for a type
 - **Default expansion** — Choose whether each section starts expanded or collapsed
 - **Column layout** — Set 1 or 2 columns per custom section
+- **Move fields between sections** — Use a field's **move** action (next to its edit and delete buttons) to relocate it to another section, keeping its configuration

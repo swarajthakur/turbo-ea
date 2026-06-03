@@ -812,6 +812,8 @@
   "cardLayout.removeGroup": "Gruppe entfernen (Felder werden in die Spalte verschoben)",
   "cardLayout.group": "Gruppe",
   "cardLayout.field": "Feld",
+  "cardLayout.moveToSection": "In Abschnitt verschieben",
+  "cardLayout.moveFieldTooltip": "In einen anderen Abschnitt verschieben",
   "cardLayout.groupName": "Gruppenname",
   "cardLayout.calc": "ber.",
   "cardLayout.builtinFields.name": "Name",

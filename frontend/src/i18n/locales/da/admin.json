@@ -812,6 +812,8 @@
   "cardLayout.removeGroup": "Fjern gruppe (felter flyttes til kolonne)",
   "cardLayout.group": "Gruppe",
   "cardLayout.field": "Felt",
+  "cardLayout.moveToSection": "Flyt til afsnit",
+  "cardLayout.moveFieldTooltip": "Flyt til et andet afsnit",
   "cardLayout.groupName": "Gruppenavn",
   "cardLayout.calc": "beregnet",
   "cardLayout.builtinFields.name": "Navn",

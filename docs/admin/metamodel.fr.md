@@ -57,7 +57,7 @@ Les champs sont organisés en **sections** sur la page de détail des fiches. Vo
 - Créer des sections nommées pour regrouper des champs liés
 - Définir les sections en disposition **1 colonne** ou **2 colonnes**
 - Organiser les champs en **groupes** au sein d'une section (rendus comme des sous-en-tetes repliables)
-- Glisser les champs entre les sections et les réorganiser
+- Réorganiser les champs au sein d'une section par glisser-déposer, et déplacer un champ vers une autre section via son action **déplacer**
 
 Le nom de section special `__description` ajoute les champs à la section Description de la page de détail des fiches.
 
@@ -208,3 +208,4 @@ Pour chaque type de fiche, la section **Mise en page** dans le tiroir du type co
 - **Visibilité** -- Masquez les sections non pertinentes pour un type
 - **Développement par défaut** -- Choisissez si chaque section commence développée ou repliée
 - **Disposition en colonnes** -- Définissez 1 ou 2 colonnes par section personnalisée
+- **Déplacer des champs entre sections** — Utiliser l'action **déplacer** d'un champ (à côté de ses boutons modifier et supprimer) pour le replacer dans une autre section, en conservant sa configuration

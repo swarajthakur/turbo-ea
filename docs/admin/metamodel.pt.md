@@ -57,7 +57,7 @@ Campos são organizados em **seções** na página de detalhe do card. Você pod
 - Criar seções nomeadas para agrupar campos relacionados
 - Definir seções com layout de **1 coluna** ou **2 colunas**
 - Organizar campos em **grupos** dentro de uma seção (renderizados como sub-cabeçalhos recolhíveis)
-- Arrastar campos entre seções e reordená-los
+- Reordenar campos dentro de uma seção arrastando-os e mover um campo para outra seção pela ação **mover**
 
 O nome de seção especial `__description` adiciona campos à seção de Descrição da página de detalhe do card.
 
@@ -208,3 +208,4 @@ Para cada tipo de card, a seção **Layout** no painel do tipo controla como a p
 - **Visibilidade** — Oculte seções que não são relevantes para um tipo
 - **Expansão padrão** — Escolha se cada seção começa expandida ou recolhida
 - **Layout de colunas** — Defina 1 ou 2 colunas por seção personalizada
+- **Mover campos entre seções** — Usar a ação **mover** de um campo (ao lado dos botões de editar e excluir) para realocá-lo em outra seção, mantendo a sua configuração

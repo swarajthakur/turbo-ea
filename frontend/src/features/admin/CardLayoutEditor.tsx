@@ -11,6 +11,11 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import ListSubheader from "@mui/material/ListSubheader";
 import { WeightBadge } from "./metamodel/ImportanceSlider";
 import {
   DndContext,
@@ -177,6 +182,27 @@ function containersToFields(containers: Containers, fieldMap: Map<string, FieldD
   return result;
 }
 
+// Move a single field from one section to another, preserving its definition.
+// The field lands at the end of the target section's first column, ungrouped
+// (the target may not share the source's columns/groups). Returns a new schema,
+// or null if the move is a no-op / the field can't be found.
+export function moveFieldBetweenSections(
+  schema: SectionDef[],
+  fromIdx: number,
+  fieldKey: string,
+  toIdx: number,
+): SectionDef[] | null {
+  if (fromIdx === toIdx) return null;
+  if (fromIdx < 0 || toIdx < 0 || fromIdx >= schema.length || toIdx >= schema.length) return null;
+  const next = schema.map((s) => ({ ...s, fields: [...(s.fields || [])] }));
+  const src = next[fromIdx].fields;
+  const i = src.findIndex((f) => f.key === fieldKey);
+  if (i < 0) return null;
+  const [field] = src.splice(i, 1);
+  next[toIdx].fields.push({ ...field, group: undefined, column: 0 });
+  return next;
+}
+
 // ── FieldCard (display component, used by sortable wrapper + overlay) ──
 
 function FieldCard({
@@ -185,6 +211,7 @@ function FieldCard({
   isProtected,
   onEdit,
   onDelete,
+  onMove,
   isDragging,
 }: {
   field: FieldDef;
@@ -192,8 +219,10 @@ function FieldCard({
   isProtected?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onMove?: (e: React.MouseEvent<HTMLElement>) => void;
   isDragging?: boolean;
 }) {
+  const { t } = useTranslation(["admin"]);
   const rl = useResolveLabel();
   return (
     <Box
@@ -215,8 +244,13 @@ function FieldCard({
       </Typography>
       <WeightBadge weight={field.weight} />
       <Chip size="small" label={field.type.replace("_", " ")} sx={{ bgcolor: fieldTypeColor(field.type), color: "#fff", height: 18, fontSize: "0.6rem" }} />
-      {(!isProtected && (onEdit || onDelete)) && (
+      {(!isProtected && (onEdit || onDelete || onMove)) && (
         <Box className="field-actions" sx={{ display: "flex", gap: 0.25, opacity: 0, transition: "opacity 0.15s" }}>
+          {onMove && (
+            <Tooltip title={t("cardLayout.moveFieldTooltip")}>
+              <IconButton size="small" onClick={onMove} sx={{ p: 0.25 }}><MaterialSymbol icon="drive_file_move" size={16} /></IconButton>
+            </Tooltip>
+          )}
           {onEdit && <IconButton size="small" onClick={onEdit} sx={{ p: 0.25 }}><MaterialSymbol icon="edit" size={16} /></IconButton>}
           {onDelete && <IconButton size="small" onClick={onDelete} sx={{ p: 0.25 }}><MaterialSymbol icon="delete" size={16} /></IconButton>}
         </Box>
@@ -228,10 +262,11 @@ function FieldCard({
 // ── SortableFieldCard ────────────────────────────────────────────
 
 function SortableFieldCard({
-  id, field, isCalc, onEdit, onDelete,
+  id, field, isCalc, onEdit, onDelete, onMove,
 }: {
   id: string; field: FieldDef; isCalc?: boolean;
   onEdit?: () => void; onDelete?: () => void;
+  onMove?: (e: React.MouseEvent<HTMLElement>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -246,7 +281,7 @@ function SortableFieldCard({
           <MaterialSymbol icon="drag_indicator" size={16} color="#bbb" />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <FieldCard field={field} isCalc={isCalc} onEdit={onEdit} onDelete={onDelete} isDragging={isDragging} />
+          <FieldCard field={field} isCalc={isCalc} onEdit={onEdit} onDelete={onDelete} onMove={onMove} isDragging={isDragging} />
         </Box>
       </Box>
     </Box>
@@ -391,12 +426,47 @@ function VisualFieldLayout({
   promptDeleteField: (si: number, fi: number) => void;
 }) {
   const { t } = useTranslation(["admin", "common"]);
+  const rl = useResolveLabel();
   const cols = section.columns || 1;
   const [containers, setContainers] = useState<Containers>(() => fieldsToContainers(section.fields, cols, section.groups));
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [cloned, setCloned] = useState<Containers | null>(null);
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [moveAnchor, setMoveAnchor] = useState<HTMLElement | null>(null);
+  const [moveFieldKey, setMoveFieldKey] = useState<string | null>(null);
+
+  // Other sections this field can be moved into (skip the special description bucket).
+  const moveTargets = useMemo(
+    () =>
+      fieldsSchema
+        .map((s, i) => ({ section: s, idx: i }))
+        .filter(({ section: s, idx }) => idx !== sectionIdx && s.section !== "__description"),
+    [fieldsSchema, sectionIdx],
+  );
+
+  const openMoveMenu = useCallback((fieldKey: string, e: React.MouseEvent<HTMLElement>) => {
+    setMoveFieldKey(fieldKey);
+    setMoveAnchor(e.currentTarget);
+  }, []);
+
+  const closeMoveMenu = useCallback(() => {
+    setMoveAnchor(null);
+    setMoveFieldKey(null);
+  }, []);
+
+  const handleMoveToSection = useCallback(
+    async (targetIdx: number) => {
+      const key = moveFieldKey;
+      closeMoveMenu();
+      if (!key) return;
+      const next = moveFieldBetweenSections(fieldsSchema, sectionIdx, key, targetIdx);
+      if (!next) return;
+      await api.patch(`/metamodel/types/${typeKey}`, { fields_schema: next });
+      onRefresh();
+    },
+    [moveFieldKey, closeMoveMenu, fieldsSchema, sectionIdx, typeKey, onRefresh],
+  );
 
   const fieldMap = useMemo(() => {
     const m = new Map<string, FieldDef>();
@@ -669,6 +739,7 @@ function VisualFieldLayout({
                     isCalc={calculatedFieldKeys.includes(fk)}
                     onEdit={fi >= 0 ? () => openEditField(sectionIdx, fi) : undefined}
                     onDelete={fi >= 0 ? () => promptDeleteField(sectionIdx, fi) : undefined}
+                    onMove={moveTargets.length > 0 ? (e) => openMoveMenu(fk, e) : undefined}
                   />
                 );
               })}
@@ -685,6 +756,7 @@ function VisualFieldLayout({
           isCalc={calculatedFieldKeys.includes(itemId)}
           onEdit={fi >= 0 ? () => openEditField(sectionIdx, fi) : undefined}
           onDelete={fi >= 0 ? () => promptDeleteField(sectionIdx, fi) : undefined}
+          onMove={moveTargets.length > 0 ? (e) => openMoveMenu(itemId, e) : undefined}
         />
       );
     });
@@ -769,6 +841,26 @@ function VisualFieldLayout({
           )}
         </DragOverlay>
       </DndContext>
+
+      <Menu
+        anchorEl={moveAnchor}
+        open={Boolean(moveAnchor)}
+        onClose={closeMoveMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <ListSubheader sx={{ lineHeight: 2, bgcolor: "transparent" }}>
+          {t("cardLayout.moveToSection")}
+        </ListSubheader>
+        {moveTargets.map(({ section: s, idx }) => (
+          <MenuItem key={idx} onClick={() => handleMoveToSection(idx)}>
+            <ListItemIcon>
+              <MaterialSymbol icon="tune" size={18} />
+            </ListItemIcon>
+            <ListItemText>{rl(s.section, s.translations)}</ListItemText>
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 }

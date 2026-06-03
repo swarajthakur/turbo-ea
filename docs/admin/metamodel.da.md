@@ -57,7 +57,7 @@ Felter er organiseret i **sektioner** på kortdetaljesiden. Du kan:
 - Oprette navngivne sektioner for at gruppere relaterede felter
 - Indstille sektioner til **1-kolonne-** eller **2-kolonne**-layout
 - Organisere felter i **grupper** inden for en sektion (gengivet som sammenklappelige underoverskrifter)
-- Trække felter mellem sektioner og omarrangere dem
+- Omarranger felter inden for et afsnit ved at trække, og flyt et felt til et andet afsnit via dets **flyt**-handling
 
 Det særlige sektionsnavn `__description` tilføjer felter til Beskrivelsessektionen af kortdetaljesiden.
 
@@ -208,3 +208,4 @@ For hver korttype styrer afsnittet **Layout** i typepanelet, hvordan kortdetalje
 - **Synlighed** — Skjul sektioner, der ikke er relevante for en type
 - **Standardudvidelse** — Vælg, om hver sektion starter udvidet eller sammenklappet
 - **Kolonnelayout** — Indstil 1 eller 2 kolonner pr. brugerdefineret sektion
+- **Flyt felter mellem afsnit** — Brug et felts **flyt**-handling (ved siden af knapperne rediger og slet) til at flytte det til et andet afsnit, mens dets konfiguration bevares

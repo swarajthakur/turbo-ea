@@ -57,7 +57,7 @@ Felder werden in **Abschnitte** auf der Kartendetailseite organisiert. Sie könn
 - Benannte Abschnitte erstellen, um verwandte Felder zu gruppieren
 - Abschnitte auf **1-Spalten**- oder **2-Spalten**-Layout einstellen
 - Felder in **Gruppen** innerhalb eines Abschnitts organisieren (dargestellt als einklappbare Unterüberschriften)
-- Felder zwischen Abschnitten verschieben und neu anordnen
+- Felder innerhalb eines Abschnitts per Drag-and-drop neu anordnen und über die **Verschieben**-Aktion in einen anderen Abschnitt verschieben
 
 Der spezielle Abschnittsname `__description` fügt Felder zum Beschreibungsabschnitt der Kartendetailseite hinzu.
 
@@ -208,3 +208,4 @@ Für jeden Kartentyp steuert der **Layout**-Bereich in der Typ-Schublade, wie di
 - **Sichtbarkeit** — Abschnitte ausblenden, die für einen Typ nicht relevant sind
 - **Standarderweiterung** — Wählen, ob jeder Abschnitt standardmäßig erweitert oder eingeklappt startet
 - **Spaltenlayout** — 1 oder 2 Spalten pro benutzerdefiniertem Abschnitt festlegen
+- **Felder zwischen Abschnitten verschieben** – Über die **Verschieben**-Aktion eines Feldes (neben den Schaltflächen Bearbeiten und Löschen) es in einen anderen Abschnitt verschieben, wobei seine Konfiguration erhalten bleibt

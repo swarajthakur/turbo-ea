@@ -57,7 +57,7 @@ I campi sono organizzati in **sezioni** nella pagina di dettaglio della card. Po
 - Creare sezioni con nome per raggruppare campi correlati
 - Impostare le sezioni su layout a **1 colonna** o **2 colonne**
 - Organizzare i campi in **gruppi** all'interno di una sezione (visualizzati come sotto-intestazioni comprimibili)
-- Trascinare i campi tra le sezioni e riordinarli
+- Riordinare i campi all'interno di una sezione trascinandoli e spostare un campo in un'altra sezione tramite la sua azione **sposta**
 
 Il nome speciale di sezione `__description` aggiunge campi alla sezione Descrizione della pagina di dettaglio della card.
 
@@ -208,3 +208,4 @@ Per ogni tipo di card, la sezione **Layout** nel cassetto del tipo controlla com
 - **Visibilità** — Nascondete le sezioni che non sono rilevanti per un tipo
 - **Espansione predefinita** — Scegliete se ogni sezione inizia espansa o compressa
 - **Layout colonne** — Impostate 1 o 2 colonne per sezione personalizzata
+- **Spostare campi tra le sezioni** — Usare l'azione **sposta** di un campo (accanto ai pulsanti di modifica ed elimina) per ricollocarlo in un'altra sezione, mantenendone la configurazione

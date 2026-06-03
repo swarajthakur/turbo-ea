@@ -57,7 +57,7 @@ Los campos se organizan en **secciones** en la página de detalle de la ficha. P
 - Crear secciones con nombre para agrupar campos relacionados
 - Configurar secciones con diseño de **1 columna** o **2 columnas**
 - Organizar campos en **grupos** dentro de una sección (renderizados como sub-encabezados colapsables)
-- Arrastrar campos entre secciones y reordenarlos
+- Reordenar campos dentro de una sección arrastrándolos, y mover un campo a otra sección desde su acción **mover**
 
 El nombre de sección especial `__description` agrega campos a la sección Descripción de la página de detalle.
 
@@ -208,3 +208,4 @@ Para cada tipo de ficha, la sección **Diseño** en el panel del tipo controla c
 - **Visibilidad** — Oculte secciones que no sean relevantes para un tipo
 - **Expansión predeterminada** — Elija si cada sección comienza expandida o colapsada
 - **Diseño de columnas** — Configure 1 o 2 columnas por sección personalizada
+- **Mover campos entre secciones** — Usar la acción **mover** de un campo (junto a sus botones de editar y eliminar) para reubicarlo en otra sección, conservando su configuración

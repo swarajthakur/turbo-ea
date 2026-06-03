@@ -812,6 +812,8 @@
   "cardLayout.removeGroup": "Supprimer le groupe (les champs reviennent à la colonne)",
   "cardLayout.group": "Groupe",
   "cardLayout.field": "Champ",
+  "cardLayout.moveToSection": "Déplacer vers la section",
+  "cardLayout.moveFieldTooltip": "Déplacer vers une autre section",
   "cardLayout.groupName": "Nom du groupe",
   "cardLayout.calc": "calc",
   "cardLayout.builtinFields.name": "Nom",
