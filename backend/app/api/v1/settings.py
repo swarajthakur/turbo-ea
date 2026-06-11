@@ -17,6 +17,7 @@ from app.models.card_type import CardType
 from app.models.compliance_regulation import ComplianceRegulation
 from app.models.relation_type import RelationType
 from app.models.user import User
+from app.services.ai_service import DEFAULT_AZURE_API_VERSION
 from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -995,7 +996,7 @@ async def update_registration_settings(
 
 
 _AI_KEY_MASK = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
-_VALID_PROVIDER_TYPES = {"ollama", "openai", "anthropic"}
+_VALID_PROVIDER_TYPES = {"ollama", "openai", "azure_openai", "anthropic"}
 
 
 class AiSettingsPayload(BaseModel):
@@ -1004,6 +1005,7 @@ class AiSettingsPayload(BaseModel):
     provider_url: str = ""
     api_key: str = ""
     model: str = ""
+    api_version: str = DEFAULT_AZURE_API_VERSION
     search_provider: str = "duckduckgo"
     search_url: str = ""
     enabled_types: list[str] = []
@@ -1038,6 +1040,7 @@ async def get_ai_settings(
         "provider_url": ai.get("providerUrl", ""),
         "api_key": _AI_KEY_MASK if api_key_stored else "",
         "model": ai.get("model", ""),
+        "api_version": ai.get("apiVersion", DEFAULT_AZURE_API_VERSION),
         "search_provider": ai.get("searchProvider", "duckduckgo"),
         "search_url": ai.get("searchUrl", ""),
         "enabled_types": ai.get("enabledTypes", []),
@@ -1080,12 +1083,21 @@ async def update_ai_settings(
     if provider_type == "anthropic" and not provider_url:
         provider_url = "https://api.anthropic.com"
 
+    # Azure requires a provider URL
+    if provider_type == "azure_openai" and not provider_url:
+        raise HTTPException(
+            400,
+            "Provider URL is required for Azure Hosted OpenAI "
+            "(e.g. https://your-resource.openai.azure.com).",
+        )
+
     general["ai"] = {
         "enabled": body.enabled,
         "providerType": provider_type,
         "providerUrl": provider_url,
         "apiKey": encrypted_key,
         "model": body.model,
+        "apiVersion": body.api_version if provider_type == "azure_openai" else "",
         "searchProvider": "duckduckgo",
         "searchUrl": "",
         "enabledTypes": body.enabled_types,
@@ -1118,18 +1130,26 @@ async def test_ai_connection(
     model = ai.get("model", "")
     encrypted_key = ai.get("apiKey", "")
 
-    if not provider_url and provider_type != "anthropic":
+    if not provider_url and provider_type not in ("anthropic", "azure_openai"):
         raise HTTPException(400, "AI provider URL is not configured.")
 
     # Use default Anthropic URL if not set
     if provider_type == "anthropic" and not provider_url:
         provider_url = "https://api.anthropic.com"
 
+    if provider_type == "azure_openai" and not provider_url:
+        raise HTTPException(
+            400,
+            "Provider URL is required for Azure Hosted OpenAI.",
+        )
+
     # Decrypt API key for the test
     api_key = decrypt_value(encrypted_key) if encrypted_key else ""
 
-    if provider_type in ("openai", "anthropic") and not api_key:
+    if provider_type in ("openai", "azure_openai", "anthropic") and not api_key:
         raise HTTPException(400, "API key is required for commercial LLM providers.")
+
+    api_version = ai.get("apiVersion", DEFAULT_AZURE_API_VERSION)
 
     try:
         result = await check_provider_connection(
@@ -1137,6 +1157,7 @@ async def test_ai_connection(
             provider_type=provider_type,
             api_key=api_key,
             model=model,
+            api_version=api_version,
         )
     except _httpx.HTTPError as exc:
         raise HTTPException(502, str(exc)) from exc

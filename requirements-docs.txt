@@ -2,3 +2,10 @@
 mkdocs>=1.6
 mkdocs-material>=9.5
 mkdocs-static-i18n>=1.2
+# Constrain pathspec to the historical 0.x line. As of 2026-06-10 pip's
+# resolver was selecting pathspec 1.x (released June 2026), whose wheels
+# are advertised as `>=3.9` universal but pip's resolver was producing
+# ResolutionImpossible against Python 3.12 in CI. mkdocs only requires
+# `pathspec>=0.11.1`, so the 0.x line is sufficient. Drop this once the
+# upstream resolver issue settles.
+pathspec>=0.11.1,<1

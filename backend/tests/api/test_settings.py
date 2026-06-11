@@ -510,3 +510,154 @@ class TestLoginBrandingSettings:
             headers=auth_headers(settings_env["viewer"]),
         )
         assert resp.status_code == 403
+
+
+# -------------------------------------------------------------------
+# GET /settings/ai + PATCH /settings/ai — Azure Hosted OpenAI
+# -------------------------------------------------------------------
+
+
+class TestAISettingsAzure:
+    async def test_admin_can_save_azure_openai_settings(self, client, db, settings_env):
+        admin = settings_env["admin"]
+        resp = await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": True,
+                "provider_type": "azure_openai",
+                "provider_url": "https://my-resource.openai.azure.com",
+                "api_key": "azure-test-key",
+                "model": "my-gpt4o-deployment",
+                "api_version": "2025-01-01",
+                "enabled_types": ["Application"],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    async def test_azure_settings_persisted_and_returned(self, client, db, settings_env):
+        admin = settings_env["admin"]
+        await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": True,
+                "provider_type": "azure_openai",
+                "provider_url": "https://my-resource.openai.azure.com",
+                "api_key": "azure-test-key",
+                "model": "my-gpt4o-deployment",
+                "api_version": "2024-05-01-preview",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+
+        get_resp = await client.get("/api/v1/settings/ai", headers=auth_headers(admin))
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["provider_type"] == "azure_openai"
+        assert data["provider_url"] == "https://my-resource.openai.azure.com"
+        assert data["model"] == "my-gpt4o-deployment"
+        assert data["api_version"] == "2024-05-01-preview"
+        # API key is masked after saving
+        assert data["api_key"] == "••••••••"
+
+    async def test_azure_requires_provider_url(self, client, db, settings_env):
+        admin = settings_env["admin"]
+        resp = await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": True,
+                "provider_type": "azure_openai",
+                "provider_url": "",
+                "api_key": "azure-test-key",
+                "model": "my-gpt4o-deployment",
+                "api_version": "2025-01-01",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 400
+
+    async def test_azure_openai_is_valid_provider_type(self, client, db, settings_env):
+        """azure_openai must be accepted; other unknown types must be rejected."""
+        admin = settings_env["admin"]
+
+        # Valid
+        resp = await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": False,
+                "provider_type": "azure_openai",
+                "provider_url": "https://my-resource.openai.azure.com",
+                "api_key": "",
+                "model": "",
+                "api_version": "2025-01-01",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+
+        # Invalid
+        resp2 = await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": False,
+                "provider_type": "unknown_provider",
+                "provider_url": "https://example.com",
+                "api_key": "",
+                "model": "",
+                "api_version": "",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp2.status_code == 400
+
+    async def test_api_version_not_stored_for_non_azure(self, client, db, settings_env):
+        """api_version should be empty string when provider is not azure_openai."""
+        admin = settings_env["admin"]
+        await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": False,
+                "provider_type": "openai",
+                "provider_url": "https://api.openai.com",
+                "api_key": "sk-test",
+                "model": "gpt-4o-mini",
+                "api_version": "2025-01-01",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(admin),
+        )
+
+        get_resp = await client.get("/api/v1/settings/ai", headers=auth_headers(admin))
+        data = get_resp.json()
+        assert data["provider_type"] == "openai"
+        # api_version is cleared for non-Azure providers
+        assert data["api_version"] == ""
+
+    async def test_member_cannot_save_azure_settings(self, client, db, settings_env):
+        member = settings_env["member"]
+        resp = await client.patch(
+            "/api/v1/settings/ai",
+            json={
+                "enabled": True,
+                "provider_type": "azure_openai",
+                "provider_url": "https://my-resource.openai.azure.com",
+                "api_key": "azure-test-key",
+                "model": "my-gpt4o-deployment",
+                "api_version": "2025-01-01",
+                "enabled_types": [],
+                "portfolio_insights_enabled": False,
+            },
+            headers=auth_headers(member),
+        )
+        assert resp.status_code == 403

@@ -24,6 +24,7 @@ interface AiSettings {
   provider_url: string;
   api_key: string;
   model: string;
+  api_version: string;
   search_provider: string;
   search_url: string;
   enabled_types: string[];
@@ -44,6 +45,7 @@ export default function AiAdmin() {
   const [aiProviderUrl, setAiProviderUrl] = useState("");
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiModel, setAiModel] = useState("");
+  const [aiApiVersion, setAiApiVersion] = useState("2025-01-01");
   const [aiEnabledTypes, setAiEnabledTypes] = useState<string[]>([]);
   const [portfolioInsightsEnabled, setPortfolioInsightsEnabled] = useState(false);
   const [savingAi, setSavingAi] = useState(false);
@@ -71,6 +73,7 @@ export default function AiAdmin() {
         setAiProviderUrl(data.provider_url);
         setAiApiKey(data.api_key || "");
         setAiModel(data.model);
+        setAiApiVersion(data.api_version || "2025-01-01");
         setAiEnabledTypes(data.enabled_types);
         setPortfolioInsightsEnabled(data.portfolio_insights_enabled ?? false);
         setMcpEnabled(mcpData.enabled);
@@ -90,6 +93,7 @@ export default function AiAdmin() {
         provider_url: aiProviderUrl,
         api_key: aiApiKey,
         model: aiModel,
+        api_version: aiApiVersion,
         search_provider: "duckduckgo",
         search_url: "",
         enabled_types: aiEnabledTypes,
@@ -142,9 +146,13 @@ export default function AiAdmin() {
   const handleProviderTypeChange = (newType: string) => {
     setAiProviderType(newType);
     setAiAvailableModels([]);
-    // Reset fields when switching providers
+    // Reset URL when switching to a provider that doesn't need it
     if (newType === "anthropic") {
       setAiProviderUrl("");
+    }
+    // Reset api_version when switching away from Azure
+    if (newType !== "azure_openai") {
+      setAiApiVersion("2025-01-01");
     }
   };
 
@@ -163,24 +171,33 @@ export default function AiAdmin() {
 
   const showProviderUrl = aiProviderType !== "anthropic";
   const showApiKey = aiProviderType !== "ollama";
+  const showApiVersion = aiProviderType === "azure_openai";
   const hasApiKeySet = aiApiKey === AI_KEY_MASK;
 
   const providerUrlPlaceholder =
-    aiProviderType === "openai" ? "https://api.openai.com" : "http://localhost:11434";
+    aiProviderType === "openai"
+      ? "https://api.openai.com"
+      : aiProviderType === "azure_openai"
+        ? "https://your-resource.openai.azure.com"
+        : "http://localhost:11434";
 
   const modelPlaceholder =
     aiProviderType === "openai"
       ? "gpt-4o-mini"
-      : aiProviderType === "anthropic"
-        ? "claude-sonnet-4-20250514"
-        : "gemma3:4b";
+      : aiProviderType === "azure_openai"
+        ? "my-gpt4o-deployment"
+        : aiProviderType === "anthropic"
+          ? "claude-sonnet-4-20250514"
+          : "gemma3:4b";
 
   const modelHelper =
     aiProviderType === "openai"
       ? t("settings.ai.modelHelperOpenai")
-      : aiProviderType === "anthropic"
-        ? t("settings.ai.modelHelperAnthropic")
-        : t("settings.ai.modelHelper");
+      : aiProviderType === "azure_openai"
+        ? t("settings.ai.modelHelperAzureOpenai")
+        : aiProviderType === "anthropic"
+          ? t("settings.ai.modelHelperAnthropic")
+          : t("settings.ai.modelHelper");
 
   if (loading) {
     return (
@@ -241,6 +258,7 @@ export default function AiAdmin() {
         >
           <MenuItem value="ollama">{t("settings.ai.providerOllama")}</MenuItem>
           <MenuItem value="openai">{t("settings.ai.providerOpenai")}</MenuItem>
+          <MenuItem value="azure_openai">{t("settings.ai.providerAzureOpenai")}</MenuItem>
           <MenuItem value="anthropic">{t("settings.ai.providerAnthropic")}</MenuItem>
         </TextField>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
@@ -248,7 +266,9 @@ export default function AiAdmin() {
             ? t("settings.ai.providerOllamaDesc")
             : aiProviderType === "openai"
               ? t("settings.ai.providerOpenaiDesc")
-              : t("settings.ai.providerAnthropicDesc")}
+              : aiProviderType === "azure_openai"
+                ? t("settings.ai.providerAzureOpenaiDesc")
+                : t("settings.ai.providerAnthropicDesc")}
         </Typography>
 
         {/* Provider URL (hidden for Anthropic) */}
@@ -262,8 +282,23 @@ export default function AiAdmin() {
             helperText={
               aiProviderType === "openai"
                 ? t("settings.ai.providerUrlHelperOpenai")
-                : t("settings.ai.providerUrlHelper")
+                : aiProviderType === "azure_openai"
+                  ? t("settings.ai.providerUrlHelperAzureOpenai")
+                  : t("settings.ai.providerUrlHelper")
             }
+            sx={{ mb: 2 }}
+          />
+        )}
+
+        {/* API Version (Azure Hosted OpenAI only) */}
+        {showApiVersion && (
+          <TextField
+            label={t("settings.ai.apiVersion")}
+            fullWidth
+            value={aiApiVersion}
+            onChange={(e) => setAiApiVersion(e.target.value)}
+            placeholder="2025-01-01"
+            helperText={t("settings.ai.apiVersionHelper")}
             sx={{ mb: 2 }}
           />
         )}
@@ -285,7 +320,7 @@ export default function AiAdmin() {
         )}
 
         {/* Model */}
-        {(aiProviderType === "ollama" || aiProviderType === "openai") &&
+        {(aiProviderType === "ollama" || aiProviderType === "openai" || aiProviderType === "azure_openai") &&
         aiAvailableModels.length > 0 ? (
           <TextField
             select

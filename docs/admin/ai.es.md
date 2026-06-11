@@ -36,7 +36,7 @@ El resultado se muestra al usuario con:
 | **Ollama** | Autoalojado | URL del proveedor (ej., `http://ollama:11434`) + nombre del modelo |
 | **OpenAI** | Comercial | Clave API + nombre del modelo (ej., `gpt-4o`) |
 | **Google Gemini** | Comercial | Clave API + nombre del modelo |
-| **Azure OpenAI** | Comercial | Clave API + URL de despliegue |
+| **Azure Hosted OpenAI** | Comercial | Clave API + endpoint del recurso Azure + nombre del despliegue + versión de la API (por defecto `2025-01-01`) |
 | **OpenRouter** | Comercial | Clave API + nombre del modelo |
 | **Anthropic Claude** | Comercial | Clave API + nombre del modelo |
 

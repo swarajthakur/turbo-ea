@@ -36,7 +36,7 @@ AI 建议流程有两个步骤：
 | **Ollama** | 自托管 | 提供商 URL（例如 `http://ollama:11434`）+ 模型名称 |
 | **OpenAI** | 商业 | API 密钥 + 模型名称（例如 `gpt-4o`） |
 | **Google Gemini** | 商业 | API 密钥 + 模型名称 |
-| **Azure OpenAI** | 商业 | API 密钥 + 部署 URL |
+| **Azure 托管的 OpenAI** | 商业 | API 密钥 + Azure 资源端点 + 部署名称 + API 版本（默认 `2025-01-01`） |
 | **OpenRouter** | 商业 | API 密钥 + 模型名称 |
 | **Anthropic Claude** | 商业 | API 密钥 + 模型名称 |
 

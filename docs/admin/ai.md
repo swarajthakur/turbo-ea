@@ -36,7 +36,7 @@ The result is displayed to the user with:
 | **Ollama** | Self-hosted | Provider URL (e.g., `http://ollama:11434`) + model name |
 | **OpenAI** | Commercial | API key + model name (e.g., `gpt-4o`) |
 | **Google Gemini** | Commercial | API key + model name |
-| **Azure OpenAI** | Commercial | API key + deployment URL |
+| **Azure Hosted OpenAI** | Commercial | API key + Azure resource endpoint + deployment name + API version (default `2025-01-01`) |
 | **OpenRouter** | Commercial | API key + model name |
 | **Anthropic Claude** | Commercial | API key + model name |
 

@@ -12,6 +12,7 @@ import pytest
 
 from app.services.ai_service import (
     _call_anthropic,
+    _call_azure_openai,
     _call_openai_compatible,
     _get_llm_item_description,
     _get_search_suffix,
@@ -1107,3 +1108,417 @@ class TestProviderConnection:
             assert "/v1/messages" in call_args[0][0]
             headers = call_args[1]["headers"]
             assert headers["x-api-key"] == "sk-ant-test"
+
+
+# ---------------------------------------------------------------------------
+# _call_azure_openai
+# ---------------------------------------------------------------------------
+
+
+class TestCallAzureOpenAI:
+    @pytest.mark.asyncio
+    async def test_successful_response(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": '{"description": {"value": "A tool"}}'}}]
+        }
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            result = await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "azure-api-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+            )
+            assert result == {"description": {"value": "A tool"}}
+
+    @pytest.mark.asyncio
+    async def test_uses_api_key_header_not_bearer(self):
+        """Azure uses 'api-key' header, NOT 'Authorization: Bearer'."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "my-azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+            )
+
+            call_args = mock_client.post.call_args
+            headers = call_args[1]["headers"]
+            assert headers["api-key"] == "my-azure-key"
+            assert "Authorization" not in headers
+
+    @pytest.mark.asyncio
+    async def test_deployment_name_in_url_not_payload(self):
+        """Azure embeds the deployment name in the URL, not the request body."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "my-azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+            )
+
+            call_args = mock_client.post.call_args
+            url = call_args[0][0]
+            assert "/openai/deployments/my-gpt4o-deployment/chat/completions" in url
+            payload = call_args[1]["json"]
+            assert "model" not in payload
+
+    @pytest.mark.asyncio
+    async def test_sends_api_version_query_param(self):
+        """Azure requires an api-version query parameter."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "my-azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+                api_version="2024-05-01-preview",
+            )
+
+            call_args = mock_client.post.call_args
+            params = call_args[1]["params"]
+            assert params["api-version"] == "2024-05-01-preview"
+
+    @pytest.mark.asyncio
+    async def test_default_api_version(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "my-azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+            )
+
+            params = mock_client.post.call_args[1]["params"]
+            assert params["api-version"] == "2025-01-01"
+
+    @pytest.mark.asyncio
+    async def test_sends_response_format_json(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "{}"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await _call_azure_openai(
+                "https://my-resource.openai.azure.com",
+                "my-azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+            )
+
+            payload = mock_client.post.call_args[1]["json"]
+            assert payload["response_format"] == {"type": "json_object"}
+            assert payload["temperature"] == 0.1
+
+    @pytest.mark.asyncio
+    async def test_http_error_raises(self):
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(side_effect=httpx.HTTPError("Unauthorized"))
+
+            with pytest.raises(httpx.HTTPError):
+                await _call_azure_openai(
+                    "https://my-resource.openai.azure.com",
+                    "bad-key",
+                    "my-gpt4o-deployment",
+                    [{"role": "user", "content": "test"}],
+                )
+
+
+# ---------------------------------------------------------------------------
+# call_llm dispatcher — Azure
+# ---------------------------------------------------------------------------
+
+
+class TestCallLLMDispatcherAzure:
+    @pytest.mark.asyncio
+    async def test_routes_to_azure_openai(self):
+        with patch("app.services.ai_service._call_azure_openai") as mock_azure:
+            mock_azure.return_value = {"description": "test"}
+            result = await call_llm(
+                "https://my-resource.openai.azure.com",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+                provider_type="azure_openai",
+                api_key="azure-key",
+                api_version="2025-01-01",
+            )
+            mock_azure.assert_called_once_with(
+                "https://my-resource.openai.azure.com",
+                "azure-key",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+                "2025-01-01",
+            )
+            assert result == {"description": "test"}
+
+    @pytest.mark.asyncio
+    async def test_azure_does_not_route_to_openai(self):
+        with (
+            patch("app.services.ai_service._call_azure_openai") as mock_azure,
+            patch("app.services.ai_service._call_openai_compatible") as mock_openai,
+        ):
+            mock_azure.return_value = {}
+            await call_llm(
+                "https://my-resource.openai.azure.com",
+                "my-gpt4o-deployment",
+                [{"role": "user", "content": "test"}],
+                provider_type="azure_openai",
+                api_key="azure-key",
+            )
+            mock_azure.assert_called_once()
+            mock_openai.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# check_provider_connection — Azure
+# ---------------------------------------------------------------------------
+
+
+class TestProviderConnectionAzure:
+    @pytest.mark.asyncio
+    async def test_azure_makes_test_chat_call(self):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "Hi"}}]}
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            result = await check_provider_connection(
+                "https://my-resource.openai.azure.com",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                model="my-gpt4o-deployment",
+            )
+            assert result["ok"] is True
+            assert result["model_found"] is True
+            assert result["available_models"] == []
+
+    @pytest.mark.asyncio
+    async def test_azure_url_contains_deployment(self):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {}
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await check_provider_connection(
+                "https://my-resource.openai.azure.com",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                model="my-gpt4o-deployment",
+            )
+
+            url = mock_client.post.call_args[0][0]
+            assert "/openai/deployments/my-gpt4o-deployment/chat/completions" in url
+
+    @pytest.mark.asyncio
+    async def test_azure_uses_api_key_header(self):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {}
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await check_provider_connection(
+                "https://my-resource.openai.azure.com",
+                provider_type="azure_openai",
+                api_key="my-azure-key",
+                model="my-gpt4o-deployment",
+            )
+
+            headers = mock_client.post.call_args[1]["headers"]
+            assert headers["api-key"] == "my-azure-key"
+            assert "Authorization" not in headers
+
+    @pytest.mark.asyncio
+    async def test_azure_sends_api_version_param(self):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {}
+
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            await check_provider_connection(
+                "https://my-resource.openai.azure.com",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                model="my-gpt4o-deployment",
+                api_version="2024-05-01-preview",
+            )
+
+            params = mock_client.post.call_args[1]["params"]
+            assert params["api-version"] == "2024-05-01-preview"
+
+    @pytest.mark.asyncio
+    async def test_azure_401_raises_invalid_key_error(self):
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 401
+            mock_client.post = AsyncMock(
+                side_effect=httpx.HTTPStatusError(
+                    "401", request=MagicMock(), response=mock_response
+                )
+            )
+
+            with pytest.raises(httpx.HTTPError, match="Invalid Azure OpenAI API key"):
+                await check_provider_connection(
+                    "https://my-resource.openai.azure.com",
+                    provider_type="azure_openai",
+                    api_key="bad-key",
+                    model="my-gpt4o-deployment",
+                )
+
+    @pytest.mark.asyncio
+    async def test_azure_404_raises_deployment_not_found(self):
+        with patch("app.services.ai_service._get_llm_client") as mock_get:
+            mock_client = AsyncMock()
+            mock_get.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.status_code = 404
+            mock_client.post = AsyncMock(
+                side_effect=httpx.HTTPStatusError(
+                    "404", request=MagicMock(), response=mock_response
+                )
+            )
+
+            with pytest.raises(httpx.HTTPError, match="not found"):
+                await check_provider_connection(
+                    "https://my-resource.openai.azure.com",
+                    provider_type="azure_openai",
+                    api_key="azure-key",
+                    model="nonexistent-deployment",
+                )
+
+    @pytest.mark.asyncio
+    async def test_azure_missing_model_raises(self):
+        with pytest.raises(httpx.HTTPError, match="Deployment name"):
+            await check_provider_connection(
+                "https://my-resource.openai.azure.com",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                model="",
+            )
+
+
+# ---------------------------------------------------------------------------
+# suggest_metadata — Azure provider
+# ---------------------------------------------------------------------------
+
+
+class TestSuggestMetadataAzure:
+    @pytest.mark.asyncio
+    async def test_uses_duckduckgo_for_azure_provider(self):
+        with (
+            patch("app.services.ai_service.web_search") as mock_search,
+            patch("app.services.ai_service.call_llm") as mock_llm,
+        ):
+            mock_search.return_value = [
+                {"url": "https://example.com", "title": "Example", "snippet": "Info"},
+            ]
+            mock_llm.return_value = {
+                "description": {"value": "A product", "confidence": 0.8},
+            }
+
+            result = await suggest_metadata(
+                name="Test App",
+                type_key="Application",
+                type_label="Application",
+                subtype=None,
+                provider_url="https://my-resource.openai.azure.com",
+                model="my-gpt4o-deployment",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                api_version="2025-01-01",
+            )
+
+            mock_search.assert_called_once()
+            assert mock_search.call_args[0][1] == "duckduckgo"
+
+            llm_call = mock_llm.call_args
+            assert llm_call[1]["provider_type"] == "azure_openai"
+            assert llm_call[1]["api_key"] == "azure-key"
+            assert llm_call[1]["api_version"] == "2025-01-01"
+
+            assert result["search_provider"] == "duckduckgo"
+
+    @pytest.mark.asyncio
+    async def test_passes_api_version_to_call_llm(self):
+        with (
+            patch("app.services.ai_service.web_search") as mock_search,
+            patch("app.services.ai_service.call_llm") as mock_llm,
+        ):
+            mock_search.return_value = []
+            mock_llm.return_value = {"description": {"value": "Test", "confidence": 0.7}}
+
+            await suggest_metadata(
+                name="Test App",
+                type_key="Application",
+                type_label="Application",
+                subtype=None,
+                provider_url="https://my-resource.openai.azure.com",
+                model="my-gpt4o-deployment",
+                provider_type="azure_openai",
+                api_key="azure-key",
+                api_version="2024-05-01-preview",
+            )
+
+            assert mock_llm.call_args[1]["api_version"] == "2024-05-01-preview"

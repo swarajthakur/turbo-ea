@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.41.0] - 2026-06-01
+
+### Added
+- **Azure Hosted OpenAI as a first-class AI provider.** Admins can now select **Azure Hosted OpenAI** alongside Ollama, OpenAI-compatible, and Anthropic Claude in `/admin/settings?tab=ai`. Azure's distinctive shape — deployment name embedded in the URL, `api-key` header instead of `Authorization: Bearer`, mandatory `api-version` query parameter — is implemented as a dedicated dispatch branch in `call_llm()` rather than overloaded under the generic OpenAI flag. The payload matches `_call_openai_compatible` exactly (`temperature: 0.1`, `response_format: {"type": "json_object"}`) so suggestion quality stays consistent across providers. A new **API Version** field appears in the admin UI when Azure is selected, defaulting to `2025-01-01`. **Test Connection** does a 1-token probe call against the configured deployment (Azure has no `/models` endpoint) with friendly mapping for 401 (invalid key) and 404 (deployment not found). Strings translated across all 8 locales. Original work contributed by @kanika2885 in [#641](https://github.com/vincentmakes/turbo-ea/pull/641).
+
 ## [1.40.0] - 2026-06-09
 
 ### Added

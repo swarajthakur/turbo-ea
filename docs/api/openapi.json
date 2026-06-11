@@ -258,6 +258,11 @@
             "title": "Api Key",
             "type": "string"
           },
+          "api_version": {
+            "default": "2025-01-01",
+            "title": "Api Version",
+            "type": "string"
+          },
           "enabled": {
             "default": false,
             "title": "Enabled",

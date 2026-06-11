@@ -24,6 +24,7 @@ from app.schemas.ai_suggest import (
     PortfolioInsightsResponse,
 )
 from app.services.ai_service import (
+    DEFAULT_AZURE_API_VERSION,
     fetch_running_models,
     generate_portfolio_insights,
     suggest_metadata,
@@ -45,6 +46,7 @@ def _get_ai_config(general: dict) -> dict:
         "provider_url": ai.get("providerUrl") or app_config.AI_PROVIDER_URL,
         "api_key": decrypt_value(encrypted_key) if encrypted_key else "",
         "model": ai.get("model") or app_config.AI_MODEL,
+        "api_version": ai.get("apiVersion", DEFAULT_AZURE_API_VERSION),
         "search_provider": "duckduckgo",
         "search_url": "",
         "enabled_types": ai.get("enabledTypes", []),
@@ -83,7 +85,7 @@ async def suggest(
         )
 
     # Commercial providers require an API key
-    if ai_cfg["provider_type"] in ("openai", "anthropic") and not ai_cfg["api_key"]:
+    if ai_cfg["provider_type"] in ("openai", "azure_openai", "anthropic") and not ai_cfg["api_key"]:
         raise HTTPException(
             status_code=400,
             detail="API key is required for commercial LLM providers.",
@@ -113,6 +115,7 @@ async def suggest(
             context=body.context,
             provider_type=ai_cfg["provider_type"],
             api_key=ai_cfg["api_key"],
+            api_version=ai_cfg["api_version"],
             fields_schema=card_type.fields_schema or [],
         )
     except httpx.HTTPError as exc:
@@ -158,7 +161,7 @@ async def portfolio_insights(
             detail="AI provider URL and model must be configured in Settings.",
         )
 
-    if ai_cfg["provider_type"] in ("openai", "anthropic") and not ai_cfg["api_key"]:
+    if ai_cfg["provider_type"] in ("openai", "azure_openai", "anthropic") and not ai_cfg["api_key"]:
         raise HTTPException(
             status_code=400,
             detail="API key is required for commercial LLM providers.",
@@ -187,6 +190,7 @@ async def portfolio_insights(
             model=ai_cfg["model"],
             provider_type=ai_cfg["provider_type"],
             api_key=ai_cfg["api_key"],
+            api_version=ai_cfg["api_version"],
             principles=principles,
         )
     except httpx.HTTPError as exc:

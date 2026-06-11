@@ -6,7 +6,8 @@ Two-step pipeline:
 
 Supports multiple LLM providers:
   - Ollama (self-hosted, /api/chat)
-  - OpenAI-compatible (OpenAI, Gemini, Azure, OpenRouter, LM Studio, vLLM)
+  - OpenAI-compatible (OpenAI, Gemini, OpenRouter, LM Studio, vLLM)
+  - Azure Hosted OpenAI (/openai/deployments/{deployment}/chat/completions)
   - Anthropic Claude (/v1/messages)
 """
 
@@ -21,6 +22,11 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger("turboea.ai")
+
+# Default Azure OpenAI api-version when none is configured. Single source of
+# truth — referenced by ai_service.py, settings.py, ai_suggest.py, and AiAdmin.tsx.
+# Update here when bumping the platform-wide default.
+DEFAULT_AZURE_API_VERSION = "2025-01-01"
 
 # ---------------------------------------------------------------------------
 # Module-level HTTP clients (reused across requests)
@@ -468,6 +474,63 @@ async def _call_ollama(
     return _parse_llm_content(content)
 
 
+async def _call_azure_openai(
+    provider_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    api_version: str = DEFAULT_AZURE_API_VERSION,
+) -> dict[str, Any]:
+    """Call an Azure Hosted OpenAI deployment endpoint.
+
+    Azure uses a different URL structure, authentication header (api-key instead
+    of Authorization: Bearer), requires an api-version query parameter, and the
+    model/deployment name is embedded in the URL rather than the request body.
+    URL format: {endpoint}/openai/deployments/{deployment}/chat/completions
+
+    Payload mirrors `_call_openai_compatible` so the suggestion quality stays
+    identical across providers: low temperature for deterministic output, and
+    `response_format: json_object` so we get structured JSON back. The system
+    prompt built by `build_llm_prompt` always contains the literal word "json",
+    which is Azure's hard requirement for the `json_object` response format.
+    """
+    client = await _get_llm_client()
+    url = f"{provider_url.rstrip('/')}/openai/deployments/{model}/chat/completions"
+
+    headers = {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+    }
+    payload: dict[str, Any] = {
+        "messages": messages,
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+    }
+
+    try:
+        resp = await client.post(
+            url,
+            json=payload,
+            headers=headers,
+            params={"api-version": api_version},
+        )
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        logger.warning(
+            "Azure OpenAI API call failed: %s — %s",
+            type(exc).__name__,
+            exc.response.text[:200],
+        )
+        raise
+    except httpx.HTTPError as exc:
+        logger.warning("Azure OpenAI API call failed: %s", type(exc).__name__)
+        raise
+
+    data = resp.json()
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+    return _parse_llm_content(content)
+
+
 async def _call_openai_compatible(
     provider_url: str,
     api_key: str,
@@ -476,7 +539,7 @@ async def _call_openai_compatible(
 ) -> dict[str, Any]:
     """Call an OpenAI-compatible /v1/chat/completions endpoint.
 
-    Works with OpenAI, Google Gemini, Azure OpenAI, OpenRouter, LM Studio, vLLM.
+    Works with OpenAI, Google Gemini, OpenRouter, LM Studio, vLLM.
     """
     client = await _get_llm_client()
     url = f"{provider_url.rstrip('/')}/v1/chat/completions"
@@ -560,13 +623,16 @@ async def call_llm(
     *,
     provider_type: str = "ollama",
     api_key: str = "",
+    api_version: str = DEFAULT_AZURE_API_VERSION,
 ) -> dict[str, Any]:
     """Dispatch an LLM call to the configured provider.
 
-    Supported provider_type values: "ollama", "openai", "anthropic".
+    Supported provider_type values: "ollama", "openai", "azure_openai", "anthropic".
     """
     if provider_type == "openai":
         return await _call_openai_compatible(provider_url, api_key, model, messages)
+    if provider_type == "azure_openai":
+        return await _call_azure_openai(provider_url, api_key, model, messages, api_version)
     if provider_type == "anthropic":
         return await _call_anthropic(provider_url, api_key, model, messages)
     return await _call_ollama(provider_url, model, messages)
@@ -582,9 +648,39 @@ async def check_provider_connection(
     provider_type: str = "ollama",
     api_key: str = "",
     model: str = "",
+    api_version: str = DEFAULT_AZURE_API_VERSION,
 ) -> dict[str, Any]:
     """Test connectivity to an LLM provider. Returns available models and status."""
     client = await _get_llm_client()
+
+    if provider_type == "azure_openai":
+        # Azure has no model-list endpoint; test with a minimal chat completion
+        # against the configured deployment.
+        if not model:
+            raise httpx.HTTPError("Deployment name (model) is required for Azure OpenAI")
+        url = f"{provider_url.rstrip('/')}/openai/deployments/{model}/chat/completions"
+        headers = {"api-key": api_key, "Content-Type": "application/json"}
+        payload: dict[str, Any] = {
+            "messages": [{"role": "user", "content": "Hi"}],
+        }
+        try:
+            resp = await client.post(
+                url,
+                json=payload,
+                headers=headers,
+                params={"api-version": api_version},
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            return {"ok": True, "available_models": [], "model_found": True}
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                raise httpx.HTTPError("Invalid Azure OpenAI API key") from exc
+            if exc.response.status_code == 404:
+                raise httpx.HTTPError(f"Azure OpenAI deployment '{model}' not found") from exc
+            raise httpx.HTTPError(f"Cannot reach Azure OpenAI: {type(exc).__name__}") from exc
+        except httpx.HTTPError as exc:
+            raise httpx.HTTPError(f"Cannot reach Azure OpenAI: {type(exc).__name__}") from exc
 
     if provider_type == "openai":
         url = f"{provider_url.rstrip('/')}/v1/models"
@@ -607,6 +703,9 @@ async def check_provider_connection(
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+        # Reuses the ``dict[str, Any]`` `payload` annotation from the Azure
+        # block above — mypy treats the two assignments as the same name in
+        # the enclosing function scope, so heterogeneous values type-check.
         payload = {
             "model": model or "claude-haiku-4-5-20251001",
             "max_tokens": 1,
@@ -729,6 +828,7 @@ async def generate_portfolio_insights(
     *,
     provider_type: str = "ollama",
     api_key: str = "",
+    api_version: str = DEFAULT_AZURE_API_VERSION,
     principles: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Analyse application portfolio summary data and return strategic insights."""
@@ -898,7 +998,12 @@ async def generate_portfolio_insights(
     ]
 
     raw = await call_llm(
-        provider_url, model, messages, provider_type=provider_type, api_key=api_key
+        provider_url,
+        model,
+        messages,
+        provider_type=provider_type,
+        api_key=api_key,
+        api_version=api_version,
     )
 
     raw_insights = raw.get("insights", [])
@@ -938,6 +1043,7 @@ async def suggest_metadata(
     *,
     provider_type: str = "ollama",
     api_key: str = "",
+    api_version: str = DEFAULT_AZURE_API_VERSION,
     fields_schema: list[dict] | None = None,
 ) -> dict[str, Any]:
     """Full pipeline: web search → LLM description → validated suggestion."""
@@ -962,7 +1068,12 @@ async def suggest_metadata(
     )
     logger.info("[ai] Calling LLM")
     raw_response = await call_llm(
-        provider_url, model, messages, provider_type=provider_type, api_key=api_key
+        provider_url,
+        model,
+        messages,
+        provider_type=provider_type,
+        api_key=api_key,
+        api_version=api_version,
     )
     logger.info("[ai] LLM returned %d raw keys", len(raw_response))
 
