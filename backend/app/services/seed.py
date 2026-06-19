@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import uuid
 
 from sqlalchemy import select
@@ -3773,6 +3774,26 @@ FLOW_DIRECTION_FIELD = {
 }
 
 
+def _mark_builtin_attributes_schema(schema: list[dict]) -> list[dict]:
+    """Deep-copy a relation ``attributes_schema`` and stamp ``built_in=True`` on
+    every field and option.
+
+    The built-in relation "type" pickers (``usageType``, ``flowDirection``, …)
+    ship from the seed and must be treated as locked-but-hideable by the admin
+    UI and the ``/metamodel/relation-types`` API: their values cannot be
+    renamed, recoloured, or deleted, only hidden, while admins may add their own
+    custom values. The shared option constants are reused by card-type
+    ``fields_schema`` too, so we stamp here (per relation type) rather than on
+    the constants to avoid leaking built-in locking into card-type fields.
+    """
+    out = copy.deepcopy(schema or [])
+    for field in out:
+        field["built_in"] = True
+        for opt in field.get("options", []) or []:
+            opt["built_in"] = True
+    return out
+
+
 RELATIONS = [
     # Strategy & Transformation connections
     {
@@ -4291,12 +4312,6 @@ RELATIONS = [
         "sort_order": 17,
         "attributes_schema": [
             {
-                "key": "functionalSuitability",
-                "label": "Functional Suitability",
-                "type": "single_select",
-                "options": FUNCTIONAL_SUITABILITY_OPTIONS,
-            },
-            {
                 "key": "supportType",
                 "label": "Support Type",
                 "type": "single_select",
@@ -4435,12 +4450,6 @@ RELATIONS = [
         "cardinality": "n:m",
         "sort_order": 21,
         "attributes_schema": [
-            {
-                "key": "technicalSuitability",
-                "label": "Technical Suitability",
-                "type": "single_select",
-                "options": TECHNICAL_SUITABILITY_OPTIONS,
-            },
             {"key": "costTotalAnnual", "label": "Annual Cost", "type": "cost"},
         ],
         "translations": {
@@ -4475,14 +4484,6 @@ RELATIONS = [
         "target_type_key": "TechCategory",
         "cardinality": "n:m",
         "sort_order": 23,
-        "attributes_schema": [
-            {
-                "key": "resourceClassification",
-                "label": "Resource Classification",
-                "type": "single_select",
-                "options": RESOURCE_CLASSIFICATION_OPTIONS,
-            },
-        ],
         "translations": {
             "label": {
                 "de": "gehört zu",
@@ -4785,17 +4786,6 @@ RELATIONS = [
                     {"key": "updates", "label": "Updates"},
                     {"key": "deletes", "label": "Deletes"},
                     {"key": "orchestrates", "label": "Orchestrates"},
-                ],
-            },
-            {
-                "key": "criticality",
-                "label": "Criticality",
-                "type": "single_select",
-                "options": [
-                    {"key": "low", "label": "Low", "color": "#4caf50"},
-                    {"key": "medium", "label": "Medium", "color": "#ff9800"},
-                    {"key": "high", "label": "High", "color": "#f44336"},
-                    {"key": "critical", "label": "Critical", "color": "#b71c1c"},
                 ],
             },
         ],
@@ -5533,7 +5523,7 @@ async def seed_metamodel(db: AsyncSession) -> None:
             source_type_key=r["source_type_key"],
             target_type_key=r["target_type_key"],
             cardinality=r.get("cardinality", "n:m"),
-            attributes_schema=r.get("attributes_schema", []),
+            attributes_schema=_mark_builtin_attributes_schema(r.get("attributes_schema", [])),
             built_in=True,
             is_hidden=False,
             sort_order=r.get("sort_order", i),
