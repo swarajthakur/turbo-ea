@@ -1,4 +1,13 @@
-import { useMemo, useCallback, useState, useRef, useEffect, memo } from "react";
+import {
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+  memo,
+  createContext,
+  useContext,
+} from "react";
 import { useTranslation } from "react-i18next";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -6,15 +15,30 @@ import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Popover from "@mui/material/Popover";
+import Switch from "@mui/material/Switch";
+import Divider from "@mui/material/Divider";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import { lighten, useTheme } from "@mui/material/styles";
+import { toPng, toSvg } from "html-to-image";
+import { saveAs } from "file-saver";
 import MaterialSymbol from "@/components/MaterialSymbol";
+import { getCurrentPhase } from "@/components/LifecycleBadge";
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   ControlButton,
   Handle,
   Position,
+  getNodesBounds,
+  getViewportForBounds,
   type NodeProps,
   type EdgeProps,
   type Edge,
@@ -23,11 +47,12 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   ReactFlowProvider,
-  useNodes,
+  useNodesState,
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useResolveMetaLabel, useResolveLabel } from "@/hooks/useResolveLabel";
+import { useLdvSettings, type LdvBackgroundStyle } from "./ldvDisplaySettings";
 import type { CardType } from "@/types";
 import {
   buildLdvFlow,
@@ -41,10 +66,95 @@ import {
 } from "./layeredDependencyLayout";
 
 /* ------------------------------------------------------------------ */
-/*  Module-level long-press flag (shared between LdvNode and click handler) */
+/*  Card display settings (persisted, shared store)                    */
 /* ------------------------------------------------------------------ */
 
-let _longPressFired = false;
+type BackgroundStyle = LdvBackgroundStyle;
+
+/** How many of the chosen extra fields render directly on the card body.
+ *  The rest still appear in the hover tooltip. */
+const MAX_CARD_LINES = 2;
+
+/** Lifecycle-phase → dot colour (hex, theme-independent). Mirrors LifecycleBadge. */
+const PHASE_DOT: Record<string, string> = {
+  plan: "#9e9e9e",
+  phaseIn: "#1976d2",
+  active: "#2e7d32",
+  phaseOut: "#ed6c02",
+  endOfLife: "#d32f2f",
+};
+
+interface FieldMeta {
+  key: string;
+  label: string;
+  translations?: Record<string, string>;
+  type: string;
+  options?: { key: string; label: string; translations?: Record<string, string> }[];
+}
+
+/** A single label/value line displayed on a card and/or its tooltip. */
+interface DisplayLine {
+  label: string;
+  value: string;
+}
+
+/* Obstacle boxes (cards + group-label strips) that edge labels must avoid.
+   Computed once per render in the parent and shared with every edge through
+   context. Previously each edge recomputed this from the full node list with a
+   `.find()` inside the loop — O(E·N²) on every drag frame. */
+type ObstacleBounds = { x1: number; y1: number; x2: number; y2: number };
+const LdvObstaclesContext = createContext<ObstacleBounds[]>([]);
+
+function computeObstacles(nodeList: Node[]): ObstacleBounds[] {
+  const byId = new Map(nodeList.map((n) => [n.id, n]));
+  const bounds: ObstacleBounds[] = [];
+  for (const n of nodeList) {
+    if (n.type === "ldvNode" && n.parentId) {
+      const parent = byId.get(n.parentId);
+      if (!parent) continue;
+      const w = (n.style?.width as number) ?? LDV_NODE_W;
+      const h = (n.style?.height as number) ?? LDV_NODE_H;
+      const ax = parent.position.x + n.position.x;
+      const ay = parent.position.y + n.position.y;
+      bounds.push({ x1: ax, y1: ay, x2: ax + w, y2: ay + h });
+    } else if (n.type === "ldvGroup") {
+      // Group label strip across the top of the box.
+      const gx = n.position.x;
+      const gy = n.position.y;
+      const gw = (n.style?.width as number) ?? 0;
+      bounds.push({ x1: gx, y1: gy, x2: gx + gw, y2: gy + 34 });
+    }
+  }
+  return bounds;
+}
+
+/** Collect a de-duplicated, sorted catalogue of attribute fields across the
+ *  card types currently present in the graph — drives the "extra fields" picker. */
+function buildFieldCatalog(types: CardType[], presentTypeKeys: Set<string>): FieldMeta[] {
+  const out: FieldMeta[] = [];
+  const seen = new Set<string>();
+  for (const ct of types) {
+    if (!presentTypeKeys.has(ct.key)) continue;
+    for (const sec of ct.fields_schema || []) {
+      for (const f of sec.fields || []) {
+        if (seen.has(f.key)) continue;
+        seen.add(f.key);
+        out.push({
+          key: f.key,
+          label: f.label || f.key,
+          translations: f.translations,
+          type: f.type,
+          options: f.options?.map((o) => ({
+            key: o.key,
+            label: o.label || o.key,
+            translations: o.translations,
+          })),
+        });
+      }
+    }
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label));
+}
 
 /* ------------------------------------------------------------------ */
 /*  Custom Layered Dependency View Node                                */
@@ -71,9 +181,12 @@ export function readableTypeColor(hex: string, isDark: boolean): string {
 
 const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
   const rml = useResolveMetaLabel();
+  const { t } = useTranslation("reports");
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
-  const color = data.typeColor;
+  // Fall back to a neutral grey if the type colour isn't a #rrggbb hex, so the
+  // tint maths below can't produce rgb(NaN,…).
+  const color = /^#[0-9a-fA-F]{6}$/.test(data.typeColor) ? data.typeColor : "#9e9e9e";
   // Lightened version for borders and caption text — keeps darker
   // card-type colors (BusinessCapability navy, DataObject purple, etc.)
   // readable against the dark-theme paper.
@@ -89,6 +202,13 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
     : `rgb(${mix(r)},${mix(g)},${mix(b)})`;
 
   const name = data.name.length > 26 ? data.name.slice(0, 25) + "\u2026" : data.name;
+
+  // Display extensions injected by the parent (see rfNodes memo)
+  const lifecyclePhase = (data.lifecyclePhase as string | null | undefined) ?? null;
+  const extraLines = (data.extraLines as DisplayLine[] | undefined) ?? [];
+  const showType = data.showType !== false;
+  const detailText = (data.detailText as string | undefined) ?? data.name;
+  const dotColor = lifecyclePhase ? PHASE_DOT[lifecyclePhase] ?? "#9e9e9e" : null;
 
   const usedSet = useMemo(() => new Set(data.usedHandles ?? []), [data.usedHandles]);
   const hs = (id: string, extra?: React.CSSProperties) => {
@@ -116,6 +236,9 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
   const fireTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pressing, setPressing] = useState(false);
   const downPos = useRef<{ x: number; y: number; shift: boolean } | null>(null);
+  // Per-node long-press flag (was a module global, which let one card's
+  // long-press suppress another card's click under multi-touch).
+  const longPressFiredRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (showTimerRef.current) {
@@ -129,40 +252,71 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
     setPressing(false);
   }, []);
 
+  const { onClick, onLongPress, nodeId } = data;
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       downPos.current = { x: e.clientX, y: e.clientY, shift: e.shiftKey };
-      if (!data.onLongPress || !data.nodeId) return;
-      _longPressFired = false;
+      if (!onLongPress || !nodeId) return;
+      longPressFiredRef.current = false;
       showTimerRef.current = setTimeout(() => setPressing(true), 150);
       fireTimerRef.current = setTimeout(() => {
-        _longPressFired = true;
+        longPressFiredRef.current = true;
         setPressing(false);
-        data.onLongPress!(data.nodeId!);
+        onLongPress(nodeId);
       }, 1000);
     },
-    [data],
+    [onLongPress, nodeId],
+  );
+
+  // Cancel the long-press (and the click) as soon as the pointer is dragged:
+  // moving a card must not also trigger its long-press "centre on this card".
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const d = downPos.current;
+      if (!d) return;
+      if (Math.abs(e.clientX - d.x) > 5 || Math.abs(e.clientY - d.y) > 5) {
+        clearTimer();
+        downPos.current = null;
+      }
+    },
+    [clearTimer],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
       clearTimer();
-      if (_longPressFired) { _longPressFired = false; downPos.current = null; return; }
+      if (longPressFiredRef.current) {
+        longPressFiredRef.current = false;
+        downPos.current = null;
+        return;
+      }
       const d = downPos.current;
       downPos.current = null;
       if (!d) return;
       if (Math.abs(e.clientX - d.x) > 5 || Math.abs(e.clientY - d.y) > 5) return;
       // Stop propagation so React Flow doesn't also fire its own click handler
       e.stopPropagation();
-      if (data.onClick && data.nodeId) data.onClick(data.nodeId, d.shift);
+      if (onClick && nodeId) onClick(nodeId, d.shift);
     },
-    [data, clearTimer],
+    [onClick, nodeId, clearTimer],
   );
 
   return (
     <Box
+      title={detailText}
+      role="button"
+      tabIndex={0}
+      aria-label={detailText}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Keyboard equivalent of a tap: Enter/Space activates the card.
+        if ((e.key === "Enter" || e.key === " ") && onClick && nodeId) {
+          e.preventDefault();
+          onClick(nodeId, e.shiftKey);
+        }
+      }}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={clearTimer}
       onPointerLeave={clearTimer}
@@ -177,13 +331,52 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
         alignItems: "center",
         justifyContent: "center",
         px: 1,
-        cursor: "pointer",
+        // Cards are draggable: use the grab/grabbing cursor so it doesn't
+        // flicker against React Flow's drag cursor (the previous "pointer" did).
+        cursor: "grab",
+        "&:active": { cursor: "grabbing" },
         position: "relative",
         transition: "box-shadow 0.15s, opacity 0.15s",
         touchAction: "none",
         "&:hover": { boxShadow: 4 },
       }}
     >
+      {/* Card-type icon from the metamodel (top-left corner). Tagged
+          `ldv-type-icon` so image export can drop it — it's a Material Symbols
+          font ligature, which html-to-image can't rasterise (it would emit the
+          raw icon name as text). */}
+      {data.typeIcon && (
+        <Box
+          className="ldv-type-icon"
+          sx={{
+            position: "absolute",
+            top: 5,
+            left: 6,
+            display: "flex",
+            lineHeight: 0,
+            opacity: 0.9,
+            pointerEvents: "none",
+          }}
+        >
+          <MaterialSymbol icon={data.typeIcon} size={16} color={accent} />
+        </Box>
+      )}
+      {/* Lifecycle status dot (top-right corner) */}
+      {dotColor && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            width: 9,
+            height: 9,
+            borderRadius: "50%",
+            bgcolor: dotColor,
+            border: "1.5px solid",
+            borderColor: isDark ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.85)",
+          }}
+        />
+      )}
       {/* Proposed "NEW" badge */}
       {data.proposed && (
         <Box sx={{
@@ -193,7 +386,7 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
           px: 0.7, py: 0.25, borderRadius: "4px",
           textTransform: "uppercase", letterSpacing: 0.5,
         }}>
-          NEW
+          {t("dependency.proposedBadge")}
         </Box>
       )}
       {/* Long-press radial progress ring */}
@@ -269,17 +462,39 @@ const LdvNode = memo(({ data }: NodeProps<Node<LdvNodeData>>) => {
       >
         {name}
       </Typography>
-      <Typography
-        variant="caption"
-        sx={{
-          color: accent,
-          fontStyle: "italic",
-          lineHeight: 1.2,
-          mt: 0.25,
-        }}
-      >
-        [{rml(data.typeKey, undefined, "label") || data.typeLabel}]
-      </Typography>
+      {extraLines.length > 0 ? (
+        extraLines.slice(0, MAX_CARD_LINES).map((line) => (
+          <Typography
+            key={line.label}
+            variant="caption"
+            sx={{
+              lineHeight: 1.25,
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              color: "text.secondary",
+            }}
+          >
+            <Box component="span" sx={{ color: accent, fontWeight: 600 }}>
+              {line.label}:
+            </Box>{" "}
+            {line.value}
+          </Typography>
+        ))
+      ) : showType ? (
+        <Typography
+          variant="caption"
+          sx={{
+            color: accent,
+            fontStyle: "italic",
+            lineHeight: 1.2,
+            mt: 0.25,
+          }}
+        >
+          [{rml(data.typeKey, undefined, "label") || data.typeLabel}]
+        </Typography>
+      ) : null}
     </Box>
   );
 });
@@ -327,8 +542,8 @@ LdvGroup.displayName = "LdvGroup";
 /*  Custom Layered Dependency View Edge (smoothstep + hover highlight) */
 /* ------------------------------------------------------------------ */
 
-const LdvEdgeComponent = (
-  {
+const LdvEdgeComponent = memo(
+  ({
     id,
     sourceX,
     sourceY,
@@ -339,8 +554,7 @@ const LdvEdgeComponent = (
     data,
     markerEnd,
     markerStart,
-  }: EdgeProps,
-) => {
+  }: EdgeProps) => {
     const theme = useTheme();
     const edgeData = data as LdvEdgeData | undefined;
     const connectedToHovered = edgeData?.connectedToHovered ?? false;
@@ -382,31 +596,9 @@ const LdvEdgeComponent = (
       ? (isDark ? "#4fc3f7" : "#1976d2")
       : (isDark ? "#444" : "#ccc");
 
-    // Build node + group-label bounding boxes from React Flow nodes for overlap detection
-    const rfNodes = useNodes();
-    const obstacleBounds = useMemo(() => {
-      const bounds: { x1: number; y1: number; x2: number; y2: number }[] = [];
-      for (const n of rfNodes) {
-        if (n.type === "ldvNode" && n.parentId) {
-          const parent = rfNodes.find((p) => p.id === n.parentId);
-          if (!parent) continue;
-          const w = (n.style?.width as number) ?? LDV_NODE_W;
-          const h = (n.style?.height as number) ?? LDV_NODE_H;
-          const ax = parent.position.x + n.position.x;
-          const ay = parent.position.y + n.position.y;
-          bounds.push({ x1: ax, y1: ay, x2: ax + w, y2: ay + h });
-        } else if (n.type === "ldvGroup") {
-          // Group label text area (top-left corner of group box)
-          const gx = n.position.x;
-          const gy = n.position.y;
-          const gw = (n.style?.width as number) ?? 0;
-          // Label sits at top:8 left:14, ~13px font, covers roughly top 30px
-          // Use full group width for the label strip to avoid any overlap
-          bounds.push({ x1: gx, y1: gy, x2: gx + gw, y2: gy + 34 });
-        }
-      }
-      return bounds;
-    }, [rfNodes]);
+    // Node + group-label bounding boxes for label-overlap avoidance, computed
+    // once in the parent and shared via context (see LdvObstaclesContext).
+    const obstacleBounds = useContext(LdvObstaclesContext);
 
     // Find a label position along the path that doesn't overlap any node
     const pathRef = useRef<SVGPathElement>(null);
@@ -521,7 +713,9 @@ const LdvEdgeComponent = (
         )}
       </>
     );
-  };
+  },
+);
+LdvEdgeComponent.displayName = "LdvEdgeComponent";
 
 /* ------------------------------------------------------------------ */
 /*  Node types registry                                                */
@@ -575,19 +769,174 @@ function LayeredDependencyInner({
   hasNext,
   centerName,
 }: Props) {
-  const { t } = useTranslation(["reports"]);
+  const { t } = useTranslation(["reports", "common"]);
   const theme = useTheme();
+  const rl = useResolveLabel();
+  const { fitView, getNodes } = useReactFlow();
+
+  /* ---- Card display settings (persisted, shared with the card-detail section) ---- */
+  const [settings, updateSettings] = useLdvSettings();
+
+  // When "show hierarchy" is on, synthesise containment edges (parent → child)
+  // for any node whose parent is also present, so the parent slots into the
+  // same layered layout as a normal edge (routed + labelled by the engine).
+  const effectiveEdges = useMemo(() => {
+    if (!settings.showHierarchy) return edges;
+    const idSet = new Set(nodes.map((n) => n.id));
+    const hierEdges: GEdge[] = [];
+    for (const n of nodes) {
+      if (n.parent_id && idSet.has(n.parent_id)) {
+        hierEdges.push({
+          source: n.parent_id,
+          target: n.id,
+          type: "hierarchy",
+          label: t("dependency.hierarchyContains"),
+          reverse_label: t("dependency.hierarchyPartOf"),
+        });
+      }
+    }
+    return hierEdges.length > 0 ? [...edges, ...hierEdges] : edges;
+  }, [edges, nodes, settings.showHierarchy, t]);
 
   const { nodes: builtNodes, edges: rfEdges } = useMemo(
-    () => buildLdvFlow(nodes, edges, types),
-    [nodes, edges, types],
+    () => buildLdvFlow(nodes, effectiveEdges, types),
+    [nodes, effectiveEdges, types],
+  );
+
+  /* ---- Original card data (attributes/lifecycle) by id + field catalogue ---- */
+  const gnodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const fieldCatalog = useMemo(() => {
+    const present = new Set(nodes.map((n) => n.type));
+    return buildFieldCatalog(types, present);
+  }, [types, nodes]);
+  const fieldMetaByKey = useMemo(
+    () => new Map(fieldCatalog.map((f) => [f.key, f])),
+    [fieldCatalog],
+  );
+
+  const formatVal = useCallback(
+    (raw: unknown, meta?: FieldMeta): string => {
+      if (raw === null || raw === undefined || raw === "") return "—";
+      if (typeof raw === "boolean") return raw ? t("common:labels.yes") : t("common:labels.no");
+      const optLabel = (x: unknown) => {
+        const o = meta?.options?.find((opt) => opt.key === x);
+        return o ? rl(o.label || o.key, o.translations) : String(x);
+      };
+      if (Array.isArray(raw)) return raw.map(optLabel).join(", ");
+      if (meta?.options) return optLabel(raw);
+      if (typeof raw === "object") return JSON.stringify(raw);
+      return String(raw);
+    },
+    [rl, t],
+  );
+
+  /* ---- Node state ----
+     React Flow owns the live node list (positions, drag state, measured sizes)
+     via useNodesState/applyNodeChanges. Rebuilding the array by hand on every
+     render — the previous approach — dropped React Flow's per-node measurements
+     mid-drag, which made cards and their edges vanish until a reload. The
+     builder is assigned below (once the display helpers exist); resetLayout and
+     the re-seed effect call through this ref so they always use the latest one. */
+  const [flowNodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const buildNodesRef = useRef<() => Node[]>(() => []);
+
+  /* ---- Fullscreen ---- */
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const h = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
+  }, []);
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else containerRef.current?.requestFullscreen?.();
+  }, []);
+
+  /* ---- Toolbar menus ---- */
+  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
+  const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
+
+  /* ---- Background style cycle (lines → dots → none) ---- */
+  const cycleBackground = useCallback(() => {
+    const order: BackgroundStyle[] = ["dots", "lines", "none"];
+    const idx = order.indexOf(settings.background);
+    updateSettings({ background: order[(idx + 1) % order.length] });
+  }, [settings.background, updateSettings]);
+
+  /* ---- Reset manual layout ---- */
+  const resetLayout = useCallback(() => {
+    setNodes(buildNodesRef.current());
+    window.setTimeout(() => fitView({ padding: 0.15, duration: 300 }), 30);
+  }, [setNodes, fitView]);
+
+  /* ---- Re-fit after entering/leaving fullscreen ---- */
+  useEffect(() => {
+    const handle = window.setTimeout(() => fitView({ padding: 0.15, duration: 200 }), 150);
+    return () => window.clearTimeout(handle);
+  }, [isFullscreen, fitView]);
+
+  /* ---- Export the diagram as a PNG / SVG image ---- */
+  const exportImage = useCallback(
+    async (format: "png" | "svg") => {
+      setExportAnchor(null);
+      const exportNodes = getNodes();
+      if (exportNodes.length === 0) return;
+      // Flatten child coordinates to absolute so bounds cover the whole graph.
+      const byId = new Map(exportNodes.map((n) => [n.id, n]));
+      const absNodes = exportNodes.map((n) => {
+        if (n.parentId) {
+          const p = byId.get(n.parentId);
+          if (p) {
+            return {
+              ...n,
+              parentId: undefined,
+              position: { x: p.position.x + n.position.x, y: p.position.y + n.position.y },
+            };
+          }
+        }
+        return n;
+      });
+      const bounds = getNodesBounds(absNodes);
+      const pad = 48;
+      const imageWidth = Math.min(6000, Math.max(800, Math.round((bounds.width + pad * 2) * 2)));
+      const imageHeight = Math.min(6000, Math.max(600, Math.round((bounds.height + pad * 2) * 2)));
+      const vp = getViewportForBounds(bounds, imageWidth, imageHeight, 0.2, 4, 0.06);
+      const viewportEl = containerRef.current?.querySelector(
+        ".react-flow__viewport",
+      ) as HTMLElement | null;
+      if (!viewportEl) return;
+      const opts = {
+        backgroundColor: theme.palette.background.paper,
+        width: imageWidth,
+        height: imageHeight,
+        // Drop the metamodel card-type icons: they're Material Symbols font
+        // ligatures that html-to-image renders as their raw icon name (e.g.
+        // "apps"). The card keeps its colour, label and lifecycle dot.
+        filter: (node: HTMLElement) =>
+          !(node.classList && node.classList.contains("ldv-type-icon")),
+        style: {
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+          transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`,
+        },
+      };
+      const fname = `${(centerName || "dependency").replace(/[^\w.-]+/g, "_")}.${format}`;
+      try {
+        const dataUrl =
+          format === "png" ? await toPng(viewportEl, opts) : await toSvg(viewportEl, opts);
+        saveAs(dataUrl, fname);
+      } catch {
+        /* image export failed — ignore */
+      }
+    },
+    [getNodes, theme.palette.background.paper, centerName],
   );
 
   // ReactFlow's `fitView` prop only fits on the initial render. When the parent
   // navigates to a new centre, the new graph is laid out at different coordinates
   // and the user sees an empty (off-screen) canvas until the page is refreshed.
   // Re-fit imperatively whenever the underlying data changes.
-  const { fitView } = useReactFlow();
   const initialFitDone = useRef(false);
   useEffect(() => {
     // Skip the very first effect run — the static `fitView` prop handles the
@@ -650,24 +999,100 @@ function LayeredDependencyInner({
     [onNodeShiftClick],
   );
 
-  // Inject click + long-press callbacks into ldvNode data
-  const rfNodes = useMemo(
-    () =>
-      builtNodes.map((n) =>
-        n.type === "ldvNode"
-          ? {
-              ...n,
-              data: {
-                ...n.data,
-                nodeId: n.id,
-                onClick: handleLdvNodeClick,
-                ...(onNodeShiftClick && { onLongPress: handleLongPress }),
-              },
-            }
-          : n,
-      ),
-    [builtNodes, handleLdvNodeClick, onNodeShiftClick, handleLongPress],
+  // Per-card display data derived from the current display settings. Computed
+  // here so it can be both baked into freshly-built nodes and patched onto
+  // already-positioned nodes (see the patch effect below) without disturbing
+  // their drag positions.
+  const cardDisplayData = useCallback(
+    (n: Node) => {
+      const g = gnodeById.get(n.id);
+      const phase = settings.showLifecycle ? getCurrentPhase(g?.lifecycle) : null;
+
+      // Resolve every chosen extra field to a label/value line (skips empties).
+      const lines: DisplayLine[] = [];
+      for (const fk of settings.extraFields) {
+        const meta = fieldMetaByKey.get(fk);
+        const value = formatVal(g?.attributes?.[fk], meta);
+        if (value === "—") continue;
+        lines.push({ label: meta ? rl(meta.label, meta.translations) : fk, value });
+      }
+
+      // Plain-text tooltip (native title) with the full detail set.
+      const typeLabelText = (n.data as LdvNodeData).typeLabel || (n.data as LdvNodeData).typeKey;
+      const detailParts = [g?.name ?? (n.data as LdvNodeData).name, `[${typeLabelText}]`];
+      if (phase)
+        detailParts.push(`${t("dependency.lifecycleLabel")}: ${t(`common:lifecycle.${phase}`)}`);
+      for (const l of lines) detailParts.push(`${l.label}: ${l.value}`);
+
+      return {
+        showType: settings.showType,
+        lifecyclePhase: phase,
+        extraLines: lines,
+        detailText: detailParts.join("\n"),
+      };
+    },
+    [
+      gnodeById,
+      settings.showLifecycle,
+      settings.showType,
+      settings.extraFields,
+      fieldMetaByKey,
+      formatVal,
+      rl,
+      t,
+    ],
   );
+
+  // Build the full node list from the layout: structure + position, plus click /
+  // long-press callbacks and display data. Layer (group) boxes are draggable so
+  // a whole layer can be moved; cards stay clamped to their layer via extent.
+  const buildDisplayNodes = useCallback(
+    (): Node[] =>
+      builtNodes.map((n) => {
+        if (n.type !== "ldvNode") {
+          if (n.type === "ldvGroup") return { ...n, draggable: true };
+          return n;
+        }
+        return {
+          ...n,
+          draggable: true,
+          data: {
+            ...n.data,
+            nodeId: n.id,
+            onClick: handleLdvNodeClick,
+            ...(onNodeShiftClick && { onLongPress: handleLongPress }),
+            ...cardDisplayData(n),
+          },
+        };
+      }),
+    [builtNodes, handleLdvNodeClick, onNodeShiftClick, handleLongPress, cardDisplayData],
+  );
+  buildNodesRef.current = buildDisplayNodes;
+
+  // Re-seed nodes whenever the layout changes (data / navigation / hierarchy /
+  // expand). Manual drag positions reset here by design. Keyed on builtNodes
+  // only — display-setting changes go through the patch effect so they don't
+  // wipe the user's drags. The freshly-built nodes already carry current
+  // display data, so suppress the patch effect for that same commit.
+  const skipPatchRef = useRef(false);
+  useEffect(() => {
+    skipPatchRef.current = true;
+    setNodes(buildNodesRef.current());
+  }, [builtNodes, setNodes]);
+
+  // Patch display data onto the live nodes when display settings change, keeping
+  // each node's current (possibly dragged) position and React Flow measurement.
+  useEffect(() => {
+    if (skipPatchRef.current) {
+      skipPatchRef.current = false;
+      return;
+    }
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.type === "ldvNode" ? { ...n, data: { ...n.data, ...cardDisplayData(n) } } : n,
+      ),
+    );
+  }, [cardDisplayData, setNodes]);
 
   // In highlight mode, clicking the canvas (not a node) dismisses the highlight
   const handlePaneClick = useCallback(() => {
@@ -696,6 +1121,14 @@ function LayeredDependencyInner({
     }
     return cbs;
   }, []);
+  // Drop cached hover callbacks for edges that no longer exist (navigation /
+  // expand / collapse) so the map can't grow unbounded over a long session.
+  useEffect(() => {
+    const live = new Set(rfEdges.map((e) => e.id));
+    for (const id of edgeHoverCbs.current.keys()) {
+      if (!live.has(id)) edgeHoverCbs.current.delete(id);
+    }
+  }, [rfEdges]);
 
   // Highlight all connections when hovering a card node
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -765,7 +1198,11 @@ function LayeredDependencyInner({
     ].join("\n");
   }, [hoveredNeighbors]);
 
-  if (rfNodes.length === 0) {
+  // Obstacle boxes for edge-label placement — computed once here and shared
+  // with every edge via context (each edge no longer walks the node list).
+  const obstacles = useMemo(() => computeObstacles(flowNodes), [flowNodes]);
+
+  if (builtNodes.length === 0) {
     return (
       <Paper variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: 2 }}>
         <Typography color="text.disabled">{t("dependency.ldvNoData")}</Typography>
@@ -774,7 +1211,9 @@ function LayeredDependencyInner({
   }
 
   return (
+    <LdvObstaclesContext.Provider value={obstacles}>
     <Paper
+      ref={containerRef}
       variant="outlined"
       sx={{
         borderRadius: 2,
@@ -782,6 +1221,7 @@ function LayeredDependencyInner({
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        bgcolor: "background.paper",
       }}
     >
       {/* Navigation bar */}
@@ -825,20 +1265,71 @@ function LayeredDependencyInner({
             {centerName}
           </Typography>
         )}
-        <Typography
-          variant="caption"
-          sx={{ ml: "auto", color: "text.disabled", whiteSpace: "nowrap", fontSize: "0.68rem" }}
-        >
-          {t("dependency.shiftClickHint")}
-        </Typography>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 0.25 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.disabled",
+              whiteSpace: "nowrap",
+              fontSize: "0.68rem",
+              mr: 0.5,
+              display: { xs: "none", md: "block" },
+            }}
+          >
+            {t("dependency.shiftClickHint")}
+          </Typography>
+          <Tooltip title={t("dependency.displaySettings")} arrow>
+            <IconButton size="small" onClick={(e) => setSettingsAnchor(e.currentTarget)}>
+              <MaterialSymbol icon="tune" size={19} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip
+            title={t("dependency.backgroundStyle", {
+              style: t(`dependency.background_${settings.background}`),
+            })}
+            arrow
+          >
+            <IconButton size="small" onClick={cycleBackground}>
+              <MaterialSymbol
+                icon={
+                  settings.background === "none"
+                    ? "grid_off"
+                    : settings.background === "dots"
+                      ? "grain"
+                      : "grid_on"
+                }
+                size={19}
+              />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t("dependency.resetLayout")} arrow>
+            <IconButton size="small" onClick={resetLayout}>
+              <MaterialSymbol icon="restart_alt" size={19} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t("dependency.exportImage")} arrow>
+            <IconButton size="small" onClick={(e) => setExportAnchor(e.currentTarget)}>
+              <MaterialSymbol icon="download" size={19} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip
+            title={isFullscreen ? t("dependency.exitFullscreen") : t("dependency.fullscreen")}
+            arrow
+          >
+            <IconButton size="small" onClick={toggleFullscreen}>
+              <MaterialSymbol icon={isFullscreen ? "fullscreen_exit" : "fullscreen"} size={20} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
       <Box sx={{ flex: 1, minHeight: 0 }} className={hoveredNode ? "ldv-hover-active" : undefined}>
         {hoverStyle && <style>{hoverStyle}</style>}
         <ReactFlow
-          nodes={rfNodes}
+          nodes={flowNodes}
           edges={orderedEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onNodesChange={onNodesChange}
           onPaneClick={handlePaneClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
@@ -849,13 +1340,31 @@ function LayeredDependencyInner({
           minZoom={0.2}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
-          nodesDraggable={false}
+          nodesDraggable
           nodesConnectable={false}
           edgesReconnectable={false}
           elementsSelectable={false}
           colorMode={theme.palette.mode}
         >
-          <Background gap={16} size={1} />
+          {settings.background !== "none" && (
+            // Dots replicate the original pre-toolbar background exactly
+            // (`gap={16} size={1}`, React Flow's default theme-aware dot colour).
+            // Lines are the new alternative and use a faint custom colour.
+            <Background
+              variant={
+                settings.background === "dots" ? BackgroundVariant.Dots : BackgroundVariant.Lines
+              }
+              gap={settings.background === "dots" ? 16 : 28}
+              size={1}
+              color={
+                settings.background === "dots"
+                  ? undefined
+                  : theme.palette.mode === "dark"
+                    ? "#2a2a2a"
+                    : "#e9ebee"
+              }
+            />
+          )}
           <Controls showInteractive={false}>
             <ControlButton
               title={t("dependency.highlightMode")}
@@ -906,7 +1415,108 @@ function LayeredDependencyInner({
           variant="outlined"
         />
       </Box>
+
+      {/* Export menu */}
+      <Menu
+        anchorEl={exportAnchor}
+        open={Boolean(exportAnchor)}
+        onClose={() => setExportAnchor(null)}
+        container={isFullscreen ? containerRef.current : undefined}
+      >
+        <MenuItem onClick={() => exportImage("png")}>
+          <ListItemIcon>
+            <MaterialSymbol icon="image" size={18} />
+          </ListItemIcon>
+          <ListItemText>{t("dependency.exportPng")}</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => exportImage("svg")}>
+          <ListItemIcon>
+            <MaterialSymbol icon="shape_line" size={18} />
+          </ListItemIcon>
+          <ListItemText>{t("dependency.exportSvg")}</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Card display settings */}
+      <Popover
+        anchorEl={settingsAnchor}
+        open={Boolean(settingsAnchor)}
+        onClose={() => setSettingsAnchor(null)}
+        container={isFullscreen ? containerRef.current : undefined}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { p: 2, width: 320, maxWidth: "90vw" } } }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+          {t("dependency.displaySettings")}
+        </Typography>
+        {(
+          [
+            { key: "showType", label: t("dependency.showType") },
+            { key: "showLifecycle", label: t("dependency.showLifecycle") },
+            {
+              key: "showHierarchy",
+              label: t("dependency.showHierarchy"),
+              hint: t("dependency.showHierarchyHint"),
+            },
+          ] as const
+        ).map((row) => (
+          <Box
+            key={row.key}
+            sx={{
+              display: "flex",
+              alignItems: "hint" in row && row.hint ? "flex-start" : "center",
+              justifyContent: "space-between",
+              gap: 2,
+              py: 0.5,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2">{row.label}</Typography>
+              {"hint" in row && row.hint && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", lineHeight: 1.35, mt: 0.25 }}
+                >
+                  {row.hint}
+                </Typography>
+              )}
+            </Box>
+            <Switch
+              size="small"
+              checked={settings[row.key]}
+              onChange={(e) => updateSettings({ [row.key]: e.target.checked })}
+              inputProps={{ "aria-label": row.label }}
+              sx={{ flexShrink: 0, mt: "hint" in row && row.hint ? "2px" : 0 }}
+            />
+          </Box>
+        ))}
+        <Divider sx={{ my: 1.5 }} />
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          {t("dependency.extraFieldsHint", { count: MAX_CARD_LINES })}
+        </Typography>
+        <Autocomplete
+          multiple
+          size="small"
+          options={fieldCatalog}
+          value={fieldCatalog.filter((f) => settings.extraFields.includes(f.key))}
+          getOptionLabel={(f) => rl(f.label, f.translations)}
+          isOptionEqualToValue={(a, b) => a.key === b.key}
+          onChange={(_, vals) => updateSettings({ extraFields: vals.map((v) => v.key) })}
+          renderInput={(params) => (
+            <TextField {...params} placeholder={t("dependency.extraFields")} />
+          )}
+          renderTags={(vals, getTagProps) =>
+            vals.map((v, i) => (
+              <Chip {...getTagProps({ index: i })} key={v.key} label={rl(v.label, v.translations)} size="small" />
+            ))
+          }
+          noOptionsText={t("dependency.noFields")}
+        />
+      </Popover>
     </Paper>
+    </LdvObstaclesContext.Provider>
   );
 }
 
