@@ -25,7 +25,7 @@ import Divider from "@mui/material/Divider";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import { lighten, useTheme } from "@mui/material/styles";
-import { toPng, toSvg } from "html-to-image";
+import { toBlob, toSvg } from "html-to-image";
 import { saveAs } from "file-saver";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { getCurrentPhase } from "@/components/LifecycleBadge";
@@ -52,10 +52,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useResolveMetaLabel, useResolveLabel } from "@/hooks/useResolveLabel";
+import { useMetamodel } from "@/hooks/useMetamodel";
 import { useLdvSettings, type LdvBackgroundStyle } from "./ldvDisplaySettings";
 import type { CardType } from "@/types";
 import {
   buildLdvFlow,
+  relationValueSuffix,
   filterEndOfLifeNodes,
   LDV_NODE_W,
   LDV_NODE_H,
@@ -543,6 +545,35 @@ LdvGroup.displayName = "LdvGroup";
 /*  Custom Layered Dependency View Edge (smoothstep + hover highlight) */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Relation flow-direction indicator drawn as a vector SVG arrow (→ / ↔ / ←).
+ * Rendered as SVG shapes — not a Unicode glyph — so it rasterises identically
+ * in the live view and in PNG/SVG image export. (The previous ↔/→/← text
+ * glyphs relied on a system-font fallback that html-to-image cannot embed, so
+ * they came out blank/tofu in exports.)
+ */
+const LdvDirectionArrow = memo(
+  ({ dir }: { dir: "forward" | "reverse" | "bidirectional" }) => (
+    <svg
+      width={14}
+      height={8}
+      viewBox="0 0 14 8"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+      aria-hidden
+    >
+      <line x1={1} y1={4} x2={13} y2={4} />
+      {dir !== "reverse" && <polyline points="9.5,1 13,4 9.5,7" />}
+      {dir !== "forward" && <polyline points="4.5,1 1,4 4.5,7" />}
+    </svg>
+  ),
+);
+LdvDirectionArrow.displayName = "LdvDirectionArrow";
+
 const LdvEdgeComponent = memo(
   ({
     id,
@@ -605,11 +636,12 @@ const LdvEdgeComponent = memo(
     const pathRef = useRef<SVGPathElement>(null);
     const [labelPos, setLabelPos] = useState<{ x: number; y: number } | null>(null);
 
+    const flowDir = edgeData?.flowDirection;
     const maxChars = 24;
     const displayLabel = label.length > maxChars
       ? label.slice(0, maxChars - 1) + "\u2026"
       : label;
-    const labelW = displayLabel.length * 6.5 + 16;
+    const labelW = displayLabel.length * 6.5 + 16 + (flowDir ? 17 : 0);
     const labelH = 20;
     const margin = 6;
 
@@ -706,9 +738,13 @@ const LdvEdgeComponent = memo(
                 whiteSpace: "nowrap",
                 lineHeight: "14px",
                 zIndex: active ? 2 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
               }}
             >
-              {displayLabel}
+              {flowDir && <LdvDirectionArrow dir={flowDir} />}
+              <span>{displayLabel}</span>
             </div>
           </EdgeLabelRenderer>
         )}
@@ -811,9 +847,30 @@ function LayeredDependencyInner({
     return hierEdges.length > 0 ? [...edges, ...hierEdges] : edges;
   }, [edges, nodes, settings.showHierarchy, t]);
 
+  /* ---- Resolve a relation's single-select attribute value(s) into a
+         bracketed label suffix (e.g. " [Leading]"), using the metamodel's
+         relation-type attribute schemas. flowDirection is excluded — it is
+         shown as a direction arrow, not a bracket. ---- */
+  const { relationTypes } = useMetamodel();
+  const relTypeByKey = useMemo(
+    () => new Map(relationTypes.map((rt) => [rt.key, rt])),
+    [relationTypes],
+  );
+  const relValueResolver = useCallback(
+    (edge: GEdge): string | undefined =>
+      relationValueSuffix(edge, relTypeByKey, (opt) => rl(opt.label, opt.translations)),
+    [relTypeByKey, rl],
+  );
+
   const { nodes: builtNodes, edges: rfEdges } = useMemo(
-    () => buildLdvFlow(nodes, effectiveEdges, types),
-    [nodes, effectiveEdges, types],
+    () =>
+      buildLdvFlow(
+        nodes,
+        effectiveEdges,
+        types,
+        settings.showRelationValues ? relValueResolver : undefined,
+      ),
+    [nodes, effectiveEdges, types, settings.showRelationValues, relValueResolver],
   );
 
   /* ---- Original card data (attributes/lifecycle) by id + field catalogue ---- */
@@ -912,8 +969,33 @@ function LayeredDependencyInner({
       });
       const bounds = getNodesBounds(absNodes);
       const pad = 48;
-      const imageWidth = Math.min(6000, Math.max(800, Math.round((bounds.width + pad * 2) * 2)));
-      const imageHeight = Math.min(6000, Math.max(600, Math.round((bounds.height + pad * 2) * 2)));
+
+      // Keep the rasterised SVG image *and* the canvas within WebKit's hard
+      // limits. html-to-image renders the diagram into an <img> sized
+      // imageWidth×imageHeight, then draws it onto a canvas sized
+      // (imageWidth×pixelRatio)×(imageHeight×pixelRatio). iOS/iPadOS WebKit caps
+      // canvas/image area at ~16.7M px and rejects oversized SVG images with a
+      // "Load failed" error (desktop Chrome/FF allow far more). So we pick
+      // device-aware caps and fit the FINAL canvas inside both a per-dimension
+      // and a total-area budget. Desktop output is unchanged for normal diagrams.
+      const isAppleMobile =
+        /iP(hone|ad|od)/.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+      const maxDim = isAppleMobile ? 4096 : 6000;
+      const maxArea = isAppleMobile ? 16_000_000 : 64_000_000;
+      const pixelRatio = isAppleMobile ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+      // Supersample the logical bounds (×2) for crispness, as before.
+      const rawW = Math.max(800, Math.round((bounds.width + pad * 2) * 2));
+      const rawH = Math.max(600, Math.round((bounds.height + pad * 2) * 2));
+      // Scale so the final canvas (raw × pixelRatio) fits maxDim per side and maxArea total.
+      const finalW = rawW * pixelRatio;
+      const finalH = rawH * pixelRatio;
+      let fit = Math.min(1, maxDim / finalW, maxDim / finalH);
+      if (finalW * fit * (finalH * fit) > maxArea) {
+        fit *= Math.sqrt(maxArea / (finalW * fit * (finalH * fit)));
+      }
+      const imageWidth = Math.max(1, Math.round(rawW * fit));
+      const imageHeight = Math.max(1, Math.round(rawH * fit));
       const vp = getViewportForBounds(bounds, imageWidth, imageHeight, 0.2, 4, 0.06);
       const viewportEl = containerRef.current?.querySelector(
         ".react-flow__viewport",
@@ -923,6 +1005,15 @@ function LayeredDependencyInner({
         backgroundColor: theme.palette.background.paper,
         width: imageWidth,
         height: imageHeight,
+        // Don't inline remote web fonts: the page loads Inter + Material Symbols
+        // from fonts.googleapis.com, and html-to-image's font-embedding step
+        // tries to fetch them — blocked by the CSP `connect-src 'self'` (noisy
+        // console errors on desktop, and a harder failure on iOS Safari). We
+        // don't need them: icons are dropped below, direction is vector SVG, and
+        // label text rasterises with the browser's locally-resolved fonts.
+        skipFonts: true,
+        cacheBust: true,
+        pixelRatio,
         // Drop the metamodel card-type icons: they're Material Symbols font
         // ligatures that html-to-image renders as their raw icon name (e.g.
         // "apps"). The card keeps its colour, label and lifecycle dot.
@@ -936,9 +1027,24 @@ function LayeredDependencyInner({
       };
       const fname = `${(centerName || "dependency").replace(/[^\w.-]+/g, "_")}.${format}`;
       try {
-        const dataUrl =
-          format === "png" ? await toPng(viewportEl, opts) : await toSvg(viewportEl, opts);
-        saveAs(dataUrl, fname);
+        // Download via a Blob (not a data URL): file-saver honours the filename
+        // for Blobs through URL.createObjectURL, so the .png/.svg extension is
+        // always correct. A data URL whose rasterisation fails comes back as the
+        // type-less "data:," string, which the browser saves as text/plain → a
+        // bogus .txt download; a Blob path makes that impossible.
+        let blob: Blob | null;
+        if (format === "png") {
+          blob = await toBlob(viewportEl, opts);
+        } else {
+          // Decode the SVG data URL directly instead of fetch()-ing it: toSvg
+          // builds `data:image/svg+xml;charset=utf-8,<encodeURIComponent(svg)>`,
+          // and fetch() on a data URL is itself a known iOS "Load failed" source.
+          const dataUrl = await toSvg(viewportEl, opts);
+          const svgText = decodeURIComponent(dataUrl.slice(dataUrl.indexOf(",") + 1));
+          blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+        }
+        if (!blob || blob.size === 0) return; // rasterisation produced nothing — don't save a bad file
+        saveAs(blob, fname);
       } catch {
         /* image export failed — ignore */
       }
@@ -1476,6 +1582,11 @@ function LayeredDependencyInner({
               key: "showEndOfLife",
               label: t("dependency.showEndOfLife"),
               hint: t("dependency.showEndOfLifeHint"),
+            },
+            {
+              key: "showRelationValues",
+              label: t("dependency.showRelationValues"),
+              hint: t("dependency.showRelationValuesHint"),
             },
           ] as const
         ).map((row) => (

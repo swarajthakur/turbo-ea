@@ -5,6 +5,15 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.53.0] - 2026-06-27
+
+### Added
+- **Relationship values now appear in dependency diagrams.** When a relation is qualified with a value (e.g. an application *supports* a capability as *Leading*), the Layered Dependency View (Dependencies report, the card-detail dependency section) shows it in brackets next to the label — *supports [Leading]*. Relations without a value render exactly as before. A new **Show relationship values** toggle in the **Card display** menu (on by default) can hide them.
+
+### Fixed
+- **Dependency-diagram image export no longer breaks on direction arrows.** The flow-direction indicators (→ ↔ ←) are now drawn as vector graphics instead of font glyphs, and exports are downloaded as a binary blob. Previously, a diagram containing these arrows would export a blank/invalid image that the browser saved with a `.txt` extension; PNG and SVG exports now save correctly (with the arrows and relationship-value labels visible).
+- **Dependency-diagram export now works on iPhone/iPad and stops logging console errors.** Image export no longer attempts to fetch remote web fonts (which the Content Security Policy blocked, spamming the console), and the rendered image is now scaled to stay within WebKit's canvas size/area limit — fixing export on iOS, where it previously failed with a "Load failed" error or produced nothing. Desktop export quality is unchanged.
+
 ## [1.52.0] - 2026-06-27
 
 ### Changed
