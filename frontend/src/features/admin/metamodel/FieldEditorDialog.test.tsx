@@ -56,6 +56,42 @@ describe("FieldEditorDialog — new select option color", () => {
     expect(lastOption.color).toBe("#1976d2");
   });
 
+  it("normalizes an existing colorless option to the default on save (issue #718)", async () => {
+    // The reporter's option was saved (in an earlier version) with no `color`.
+    // Re-opening the field and clicking Save — without touching any picker —
+    // must now persist the displayed default so its dot finally renders.
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+
+    const initial: FieldDef = {
+      key: "myField",
+      label: "My Field",
+      type: "single_select",
+      options: [
+        { key: "first", label: "First", color: "#ff0000" },
+        { key: "sixth", label: "Sixth" }, // no color — the bug scenario
+      ],
+    };
+
+    render(
+      <FieldEditorDialog
+        open
+        field={initial}
+        typeKey="Application"
+        fieldKey="myField"
+        onClose={() => {}}
+        onSave={onSave}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Save$/ }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const saved = onSave.mock.calls[0][0] as FieldDef;
+    expect(saved.options![0].color).toBe("#ff0000"); // explicit color preserved
+    expect(saved.options![1].color).toBe("#1976d2"); // colorless option filled
+  });
+
   it("blocks saving an option that has a label but no key (issue #718 follow-up)", async () => {
     // An option with an empty key would render in the card-detail dropdown but
     // select to value "" — never displayed, never saved. Save must stay disabled
@@ -134,5 +170,55 @@ describe("FieldEditorDialog — new select option color", () => {
     // Filling the key clears the red.
     await user.type(newKey(), "inProgress");
     expect(newKey()).toHaveAttribute("aria-invalid", "false");
+  });
+
+  it("does not lock a new option whose key matches an existing key — flags it as duplicate instead", async () => {
+    // Regression: the key lock was keyed on value-match, so typing a new
+    // option's key equal to an existing one auto-locked the new row (blocking
+    // the user and hiding the collision). It must stay editable and be flagged.
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+
+    const initial: FieldDef = {
+      key: "myField",
+      label: "My Field",
+      type: "single_select",
+      options: [{ key: "first", label: "First", color: "#ff0000" }],
+    };
+
+    render(
+      <FieldEditorDialog
+        open
+        field={initial}
+        typeKey="Application"
+        fieldKey="myField"
+        onClose={() => {}}
+        onSave={onSave}
+      />,
+    );
+
+    // The pre-existing option's key is locked (cannot be renamed).
+    const firstKey = () => screen.getAllByLabelText("Key")[0];
+    expect(firstKey()).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /Add Option/ }));
+    const newKey = () => screen.getAllByLabelText("Key").at(-1)!;
+    const newLabel = () => screen.getAllByLabelText("Label").at(-1)!;
+    await user.type(newLabel(), "Duplicate");
+    await user.type(newKey(), "first"); // collides with the existing option
+
+    // The new row stays editable (NOT locked) and is flagged as a duplicate.
+    expect(newKey()).toBeEnabled();
+    expect(newKey()).toHaveAttribute("aria-invalid", "true");
+
+    // Save is blocked while the duplicate exists.
+    const saveButton = screen.getByRole("button", { name: /^Save$/ });
+    expect(saveButton).toBeDisabled();
+
+    // Changing the key to a unique value clears the duplicate and unblocks Save.
+    await user.clear(newKey());
+    await user.type(newKey(), "second");
+    expect(newKey()).toHaveAttribute("aria-invalid", "false");
+    expect(saveButton).toBeEnabled();
   });
 });
