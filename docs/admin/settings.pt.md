@@ -4,7 +4,7 @@ A página de **Configurações** em **Admin → Configurações** (`/admin/setti
 
 | Aba | URL | O que controla | Guia completo |
 |-----|-----|----------------|---------------|
-| **Geral** | `/admin/settings?tab=general` | Aparência (logo, favicon, moeda, formato de data, idiomas habilitados, ano fiscal), e-mail SMTP, **alternâncias de módulos** (BPM, PPM, GRC, TurboLens, Sponsor button) | Esta página |
+| **Geral** | `/admin/settings?tab=general` | Aparência (logo, favicon, moeda, formato de data, idiomas habilitados, ano fiscal), envio de e-mail, **alternâncias de módulos** (BPM, PPM, GRC, TurboLens, Sponsor button) | Esta página |
 | **Autenticação** | `/admin/settings?tab=authentication` | Provedores SSO, registro, política de senha | [Autenticação e SSO](sso.md) |
 | **IA** | `/admin/settings?tab=ai` | Provedor LLM, modelo, backend de busca web, alternâncias de sugestão IA por tipo de card | [Capacidades de IA](ai.md) |
 | **EOL** | `/admin/settings?tab=eol` | Vinculação em massa de produtos a entradas de endoflife.date | [Fim de vida (EOL)](eol.md) |
@@ -69,24 +69,60 @@ Quando uma ficha é arquivada, ela fica oculta no inventário, nos relatórios e
 
 A purga é executada de hora em hora e relê esta configuração a cada execução, portanto as alterações entram em vigor sem reiniciar a aplicação. Os avisos de arquivamento e as caixas de diálogo de confirmação refletem automaticamente o período configurado.
 
-## E-mail (SMTP)
+## E-mail
 
-Configure a entrega de e-mail para convites, notificações de pesquisas e outras mensagens do sistema.
+O Turbo EA envia e-mails de convite, notificações de pesquisas, redefinições de senha e outras mensagens do sistema. Escolha um **método de envio** adequado à sua plataforma de e-mail.
+
+!!! warning "A autenticação SMTP básica está sendo descontinuada"
+    O Microsoft 365 está desativando a autenticação SMTP básica (indisponível para novos locatários, removida para os existentes ao longo de 2026–2027) e o Google Workspace a desativou em março de 2025. Para essas plataformas, use um dos métodos OAuth abaixo em vez de uma senha de caixa de correio.
+
+### Métodos de envio
+
+| Método | Quando usar |
+|--------|-------------|
+| **SMTP (usuário e senha)** | SMTP clássico para servidores que ainda aceitam autenticação básica. O padrão. |
+| **SMTP com OAuth 2.0 (XOAUTH2)** | SMTP autenticado com um token OAuth de curta duração — Microsoft 365 (somente aplicativo) ou Google Workspace (conta de serviço). |
+| **API do Microsoft Graph** | `sendMail` do Microsoft Graph somente de aplicativo. A opção recomendada para o Microsoft 365 — sem SMTP, sem senha armazenada. |
+
+### Campos comuns
 
 | Campo | Descrição |
 |-------|-----------|
-| **Host SMTP** | O hostname do seu servidor de e-mail (ex.: `smtp.gmail.com`) |
-| **Porta SMTP** | Porta do servidor (tipicamente 587 para TLS) |
-| **Usuário SMTP** | Nome de usuário para autenticação |
-| **Senha SMTP** | Senha de autenticação (armazenada criptografada) |
-| **Usar TLS** | Habilitar criptografia TLS (recomendado) |
-| **Endereço de Remetente** | O endereço de e-mail do remetente para mensagens enviadas |
-| **URL Base do App** | A URL pública da sua instância Turbo EA (usada em links de e-mail) |
+| **Endereço do remetente** | O endereço do remetente das mensagens enviadas |
+| **URL base do aplicativo** | A URL pública da sua instância (usada nos links dos e-mails) |
 
-Após configurar, clique em **Enviar E-mail de Teste** para verificar se as configurações funcionam corretamente.
+### SMTP (usuário e senha)
+
+| Campo | Descrição |
+|-------|-----------|
+| **Host SMTP** | O nome de host do seu servidor de e-mail (ex.: `smtp.gmail.com`) |
+| **Porta SMTP** | A porta do servidor (geralmente 587 para TLS) |
+| **Usuário SMTP** | O nome de usuário de autenticação |
+| **Senha SMTP** | A senha de autenticação (armazenada criptografada) |
+| **Usar TLS** | Ativar a criptografia STARTTLS (recomendado) |
+
+### API do Microsoft Graph (recomendada para o Microsoft 365)
+
+1. Em **Microsoft Entra ID → Registros de aplicativo**, crie um registro de aplicativo dedicado.
+2. Em **Permissões de API**, adicione a permissão **de aplicativo** **Mail.Send** e conceda o **consentimento do administrador**.
+3. Crie um **segredo do cliente** em **Certificados e segredos**.
+4. No Turbo EA, escolha **API do Microsoft Graph** e informe o **ID do locatário**, o **ID do cliente**, o **segredo do cliente** e a **Caixa de correio do remetente** (o nome principal de usuário de onde o e-mail é enviado).
+
+Nenhuma senha de caixa de correio é armazenada; o Turbo EA solicita um token de curta duração para cada envio.
+
+O **endereço do remetente** é opcional com o Graph: deixe-o no valor padrão para enviar como a caixa de correio do remetente. Definir um endereço diferente exige uma permissão **Send As** para esse endereço na caixa de correio do remetente.
+
+### SMTP com OAuth 2.0
+
+- **Microsoft 365:** informe o **ID do locatário**, o **ID do cliente** e o **segredo do cliente** de um registro de aplicativo, além da **Caixa de correio do remetente**. O SMTP AUTH deve estar habilitado para a caixa de correio.
+- **Google Workspace:** escolha **Google**, cole a **chave da conta de serviço (JSON)** com a delegação em todo o domínio habilitada para a caixa de correio do remetente, e defina a **Caixa de correio do remetente** a ser representada.
+
+Os campos **Escopo** e **Endpoint do token** são substituições opcionais — deixe-os vazios, a menos que o seu locatário exija valores personalizados.
+
+Depois de configurar qualquer método, clique em **Enviar e-mail de teste** para verificar se funciona.
 
 !!! note
-    E-mail é opcional. Se o SMTP não estiver configurado, recursos que enviam e-mails (convites, notificações de pesquisa) simplesmente ignorarão a entrega de e-mail.
+    O e-mail é opcional. Se nenhum método for configurado, os recursos que enviam e-mails ignoram a entrega normalmente.
 
 ## Módulo BPM
 
