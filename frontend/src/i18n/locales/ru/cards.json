@@ -344,7 +344,6 @@
   "catalogue.deprecatedToggle": "Показать устаревшие",
   "catalogue.deprecatedTooltip": "Включить устаревшие возможности.",
   "catalogue.deprecatedLabel": "Устаревшая",
-  "catalogue.alreadyExists": "Уже существует как карточка",
   "catalogue.matchCount_one": "совпадение",
   "catalogue.matchCount_other": "совпадений",
   "catalogue.total": "всего",

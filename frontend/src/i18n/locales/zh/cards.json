@@ -344,7 +344,6 @@
   "catalogue.deprecatedToggle": "显示已弃用",
   "catalogue.deprecatedTooltip": "包含已弃用的能力。",
   "catalogue.deprecatedLabel": "已弃用",
-  "catalogue.alreadyExists": "已作为卡片存在",
   "catalogue.matchCount_one": "项匹配",
   "catalogue.matchCount_other": "项匹配",
   "catalogue.total": "共计",

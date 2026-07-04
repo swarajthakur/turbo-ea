@@ -381,7 +381,6 @@
   "catalogue.deprecatedToggle": "Show deprecated",
   "catalogue.deprecatedTooltip": "Include deprecated capabilities in the list.",
   "catalogue.deprecatedLabel": "Deprecated",
-  "catalogue.alreadyExists": "Already exists as a card",
   "catalogue.matchCount_one": "match",
   "catalogue.matchCount_other": "matches",
   "catalogue.total": "total",

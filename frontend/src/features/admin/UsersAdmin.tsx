@@ -367,10 +367,9 @@ export default function UsersAdmin() {
       setCreateUserError(t("users.create.requiredFields"));
       return;
     }
-    if (!ssoEnabled && !createUserForm.password) {
-      setCreateUserError(t("users.create.passwordRequiredLocal"));
-      return;
-    }
+    // Password is optional for local accounts too: leaving it blank creates a
+    // password-less account that sets its own password on first login (via the
+    // returned setup link or «Forgot password»).
     try {
       setCreateUserSubmitting(true);
       setCreateUserError(null);
@@ -386,6 +385,8 @@ export default function UsersAdmin() {
       );
       setUsers((prev) => [...prev, created]);
       setCreateUserOpen(false);
+      // Password-less accounts set their password on first login via «Forgot
+      // password» on the login page; surface only an email-send failure here.
       if (createUserForm.send_email && created.email_error) {
         setWarning(created.email_error);
       } else {
@@ -1138,11 +1139,7 @@ export default function UsersAdmin() {
                   size="small"
                 />
                 <TextField
-                  label={
-                    ssoEnabled
-                      ? t("users.create.passwordOptional")
-                      : t("users.create.password")
-                  }
+                  label={t("users.create.passwordOptional")}
                   type="password"
                   value={createUserForm.password}
                   onChange={(e) =>
@@ -1150,11 +1147,10 @@ export default function UsersAdmin() {
                   }
                   fullWidth
                   size="small"
-                  required={!ssoEnabled}
                   helperText={
                     ssoEnabled
                       ? t("users.create.passwordSsoHelperText")
-                      : t("users.create.passwordHelperText")
+                      : t("users.create.passwordOptionalLocalHelperText")
                   }
                 />
                 <FormControl fullWidth size="small">

@@ -292,14 +292,14 @@ class TestUpdateUser:
         )
         assert resp.status_code == 404
 
-    async def test_create_user_without_password_rejected_when_sso_disabled(
+    async def test_create_user_without_password_allowed_when_sso_disabled(
         self, client, db, users_env
     ):
-        """Creating a local account requires a password when SSO is not enabled.
-
-        Replaces the pre-fix flow where an admin could invite a user without a
-        password and expect an emailed setup link — that flow leaked stale
-        SsoInvitation rows into the admin list with no clean way to recover.
+        """A local account may be created with no password and no invite email.
+        It lands as a «Pending Setup» account (password-less) — the user sets
+        their password on first login via «Forgot password» on the login page.
+        The one-time setup token is stored on the row but never returned by the
+        API.
         """
         admin = users_env["admin"]
         resp = await client.post(
@@ -312,8 +312,34 @@ class TestUpdateUser:
             },
             headers=auth_headers(admin),
         )
-        assert resp.status_code == 400
-        assert "password" in resp.json()["detail"].lower()
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["has_password"] is False
+        assert data["pending_setup"] is True
+        # The one-time setup token is never surfaced through the API.
+        assert "setup_token" not in data
+
+    async def test_setup_token_never_returned_by_api(self, client, db, users_env):
+        """Neither the create response nor the list endpoint exposes the setup
+        token, whether or not a password was supplied at creation."""
+        admin = users_env["admin"]
+        resp = await client.post(
+            "/api/v1/users",
+            json={
+                "email": "with-pass@test.com",
+                "display_name": "With Pass",
+                "password": "StrongPass1",
+                "role": "member",
+                "send_email": False,
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 201
+        assert "setup_token" not in resp.json()
+
+        # The list endpoint never exposes the setup token either.
+        listing = await client.get("/api/v1/users", headers=auth_headers(admin))
+        assert all("setup_token" not in u for u in listing.json())
 
     async def test_admin_setting_password_keeps_invitation_visible_until_login(
         self, client, db, users_env
@@ -330,9 +356,9 @@ class TestUpdateUser:
 
         admin = users_env["admin"]
 
-        # Inject the "invited but not yet accepted" state directly. We bypass
-        # POST /users because that endpoint now rejects no-password invites
-        # when SSO is disabled (test env has SSO off by default).
+        # Inject the "invited but not yet accepted" state directly so this test
+        # focuses purely on the admin-set-password path (independent of how the
+        # account was first created).
         invited = User(
             email="admin-set@test.com",
             display_name="Admin-Set",
@@ -647,12 +673,12 @@ class TestUpdateUser:
         assert u.password_setup_token is not None
         assert len(u.password_setup_token) >= 32  # urlsafe(48) → 64 chars
 
-    async def test_create_user_local_no_password_without_invite_rejected(
+    async def test_create_user_local_no_password_without_invite_allowed(
         self, client, db, users_env
     ):
-        """Local account, no password, no invite → reject. The setup link
-        only travels via email, so without the welcome email the user has
-        no way into the system."""
+        """Explicit local account, no password, no invite → allowed. It lands
+        as a «Pending Setup» account; the user sets their password on first
+        login via «Forgot password» on the login page."""
         admin = users_env["admin"]
         resp = await client.post(
             "/api/v1/users",
@@ -665,8 +691,11 @@ class TestUpdateUser:
             },
             headers=auth_headers(admin),
         )
-        assert resp.status_code == 400
-        assert "invitation" in resp.json()["detail"].lower()
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["has_password"] is False
+        assert data["pending_setup"] is True
+        assert "setup_token" not in data
 
     async def test_create_user_explicit_auth_provider_sso_requires_sso_enabled(
         self, client, db, users_env

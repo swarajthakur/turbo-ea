@@ -344,7 +344,6 @@
   "catalogue.deprecatedToggle": "Mostrar obsoletas",
   "catalogue.deprecatedTooltip": "Incluir capacidades obsoletas.",
   "catalogue.deprecatedLabel": "Obsoleta",
-  "catalogue.alreadyExists": "Ya existe como tarjeta",
   "catalogue.matchCount_one": "coincidencia",
   "catalogue.matchCount_other": "coincidencias",
   "catalogue.total": "en total",

@@ -149,6 +149,9 @@ function StakeholdersTab({
       api.get<User[]>("/users").then(setUsers).catch(() => {});
       load();
       onRefresh();
+      // If an invite email was requested but couldn't be sent, keep the form
+      // open with a warning. Otherwise the account is created (password-less
+      // users set their password via «Forgot password» on the login page).
       if (inviteSendEmail && created.email_error) {
         setInviteFeedback({ kind: "warning", message: created.email_error });
         setInviteSubmitting(false);

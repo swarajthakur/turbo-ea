@@ -344,7 +344,6 @@
   "catalogue.deprecatedToggle": "Veraltete anzeigen",
   "catalogue.deprecatedTooltip": "Veraltete Capabilities einbeziehen.",
   "catalogue.deprecatedLabel": "Veraltet",
-  "catalogue.alreadyExists": "Existiert bereits als Karte",
   "catalogue.matchCount_one": "Treffer",
   "catalogue.matchCount_other": "Treffer",
   "catalogue.total": "gesamt",
