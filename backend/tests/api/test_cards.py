@@ -748,3 +748,45 @@ class TestRelationSummary:
         # The Drill-Down menu must not lie about the number of children
         # it can actually fetch through /hierarchy.
         assert response.json()["hierarchy"]["children_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# PATCH /cards/bulk  (data-quality recompute regression)
+# ---------------------------------------------------------------------------
+
+
+class TestBulkUpdateRecomputesDataQuality:
+    """Regression: PATCH /cards/bulk must recompute ``data_quality`` like the
+    create and single-card update paths do. The bulk path previously committed
+    field changes without rescoring, leaving completeness scores frozen at
+    their prior (often creation-time) value."""
+
+    async def test_bulk_update_refreshes_score(self, client, db, cards_env):
+        admin = cards_env["admin"]
+        # Card created understated: no description, no attributes, score 0.
+        card = await create_card(
+            db,
+            card_type="Application",
+            name="Stale Score App",
+            data_quality=0.0,
+            attributes={},
+        )
+
+        response = await client.patch(
+            "/api/v1/cards/bulk",
+            json={
+                "ids": [str(card.id)],
+                "updates": {
+                    "description": "Now documented",
+                    "attributes": {"costTotalAnnual": 50000, "riskLevel": "high"},
+                },
+            },
+            headers=auth_headers(admin),
+        )
+
+        assert response.status_code == 200
+        updated = response.json()
+        assert len(updated) == 1
+        # Filling description + two weighted fields must lift the recomputed
+        # score above the stale 0.0 the card was created with.
+        assert updated[0]["data_quality"] > 0
