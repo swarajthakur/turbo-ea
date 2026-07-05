@@ -22,6 +22,8 @@ Das linke Seitenpanel ermöglicht es Ihnen, Karten nach verschiedenen Kriterien 
 - **Nur archivierte anzeigen** — Umschalter zur Anzeige archivierter (weich gelöschter) Karten
 - **Alle zurücksetzen** — Alle aktiven Filter auf einmal zurücksetzen
 
+> **Karten ohne Wert finden.** Die Filter für Untertyp, Lebenszyklus, Tags, Beziehungen und Auswahl-Attribute bieten jeweils eine Option **(leer)**. Wählen Sie sie, um nur Karten anzuzeigen, die für dieses Feld *keinen* Wert haben – zum Beispiel alle Karten ohne festgelegten Lebenszyklus. Sie lässt sich mit normalen Werten (Treffer bei einem davon) und über mehrere Filter hinweg (Treffer bei allen) kombinieren.
+
 Ein **Badge mit der Anzahl aktiver Filter** zeigt an, wie viele Filter derzeit angewendet werden.
 
 ### Registerkarte Spalten
@@ -49,7 +51,7 @@ Wenn ein Kartentyp zum ersten Mal ausgewählt wird, werden **alle Attribut- und 
 
 Ein **Änderungsindikator-Punkt** erscheint auf der Überschrift der Registerkarte «Spalten», wenn die Spaltenauswahl von den Standardeinstellungen abweicht. Der gleiche Indikator erscheint auf der Registerkarte **Filter**, wenn Filter aktiv sind, sodass Sie auf einen Blick erkennen können, welche Einstellungen geändert wurden.
 
-Ihre Spaltenauswahl, aktiven Filter und Sortierreihenfolge werden **automatisch im Browser gespeichert**. Wenn Sie zur Inventarseite zurückkehren, wird Ihre vorherige Konfiguration wiederhergestellt. Gespeicherte Ansichten (Lesezeichen) bewahren ebenfalls die vollständige Spaltenauswahl, sodass beim Wechseln zwischen Ansichten genau die von Ihnen konfigurierten Spalten wiederhergestellt werden.
+Ihre Spaltenauswahl, das **Spaltenlayout** (Reihenfolge von links nach rechts, Breiten und angeheftete Spalten), aktiven Filter und die Sortierreihenfolge werden **automatisch im Browser gespeichert**. Wenn Sie zur Inventarseite zurückkehren, wird Ihre vorherige Konfiguration wiederhergestellt. Gespeicherte Ansichten (Lesezeichen) bewahren dieses vollständige Layout ebenfalls, sodass beim Wechseln zwischen Ansichten genau die von Ihnen konfigurierten Spalten — und in derselben Anordnung — wiederhergestellt werden, was beim Teilen einer aufgeräumten Ansicht mit Stakeholdern wichtig ist.
 
 ### Haupttabelle
 
@@ -170,3 +172,5 @@ Klicken Sie in der Werkzeugleiste auf **Import**, ziehen Sie die Arbeitsmappe in
 ### Exportieren
 
 Klicken Sie in der Werkzeugleiste auf **Export**. Der aktuelle Grid-Filter bestimmt den Inhalt: Bei Einzeltyp-Filter ein Blatt für diesen Typ, sonst ein Blatt pro vorhandenem Typ, jeweils zusätzlich mit `Relations` und `_Meta`. Die Datei ist vollständig editierbar und kann ohne Verlust von typspezifischen Attributen wieder importiert werden.
+
+Sie können im Export-Menü auch **Aktuelle Ansicht exportieren** wählen — eine flache Einzelblatt-Momentaufnahme, die genau das Angezeigte abbildet (nur die sichtbaren Spalten, in ihrer aktuellen Reihenfolge, für die gefilterten Zeilen). Sie ist zum Teilen gedacht und **nicht für den Reimport geeignet**.

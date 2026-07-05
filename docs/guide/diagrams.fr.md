@@ -6,7 +6,23 @@ Le module **Diagrammes** vous permet de créer des **diagrammes d'architecture v
 
 ## Galerie de diagrammes
 
-La galerie liste chaque diagramme avec une miniature, son nom, son type et les fiches qu'il référence. Depuis ici, vous pouvez **Créer**, **Ouvrir**, **Modifier les détails** ou **Supprimer** n'importe quel diagramme.
+La galerie présente chaque diagramme sous forme de carte compacte avec une miniature, un nom, un auteur et le nombre de cartes référencées. **Créez**, **Ouvrez**, **Modifiez les détails**, organisez ou **Supprimez** n'importe quel diagramme.
+
+### Trouver des diagrammes
+
+- **Barre latérale de filtres** — le volet de gauche restreint la galerie à **Tous les diagrammes**, **Créés par moi** ou vos **Favoris**. Le chevron permet de la réduire en une fine barre ; sur petits écrans, le bouton **Filtres** l'ouvre en panneau coulissant.
+- **Recherche** — le champ de recherche correspond au nom d'un diagramme, à son auteur et aux noms des cartes qui y sont dessinées, afin de retrouver un diagramme par son contenu.
+- **Tri** — par récemment mis à jour, récemment créé ou nom.
+- **Favoris** — cliquez sur l'étoile d'une carte pour l'ajouter à vos favoris personnels ; le filtre **Favoris** les affiche tous.
+
+### Groupes
+
+Regroupez les diagrammes associés dans des **groupes** — des étiquettes partagées à l'échelle de l'espace de travail. Un diagramme peut appartenir à plusieurs groupes à la fois. En vue carte, la galerie affiche chaque groupe sous forme d'en-tête repliable ; les diagrammes non affectés apparaissent sous **Non groupé**.
+
+- Utilisez **Gérer les groupes** dans la barre latérale pour créer, renommer, recolorer ou supprimer des groupes.
+- Utilisez **Ajouter à des groupes…** depuis le menu d'un diagramme pour le placer dans un ou plusieurs groupes (vous pouvez créer un nouveau groupe au passage).
+- Sélectionner un groupe dans la barre latérale filtre la galerie sur ce seul groupe.
+
 
 ## L'éditeur de diagrammes
 

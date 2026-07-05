@@ -131,11 +131,11 @@ describe("StakeholdersTab", () => {
     await userEvent.type(userInput, "stranger@example.com");
 
     expect(
-      await screen.findByText(/invite\s+«stranger@example\.com»\s+as a new user/i)
+      await screen.findByText(/add\s+«stranger@example\.com»\s+as a new user/i)
     ).toBeInTheDocument();
   });
 
-  it("always shows a generic 'Invite a new user' row when no email is typed", async () => {
+  it("always shows a generic 'Add a new user' row when no email is typed", async () => {
     // Discoverability: a user with users.invite should see the affordance
     // regardless of what they type — including before they type anything.
     authRef.user = {
@@ -150,7 +150,7 @@ describe("StakeholdersTab", () => {
     const userInput = screen.getByLabelText(/^user$/i);
     await userEvent.click(userInput);
 
-    expect(await screen.findByText(/invite a new user/i)).toBeInTheDocument();
+    expect(await screen.findByText(/add a new user/i)).toBeInTheDocument();
   });
 
   it("hides the Invite sentinel when the user lacks users.invite", async () => {
@@ -170,12 +170,12 @@ describe("StakeholdersTab", () => {
     // Wait for the noOptionsText / dropdown to settle, then assert absence.
     await waitFor(() => {
       expect(
-        screen.queryByText(/invite\s+«stranger@example\.com»\s+as a new user/i)
+        screen.queryByText(/add\s+«stranger@example\.com»\s+as a new user/i)
       ).not.toBeInTheDocument();
     });
   });
 
-  it("clicking the Invite row opens an inline form prefilled with the typed email", async () => {
+  it("clicking the Add-new-user row opens an inline form prefilled with the typed email", async () => {
     authRef.user = {
       id: "me",
       email: "me@test.com",
@@ -189,19 +189,19 @@ describe("StakeholdersTab", () => {
     await userEvent.click(userInput);
     await userEvent.type(userInput, "newhire@nexatech.com");
 
-    const inviteRow = await screen.findByText(/invite\s+«newhire@nexatech\.com»\s+as a new user/i);
+    const inviteRow = await screen.findByText(/add\s+«newhire@nexatech\.com»\s+as a new user/i);
     await userEvent.click(inviteRow);
 
-    // Inline invite form appears with the typed email prefilled and the
+    // Inline add-user form appears with the typed email prefilled and the
     // display-name field empty.
-    expect(await screen.findByText(/invite new user/i)).toBeInTheDocument();
+    expect(await screen.findByText(/add new user/i)).toBeInTheDocument();
     const emailField = screen.getByLabelText(/^email$/i) as HTMLInputElement;
     expect(emailField.value).toBe("newhire@nexatech.com");
     const displayNameField = screen.getByLabelText(/display name/i) as HTMLInputElement;
     expect(displayNameField.value).toBe("");
   });
 
-  it("Invite & add POSTs /users then /cards/{id}/stakeholders", async () => {
+  it("Add user POSTs /users then /cards/{id}/stakeholders", async () => {
     authRef.user = {
       id: "me",
       email: "me@test.com",
@@ -228,10 +228,10 @@ describe("StakeholdersTab", () => {
     await userEvent.click(userInput);
     await userEvent.type(userInput, "newhire@nexatech.com");
     await userEvent.click(
-      await screen.findByText(/invite\s+«newhire@nexatech\.com»\s+as a new user/i)
+      await screen.findByText(/add\s+«newhire@nexatech\.com»\s+as a new user/i)
     );
     await userEvent.type(screen.getByLabelText(/display name/i), "New Hire");
-    await userEvent.click(screen.getByRole("button", { name: /invite & add/i }));
+    await userEvent.click(screen.getByRole("button", { name: /add user/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith("/users", {

@@ -2,6 +2,9 @@ export type DashboardTabKey = "overview" | "workspace" | "admin";
 
 export interface UiPreferences {
   dashboard_default_tab?: DashboardTabKey;
+  // Enabled Draw.io "More Shapes" libraries the user chose to remember, in the
+  // order Draw.io reports them. Restored as the embedded editor's `libs` param.
+  diagram_libraries?: string[];
 }
 
 export interface User {
@@ -94,6 +97,7 @@ export interface SsoConfig {
   scopes?: string;
   extra_auth_params?: Record<string, string>;
   registration_enabled?: boolean;
+  local_login_available?: boolean;
 }
 
 export interface SsoInvitation {
@@ -132,6 +136,10 @@ export interface FieldOption {
   // fully editable. `hidden` removes a value from the picker without deleting it.
   built_in?: boolean;
   hidden?: boolean;
+  // Transient, editor-only: marks an option that already existed when an editor
+  // dialog opened (so its key is locked). Stripped before persisting — never
+  // sent to or stored by the backend.
+  _original?: boolean;
 }
 
 export interface FieldDef {
@@ -158,6 +166,9 @@ export interface FieldDef {
   // flowDirection): the field definition is locked, but its options can be
   // managed. Custom relation dimensions are fully editable.
   built_in?: boolean;
+  // Transient, editor-only: marks a dimension that already existed when the
+  // editor opened (so its key is locked). Stripped before persisting.
+  _original?: boolean;
 }
 
 export interface SubtypeDef {
@@ -195,6 +206,7 @@ export interface DataQualityConfig {
   lifecycle?: number;
   relations?: number;
   tags?: number;
+  stakeholders?: number;
 }
 
 export interface CardType {
@@ -412,6 +424,7 @@ export interface TagGroup {
 export interface Tag {
   id: string;
   name: string;
+  description?: string;
   color?: string;
   tag_group_id: string;
 }
@@ -423,12 +436,29 @@ export interface BookmarkShareEntry {
   can_edit: boolean;
 }
 
+/**
+ * A single column's persisted layout, mirroring the subset of AG Grid's
+ * `ColumnState` we care about (order is the array position; width / pinning /
+ * visibility are explicit). Stored on a saved view's `column_state` so the
+ * inventory grid restores exactly how it looked when the view was saved.
+ */
+export interface ColumnLayoutItem {
+  colId: string;
+  width?: number;
+  flex?: number | null;
+  pinned?: "left" | "right" | boolean | null;
+  hide?: boolean | null;
+  sort?: "asc" | "desc" | null;
+  sortIndex?: number | null;
+}
+
 export interface Bookmark {
   id: string;
   name: string;
   card_type?: string;
   filters?: Record<string, unknown>;
   columns?: string[];
+  column_state?: ColumnLayoutItem[];
   sort?: Record<string, unknown>;
   is_default: boolean;
   visibility: "private" | "public" | "shared";
@@ -628,6 +658,12 @@ export interface FileAttachment {
 // Surveys
 // ---------------------------------------------------------------------------
 
+/** A card reference linked through a survey relation field. */
+export interface SurveyRelationRef {
+  id: string;
+  name: string;
+}
+
 export interface SurveyField {
   key: string;
   section: string;
@@ -637,6 +673,12 @@ export interface SurveyField {
   action: "maintain" | "confirm";
   translations?: TranslationMap;
   section_translations?: TranslationMap;
+  // Relation fields: when kind === "relation" the field surveys a relationship
+  // rather than an attribute. The respondent's value is a list of SurveyRelationRef.
+  kind?: "attribute" | "relation";
+  relation_type_key?: string;
+  direction?: "outgoing" | "incoming";
+  related_type_key?: string;
 }
 
 export interface SurveyTargetFilters {
@@ -776,10 +818,23 @@ export interface DiagramSummary {
   id: string;
   name: string;
   description?: string;
-  type: string;
   card_ids: string[];
+  group_ids?: string[];
   thumbnail?: string;
   card_count: number;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  is_favorite?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DiagramGroup {
+  id: string;
+  name: string;
+  color?: string | null;
+  sort_order: number;
+  diagram_count: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -1377,6 +1432,30 @@ export interface ComplianceRegulation {
   key: string;
   label: string;
   description: string | null;
+  is_enabled: boolean;
+  built_in: boolean;
+  sort_order: number;
+  translations: TranslationMap;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/** Discriminator for {@link ResourceType}. */
+export type ResourceTypeKind = "link_type" | "file_category";
+
+/**
+ * An admin-managed link type or file category shown on a card's Resources
+ * tab. A single list per `kind`, with built-in defaults that can be edited
+ * or disabled but not deleted. `icon` is a Material Symbol name used by link
+ * types; file categories leave it null.
+ */
+export interface ResourceType {
+  id: string;
+  kind: ResourceTypeKind;
+  key: string;
+  label: string;
+  description: string | null;
+  icon: string | null;
   is_enabled: boolean;
   built_in: boolean;
   sort_order: number;

@@ -6,7 +6,23 @@ Das Modul **Diagramme** ermöglicht es Ihnen, **visuelle Architekturdiagramme** 
 
 ## Diagramm-Galerie
 
-Die Galerie listet jedes Diagramm mit einer Miniaturansicht, dem Namen, dem Typ und den referenzierten Karten auf. Von hier aus können Sie jedes Diagramm **Erstellen**, **Öffnen**, **Details bearbeiten** oder **Löschen**.
+Die Galerie listet jedes Diagramm als kompakte Karte mit Vorschaubild, Name, Autor und der Anzahl der referenzierten Karten auf. **Erstellen**, **Öffnen**, **Details bearbeiten**, organisieren oder **Löschen** Sie jedes Diagramm.
+
+### Diagramme finden
+
+- **Filter-Seitenleiste** — die linke Leiste schränkt die Galerie auf **Alle Diagramme**, **Von mir erstellt** oder Ihre **Favoriten** ein. Mit dem Pfeil lässt sie sich zu einer schmalen Leiste einklappen; auf kleinen Bildschirmen öffnet die Schaltfläche **Filter** sie als eingeblendetes Panel.
+- **Suche** — das Suchfeld findet Diagramme anhand ihres Namens, ihres Autors und der Namen der darin gezeichneten Karten, sodass Sie ein Diagramm anhand seines Inhalts finden können.
+- **Sortierung** — nach zuletzt aktualisiert, zuletzt erstellt oder Name.
+- **Favoriten** — klicken Sie auf den Stern einer Karte, um sie zu Ihren persönlichen Favoriten hinzuzufügen; der Filter **Favoriten** zeigt sie alle an.
+
+### Gruppen
+
+Gruppieren Sie zusammengehörige Diagramme in **Gruppen** — gemeinsame, arbeitsbereichsweite Etiketten. Ein Diagramm kann gleichzeitig zu mehreren Gruppen gehören. In der Kartenansicht zeigt die Galerie jede Gruppe als einklappbare Überschrift; nicht zugeordnete Diagramme erscheinen unter **Nicht gruppiert**.
+
+- Verwenden Sie **Gruppen verwalten** in der Seitenleiste, um Gruppen zu erstellen, umzubenennen, umzufärben oder zu löschen.
+- Verwenden Sie **Zu Gruppen hinzufügen…** im Menü eines Diagramms, um es in eine oder mehrere Gruppen einzuordnen (Sie können dabei direkt eine neue Gruppe erstellen).
+- Die Auswahl einer Gruppe in der Seitenleiste filtert die Galerie auf genau diese Gruppe.
+
 
 ## Der Diagramm-Editor
 

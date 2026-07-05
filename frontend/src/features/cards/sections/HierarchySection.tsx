@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -18,11 +18,11 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
-import Autocomplete from "@mui/material/Autocomplete";
 import { useTranslation } from "react-i18next";
 import MaterialSymbol from "@/components/MaterialSymbol";
+import CardPicker, { type CardOption } from "@/components/CardPicker";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useTypeLabel } from "@/hooks/useResolveLabel";
 import { api } from "@/api/client";
 import type { Card, HierarchyData } from "@/types";
 
@@ -43,21 +43,19 @@ function HierarchySection({
   const { t } = useTranslation(["cards", "common"]);
   const navigate = useNavigate();
   const { getType } = useMetamodel();
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
   const typeConfig = getType(card.type);
   const [hierarchy, setHierarchy] = useState<HierarchyData | null>(null);
 
   // Parent picker state
   const [pickingParent, setPickingParent] = useState(false);
   const [parentSearch, setParentSearch] = useState("");
-  const [parentOptions, setParentOptions] = useState<{ id: string; name: string }[]>([]);
-  const [selectedParent, setSelectedParent] = useState<{ id: string; name: string } | null>(null);
+  const [selectedParent, setSelectedParent] = useState<CardOption | null>(null);
 
   // Add child state
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [childSearch, setChildSearch] = useState("");
-  const [childOptions, setChildOptions] = useState<{ id: string; name: string }[]>([]);
-  const [selectedChild, setSelectedChild] = useState<{ id: string; name: string } | null>(null);
+  const [selectedChild, setSelectedChild] = useState<CardOption | null>(null);
 
   // Inline create state
   const [createMode, setCreateMode] = useState<"parent" | "child" | null>(null);
@@ -71,39 +69,15 @@ function HierarchySection({
 
   useEffect(loadHierarchy, [loadHierarchy]);
 
-  // Search parents (same type, exclude self and descendants)
-  useEffect(() => {
-    if (!pickingParent || parentSearch.length < 1) { setParentOptions([]); return; }
-    const timer = setTimeout(() => {
-      api
-        .get<{ items: { id: string; name: string }[] }>(
-          `/cards?type=${card.type}&search=${encodeURIComponent(parentSearch)}&page_size=20`
-        )
-        .then((res) => {
-          const childIds = new Set(hierarchy?.children.map((c) => c.id) || []);
-          setParentOptions(res.items.filter((item) => item.id !== card.id && !childIds.has(item.id)));
-        })
-        .catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [pickingParent, parentSearch, card.id, card.type, hierarchy]);
-
-  // Search children (same type, exclude self)
-  useEffect(() => {
-    if (!addChildOpen || childSearch.length < 1) { setChildOptions([]); return; }
-    const timer = setTimeout(() => {
-      api
-        .get<{ items: { id: string; name: string }[] }>(
-          `/cards?type=${card.type}&search=${encodeURIComponent(childSearch)}&page_size=20`
-        )
-        .then((res) => {
-          const ancestorIds = new Set(hierarchy?.ancestors.map((a) => a.id) || []);
-          setChildOptions(res.items.filter((item) => item.id !== card.id && !ancestorIds.has(item.id)));
-        })
-        .catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [addChildOpen, childSearch, card.id, card.type, hierarchy]);
+  // Parent picker excludes self + existing children; child picker excludes self + ancestors.
+  const parentExcludeIds = useMemo(
+    () => [card.id, ...(hierarchy?.children.map((c) => c.id) || [])],
+    [card.id, hierarchy],
+  );
+  const childExcludeIds = useMemo(
+    () => [card.id, ...(hierarchy?.ancestors.map((a) => a.id) || [])],
+    [card.id, hierarchy],
+  );
 
   const handleSetParent = async () => {
     if (!selectedParent) return;
@@ -287,18 +261,16 @@ function HierarchySection({
                 )}
                 {!createMode ? (
                   <>
-                    <Autocomplete
-                      options={parentOptions}
-                      getOptionLabel={(opt) => opt.name}
+                    <CardPicker
+                      types={card.type}
                       value={selectedParent}
-                      onChange={(_, val) => setSelectedParent(val)}
-                      inputValue={parentSearch}
-                      onInputChange={(_, val) => setParentSearch(val)}
-                      renderInput={(params) => (
-                        <TextField {...params} size="small" label={t("hierarchy.search", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })} placeholder={t("hierarchy.searchPlaceholder")} sx={{ mt: 1 }} />
-                      )}
-                      noOptionsText={parentSearch ? t("common:labels.noResults") : t("hierarchy.searchPlaceholder")}
-                      filterOptions={(x) => x}
+                      onChange={setSelectedParent}
+                      onInputChange={setParentSearch}
+                      excludeIds={parentExcludeIds}
+                      enabled={pickingParent}
+                      fullWidth
+                      sx={{ mt: 1 }}
+                      label={t("hierarchy.search", { type: typeLabel(typeConfig) || card.type })}
                     />
                     <Button
                       size="small"
@@ -306,13 +278,13 @@ function HierarchySection({
                       startIcon={<MaterialSymbol icon="add" size={16} />}
                       onClick={() => { setCreateMode("parent"); setCreateName(parentSearch); }}
                     >
-                      {t("hierarchy.createNew", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })}
+                      {t("hierarchy.createNew", { type: typeLabel(typeConfig) || card.type })}
                     </Button>
                   </>
                 ) : (
                   <Box sx={{ mt: 1, p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                      {t("hierarchy.createAsParent", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })}
+                      {t("hierarchy.createAsParent", { type: typeLabel(typeConfig) || card.type })}
                     </Typography>
                     <TextField
                       fullWidth size="small" label={t("common:labels.name")} value={createName}
@@ -399,18 +371,16 @@ function HierarchySection({
                 )}
                 {createMode !== "child" ? (
                   <>
-                    <Autocomplete
-                      options={childOptions}
-                      getOptionLabel={(opt) => opt.name}
+                    <CardPicker
+                      types={card.type}
                       value={selectedChild}
-                      onChange={(_, val) => setSelectedChild(val)}
-                      inputValue={childSearch}
-                      onInputChange={(_, val) => setChildSearch(val)}
-                      renderInput={(params) => (
-                        <TextField {...params} size="small" label={t("hierarchy.search", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })} placeholder={t("hierarchy.searchPlaceholder")} sx={{ mt: 1 }} />
-                      )}
-                      noOptionsText={childSearch ? t("common:labels.noResults") : t("hierarchy.searchPlaceholder")}
-                      filterOptions={(x) => x}
+                      onChange={setSelectedChild}
+                      onInputChange={setChildSearch}
+                      excludeIds={childExcludeIds}
+                      enabled={addChildOpen}
+                      fullWidth
+                      sx={{ mt: 1 }}
+                      label={t("hierarchy.search", { type: typeLabel(typeConfig) || card.type })}
                     />
                     <Button
                       size="small"
@@ -418,13 +388,13 @@ function HierarchySection({
                       startIcon={<MaterialSymbol icon="add" size={16} />}
                       onClick={() => { setCreateMode("child"); setCreateName(childSearch); }}
                     >
-                      {t("hierarchy.createNew", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })}
+                      {t("hierarchy.createNew", { type: typeLabel(typeConfig) || card.type })}
                     </Button>
                   </>
                 ) : (
                   <Box sx={{ mt: 1, p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
                     <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                      {t("hierarchy.createAsChild", { type: rml(typeConfig?.key ?? "", typeConfig?.translations, "label") || card.type })}
+                      {t("hierarchy.createAsChild", { type: typeLabel(typeConfig) || card.type })}
                     </Typography>
                     <TextField
                       fullWidth size="small" label={t("common:labels.name")} value={createName}

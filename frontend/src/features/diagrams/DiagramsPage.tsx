@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import Box from "@mui/material/Box";
@@ -8,91 +8,167 @@ import CardContent from "@mui/material/CardContent";
 import CardActionArea from "@mui/material/CardActionArea";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
 import MenuItem from "@mui/material/MenuItem";
-import Grid from "@mui/material/Grid";
+import Select from "@mui/material/Select";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Paper from "@mui/material/Paper";
+import Collapse from "@mui/material/Collapse";
 import Menu from "@mui/material/Menu";
 import Autocomplete from "@mui/material/Autocomplete";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import Drawer from "@mui/material/Drawer";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { useMetamodel } from "@/hooks/useMetamodel";
+import { useTypeLabel } from "@/hooks/useResolveLabel";
 import { useDateFormat } from "@/hooks/useDateFormat";
 import { api } from "@/api/client";
-import type { Card, DiagramSummary } from "@/types";
+import type { Card, DiagramSummary, DiagramGroup } from "@/types";
 import CreateDiagramDialog from "./CreateDiagramDialog";
+import ManageGroupsDialog from "./ManageGroupsDialog";
+import AssignGroupsDialog from "./AssignGroupsDialog";
+import DiagramsFilterSidebar, {
+  type DiagramScope,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+} from "./DiagramsFilterSidebar";
 
-type ViewMode = "card" | "list";
+type SortKey = "updated_at" | "created_at" | "name";
+
+const FAVORITE_COLOR = "#f5b400";
+const DIAGRAM_ICON = "schema";
 
 export default function DiagramsPage() {
   const { t } = useTranslation(["diagrams", "common"]);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { formatDate } = useDateFormat();
   const { types: metamodelTypes } = useMetamodel();
+  const typeLabel = useTypeLabel();
   const [diagrams, setDiagrams] = useState<DiagramSummary[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem("diagrams_view") as ViewMode) || "card"
+  const [groups, setGroups] = useState<DiagramGroup[]>([]);
+
+  // Filter sidebar: temporary drawer on mobile, inline collapsible rail on desktop
+  // (mirrors the inventory sidebar). Collapse state + width persist across visits.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("diagrams_sidebar_collapsed") === "1",
   );
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const stored = Number(localStorage.getItem("diagrams_sidebar_width"));
+    return stored >= SIDEBAR_MIN_WIDTH && stored <= SIDEBAR_MAX_WIDTH ? stored : 240;
+  });
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem("diagrams_sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  };
+  const changeSidebarWidth = (w: number) => {
+    setSidebarWidth(w);
+    localStorage.setItem("diagrams_sidebar_width", String(w));
+  };
+
+  // Sidebar + search + sort state
+  const [scope, setScope] = useState<DiagramScope>({ kind: "all" });
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("updated_at");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Cards for linking
   const [allCards, setAllCards] = useState<Card[]>([]);
 
-  // Create dialog
+  // Dialogs
   const [createOpen, setCreateOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignDiagram, setAssignDiagram] = useState<DiagramSummary | null>(null);
 
-  // Edit dialog (rename + description + initiatives)
   const [editOpen, setEditOpen] = useState(false);
   const [editDiagram, setEditDiagram] = useState<DiagramSummary | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editCardIds, setEditCardIds] = useState<string[]>([]);
 
-  // Delete confirmation
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteDiagram, setDeleteDiagram] = useState<DiagramSummary | null>(null);
 
-  // Context menu
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuDiagram, setMenuDiagram] = useState<DiagramSummary | null>(null);
 
-  // Build type color/icon maps from metamodel
-  const typeMap = Object.fromEntries(
-    metamodelTypes.map((mt) => [mt.key, { color: mt.color, icon: mt.icon, label: mt.label }]),
-  );
+  const typeMap = Object.fromEntries(metamodelTypes.map((mt) => [mt.key, mt]));
+
+  // Debounce the search box.
+  useEffect(() => {
+    const h = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(h);
+  }, [searchInput]);
 
   const loadDiagrams = useCallback(() => {
-    api.get<DiagramSummary[]>("/diagrams").then(setDiagrams);
+    const params = new URLSearchParams();
+    if (scope.kind === "mine") params.set("mine", "true");
+    if (scope.kind === "favorites") params.set("favorites", "true");
+    if (scope.kind === "group") params.set("group_id", scope.id);
+    if (search) params.set("search", search);
+    params.set("sort_by", sortBy);
+    const qs = params.toString();
+    api.get<DiagramSummary[]>(`/diagrams${qs ? `?${qs}` : ""}`).then(setDiagrams);
+  }, [scope, search, sortBy]);
+
+  const loadGroups = useCallback(() => {
+    api
+      .get<DiagramGroup[]>("/diagram-groups")
+      .then(setGroups)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     loadDiagrams();
+  }, [loadDiagrams]);
+
+  useEffect(() => {
+    loadGroups();
     api
       .get<{ items: Card[] }>("/cards?page_size=500")
       .then((res) => setAllCards(res.items))
       .catch(() => {});
-  }, [loadDiagrams]);
+  }, [loadGroups]);
 
-  const handleViewChange = (_: unknown, mode: ViewMode | null) => {
-    if (mode) {
-      setViewMode(mode);
-      localStorage.setItem("diagrams_view", mode);
-    }
-  };
+  const toggleFavorite = useCallback(
+    async (d: DiagramSummary, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const next = !d.is_favorite;
+      // Optimistic update
+      setDiagrams((prev) =>
+        prev.map((x) => (x.id === d.id ? { ...x, is_favorite: next } : x)),
+      );
+      try {
+        if (next) await api.post(`/diagrams/${d.id}/favorite`);
+        else await api.delete(`/diagrams/${d.id}/favorite`);
+      } catch {
+        // Revert on failure
+        setDiagrams((prev) =>
+          prev.map((x) => (x.id === d.id ? { ...x, is_favorite: !next } : x)),
+        );
+        return;
+      }
+      // When viewing the Favorites scope, an un-favorite should drop the card.
+      if (scope.kind === "favorites" && !next) loadDiagrams();
+    },
+    [scope, loadDiagrams],
+  );
 
   const openEdit = (d: DiagramSummary) => {
     setEditDiagram(d);
@@ -129,313 +205,303 @@ export default function DiagramsPage() {
     loadDiagrams();
   };
 
+  const openAssign = (d: DiagramSummary) => {
+    setAssignDiagram(d);
+    setAssignOpen(true);
+    setMenuAnchor(null);
+  };
+
   const openMenu = (e: React.MouseEvent<HTMLElement>, d: DiagramSummary) => {
     e.stopPropagation();
     setMenuAnchor(e.currentTarget);
     setMenuDiagram(d);
   };
 
-  const typeLabel = (typeKey: string) => (typeKey === "data_flow" ? t("gallery.types.dataFlow") : t("gallery.types.freeDraw"));
-  const typeIcon = (typeKey: string) => (typeKey === "data_flow" ? "device_hub" : "draw");
   const fmtDate = (iso?: string) => (iso ? formatDate(iso) : "");
 
-  // Helper: resolve linked card names from IDs
-  const linkedCardNames = (ids: string[]) =>
-    ids
-      .map((id) => allCards.find((c) => c.id === id)?.name)
-      .filter(Boolean)
-      .join(", ");
+  const toggleCollapse = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  // Group diagrams by group for the grouped view (only when not filtered to a
+  // single group). Multi-group diagrams appear under each of their groups.
+  const grouped = useMemo(() => {
+    const out: { key: string; label: string; color?: string | null; items: DiagramSummary[] }[] =
+      [];
+    for (const g of groups) {
+      const items = diagrams.filter((d) => (d.group_ids || []).includes(g.id));
+      if (items.length) out.push({ key: g.id, label: g.name, color: g.color, items });
+    }
+    const ungrouped = diagrams.filter((d) => !(d.group_ids || []).length);
+    if (ungrouped.length)
+      out.push({ key: "__ungrouped", label: t("gallery.ungrouped"), items: ungrouped });
+    return out;
+  }, [diagrams, groups, t]);
+
+  const renderCard = (d: DiagramSummary) => (
+    <MuiCard key={d.id} sx={{ position: "relative" }}>
+      <CardActionArea onClick={() => navigate(`/diagrams/${d.id}`)}>
+        {/* Thumbnail */}
+        <Box
+          sx={{
+            height: 104,
+            overflow: "hidden",
+            bgcolor: "action.hover",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          {d.thumbnail ? (
+            <img
+              src={
+                d.thumbnail.startsWith("data:")
+                  ? d.thumbnail
+                  : `data:image/svg+xml;base64,${btoa(d.thumbnail)}`
+              }
+              alt={d.name}
+              style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+            />
+          ) : (
+            <MaterialSymbol icon={DIAGRAM_ICON} size={36} color="#bbb" />
+          )}
+        </Box>
+
+        <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.25 }}>
+            <MaterialSymbol icon={DIAGRAM_ICON} size={18} color="#1976d2" />
+            <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
+              {d.name}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              flexWrap: "wrap",
+              minHeight: 20,
+            }}
+          >
+            {!!d.card_count && (
+              <Chip
+                size="small"
+                label={d.card_count}
+                icon={<MaterialSymbol icon="widgets" size={12} />}
+                variant="outlined"
+                sx={{ height: 20, "& .MuiChip-label": { px: 0.5, fontSize: 11 } }}
+              />
+            )}
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ ml: "auto" }}>
+              {d.created_by_name ? `${t("gallery.byAuthor", { name: d.created_by_name })} · ` : ""}
+              {fmtDate(d.updated_at)}
+            </Typography>
+          </Box>
+        </CardContent>
+      </CardActionArea>
+
+      {/* Favorite star */}
+      <Tooltip title={d.is_favorite ? t("gallery.favorite.remove") : t("gallery.favorite.add")}>
+        <IconButton
+          size="small"
+          onClick={(e) => toggleFavorite(d, e)}
+          sx={{
+            position: "absolute",
+            top: 2,
+            left: 2,
+            bgcolor: "rgba(255,255,255,0.85)",
+            "&:hover": { bgcolor: "rgba(255,255,255,0.95)" },
+          }}
+        >
+          <MaterialSymbol
+            icon="star"
+            size={16}
+            color={d.is_favorite ? FAVORITE_COLOR : "#999"}
+            style={d.is_favorite ? { fontVariationSettings: "'FILL' 1" } : undefined}
+          />
+        </IconButton>
+      </Tooltip>
+
+      {/* More menu */}
+      <IconButton
+        size="small"
+        sx={{
+          position: "absolute",
+          top: 2,
+          right: 2,
+          bgcolor: "rgba(255,255,255,0.85)",
+          "&:hover": { bgcolor: "rgba(255,255,255,0.95)" },
+        }}
+        onClick={(e) => openMenu(e, d)}
+      >
+        <MaterialSymbol icon="more_vert" size={16} />
+      </IconButton>
+    </MuiCard>
+  );
+
+  const cardGrid = (items: DiagramSummary[]) => (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+        gap: 1.5,
+      }}
+    >
+      {items.map(renderCard)}
+    </Box>
+  );
+
+  const showGrouped = scope.kind !== "group";
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          {t("page.title")}
-        </Typography>
-        <Chip label={`${diagrams.length}`} size="small" />
-        <Box sx={{ flex: 1 }} />
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={handleViewChange}
-          size="small"
+    <Box sx={{ display: "flex", height: "calc(100vh - 64px)", m: { xs: -1.5, sm: -3 } }}>
+      {/* Sidebar — temporary Drawer on mobile, inline collapsible rail on desktop */}
+      {isMobile ? (
+        <Drawer
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          PaperProps={{ sx: { width: 300 } }}
         >
-          <ToggleButton value="card">
-            <MaterialSymbol icon="grid_view" size={18} />
-          </ToggleButton>
-          <ToggleButton value="list">
-            <MaterialSymbol icon="view_list" size={18} />
-          </ToggleButton>
-        </ToggleButtonGroup>
-        <Button
-          variant="contained"
-          startIcon={<MaterialSymbol icon="add" size={18} />}
-          onClick={() => setCreateOpen(true)}
-          sx={{ textTransform: "none" }}
-        >
-          {t("gallery.newDiagram")}
-        </Button>
+          <DiagramsFilterSidebar
+            scope={scope}
+            onScopeChange={setScope}
+            groups={groups}
+            onManageGroups={() => {
+              setFiltersOpen(false);
+              setManageOpen(true);
+            }}
+            collapsed={false}
+            onToggleCollapse={() => setFiltersOpen(false)}
+            width={300}
+            onWidthChange={() => {}}
+            onAfterChange={() => setFiltersOpen(false)}
+          />
+        </Drawer>
+      ) : (
+        <DiagramsFilterSidebar
+          scope={scope}
+          onScopeChange={setScope}
+          groups={groups}
+          onManageGroups={() => setManageOpen(true)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapse}
+          width={sidebarWidth}
+          onWidthChange={changeSidebarWidth}
+        />
+      )}
+
+      <Box sx={{ flex: 1, minWidth: 0, overflow: "auto", p: { xs: 1.5, sm: 2 } }}>
+        {/* Header */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+          {isMobile && (
+            <Tooltip title={t("gallery.filters")}>
+              <IconButton onClick={() => setFiltersOpen(true)} size="small">
+                <MaterialSymbol icon="filter_list" size={22} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Typography variant="h5" fontWeight={600}>
+            {t("page.title")}
+          </Typography>
+          <Chip label={`${diagrams.length}`} size="small" />
+          <TextField
+            size="small"
+            placeholder={t("gallery.search.placeholder")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            sx={{ flexGrow: 1, flexBasis: { xs: "100%", sm: 320 }, minWidth: { sm: 280 } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MaterialSymbol icon="search" size={18} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput("")}>
+                    <MaterialSymbol icon="close" size={16} />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
+            }}
+          />
+          <Select
+            size="small"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            sx={{ minWidth: 170 }}
+          >
+            <MenuItem value="updated_at">{t("gallery.sort.updated")}</MenuItem>
+            <MenuItem value="created_at">{t("gallery.sort.created")}</MenuItem>
+            <MenuItem value="name">{t("gallery.sort.name")}</MenuItem>
+          </Select>
+          <Button
+            variant="contained"
+            startIcon={<MaterialSymbol icon="add" size={18} />}
+            onClick={() => setCreateOpen(true)}
+            sx={{ textTransform: "none" }}
+          >
+            {t("gallery.newDiagram")}
+          </Button>
+        </Box>
+
+        {/* Empty state */}
+        {diagrams.length === 0 && (
+          <Typography color="text.secondary" sx={{ textAlign: "center", py: 6 }}>
+            {search || scope.kind !== "all"
+              ? t("gallery.noResults")
+              : t("gallery.empty")}
+          </Typography>
+        )}
+
+        {/* Grouped by group */}
+        {diagrams.length > 0 && showGrouped && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {grouped.map((g) => (
+              <Box key={g.key}>
+                <Box
+                  onClick={() => toggleCollapse(g.key)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    cursor: "pointer",
+                    mb: 1,
+                    userSelect: "none",
+                  }}
+                >
+                  <MaterialSymbol
+                    icon={collapsed.has(g.key) ? "chevron_right" : "expand_more"}
+                    size={20}
+                  />
+                  {g.color && (
+                    <Box
+                      sx={{ width: 12, height: 12, borderRadius: "3px", bgcolor: g.color }}
+                    />
+                  )}
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {g.label}
+                  </Typography>
+                  <Chip size="small" label={g.items.length} />
+                </Box>
+                <Collapse in={!collapsed.has(g.key)}>{cardGrid(g.items)}</Collapse>
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {/* Flat (single group selected) */}
+        {diagrams.length > 0 && !showGrouped && cardGrid(diagrams)}
       </Box>
 
-      {/* Card View */}
-      {viewMode === "card" && (
-        <Grid container spacing={2}>
-          {diagrams.map((d) => (
-            <Grid item xs={12} sm={6} md={4} key={d.id}>
-              <MuiCard sx={{ position: "relative" }}>
-                <CardActionArea onClick={() => navigate(`/diagrams/${d.id}`)}>
-                  {/* Thumbnail */}
-                  {d.thumbnail ? (
-                    <Box
-                      sx={{
-                        height: 160,
-                        overflow: "hidden",
-                        bgcolor: "action.hover",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderBottom: 1,
-                        borderColor: "divider",
-                      }}
-                    >
-                      <img
-                        src={
-                          d.thumbnail.startsWith("data:")
-                            ? d.thumbnail
-                            : `data:image/svg+xml;base64,${btoa(d.thumbnail)}`
-                        }
-                        alt={d.name}
-                        style={{
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  ) : (
-                    <Box
-                      sx={{
-                        height: 160,
-                        bgcolor: "action.hover",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderBottom: 1,
-                        borderColor: "divider",
-                      }}
-                    >
-                      <MaterialSymbol icon="draw" size={48} color="#ccc" />
-                    </Box>
-                  )}
-
-                  <CardContent sx={{ pb: "12px !important" }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 0.5,
-                      }}
-                    >
-                      <MaterialSymbol
-                        icon={typeIcon(d.type)}
-                        size={24}
-                        color="#1976d2"
-                      />
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={600}
-                        noWrap
-                        sx={{ flex: 1 }}
-                      >
-                        {d.name}
-                      </Typography>
-                    </Box>
-                    {d.description && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          mb: 0.75,
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                          fontSize: 13,
-                        }}
-                      >
-                        {d.description}
-                      </Typography>
-                    )}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Chip size="small" label={typeLabel(d.type)} />
-                      {!!d.card_count && (
-                        <Chip
-                          size="small"
-                          label={t("gallery.cardCount", { count: d.card_count })}
-                          variant="outlined"
-                        />
-                      )}
-                      {d.card_ids.length > 0 && (
-                        <Chip
-                          size="small"
-                          icon={<MaterialSymbol icon="link" size={14} />}
-                          label={t("gallery.linkedCardCount", { count: d.card_ids.length })}
-                          variant="outlined"
-                          color="success"
-                        />
-                      )}
-                      {d.updated_at && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ ml: "auto" }}
-                        >
-                          {fmtDate(d.updated_at)}
-                        </Typography>
-                      )}
-                    </Box>
-                  </CardContent>
-                </CardActionArea>
-
-                {/* More menu button */}
-                <IconButton
-                  size="small"
-                  sx={{
-                    position: "absolute",
-                    top: 4,
-                    right: 4,
-                    bgcolor: "rgba(255,255,255,0.85)",
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.95)" },
-                  }}
-                  onClick={(e) => openMenu(e, d)}
-                >
-                  <MaterialSymbol icon="more_vert" size={18} />
-                </IconButton>
-              </MuiCard>
-            </Grid>
-          ))}
-          {diagrams.length === 0 && (
-            <Grid item xs={12}>
-              <Typography
-                color="text.secondary"
-                sx={{ textAlign: "center", py: 4 }}
-              >
-                {t("gallery.empty")}
-              </Typography>
-            </Grid>
-          )}
-        </Grid>
-      )}
-
-      {/* List View */}
-      {viewMode === "list" && (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>{t("common:labels.name")}</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>{t("common:labels.description")}</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 120 }}>{t("common:labels.type")}</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 180 }}>{t("gallery.linkedCards")}</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 100 }} align="center">
-                  {t("common:labels.cards")}
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 120 }}>{t("common:labels.updatedAt")}</TableCell>
-                <TableCell sx={{ width: 48 }} />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {diagrams.map((d) => (
-                <TableRow
-                  key={d.id}
-                  hover
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/diagrams/${d.id}`)}
-                >
-                  <TableCell>
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                    >
-                      <MaterialSymbol
-                        icon={typeIcon(d.type)}
-                        size={20}
-                        color="#1976d2"
-                      />
-                      <Typography variant="body2" fontWeight={600} noWrap>
-                        {d.name}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      noWrap
-                      sx={{ maxWidth: 300 }}
-                      title={d.description}
-                    >
-                      {d.description || "\u2014"}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip size="small" label={typeLabel(d.type)} />
-                  </TableCell>
-                  <TableCell>
-                    {d.card_ids.length > 0 ? (
-                      <Typography variant="body2" noWrap sx={{ maxWidth: 160 }} title={linkedCardNames(d.card_ids)}>
-                        {linkedCardNames(d.card_ids) || t("gallery.linked", { count: d.card_ids.length })}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">{"\u2014"}</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    {d.card_count || 0}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {fmtDate(d.updated_at)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => openMenu(e, d)}
-                    >
-                      <MaterialSymbol icon="more_vert" size={18} />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {diagrams.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">
-                      {t("gallery.empty")}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
       {/* Context menu */}
-      <Menu
-        anchorEl={menuAnchor}
-        open={!!menuAnchor}
-        onClose={() => setMenuAnchor(null)}
-      >
+      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
         <MenuItem
           onClick={() => {
             if (menuDiagram) navigate(`/diagrams/${menuDiagram.id}`);
@@ -459,6 +525,16 @@ export default function DiagramsPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
+            if (menuDiagram) openAssign(menuDiagram);
+          }}
+        >
+          <ListItemIcon>
+            <MaterialSymbol icon="folder" size={18} />
+          </ListItemIcon>
+          <ListItemText>{t("gallery.menu.addToGroups")}</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             if (menuDiagram) openDelete(menuDiagram);
           }}
           sx={{ color: "error.main" }}
@@ -470,18 +546,42 @@ export default function DiagramsPage() {
         </MenuItem>
       </Menu>
 
-      <CreateDiagramDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+      <CreateDiagramDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+
+      <ManageGroupsDialog
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        groups={groups}
+        onChanged={() => {
+          loadGroups();
+          loadDiagrams();
+        }}
+      />
+
+      <AssignGroupsDialog
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        diagram={assignDiagram}
+        groups={groups}
+        onSaved={(groupIds) => {
+          // The PUT is authoritative for this diagram's group_ids, so update
+          // the gallery in place immediately (same pattern as the favorite
+          // toggle) — the group and diagram appear without a refresh.
+          if (assignDiagram) {
+            setDiagrams((prev) =>
+              prev.map((d) =>
+                d.id === assignDiagram.id ? { ...d, group_ids: groupIds } : d,
+              ),
+            );
+          }
+          // Refresh the group list for updated counts and any inline-created group.
+          loadGroups();
+        }}
+        onGroupsChanged={loadGroups}
       />
 
       {/* Edit Dialog */}
-      <Dialog
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>{t("gallery.editDiagram")}</DialogTitle>
         <DialogContent>
           <TextField
@@ -508,7 +608,7 @@ export default function DiagramsPage() {
             multiple
             options={allCards}
             getOptionLabel={(opt) => opt.name}
-            groupBy={(opt) => typeMap[opt.type]?.label || opt.type}
+            groupBy={(opt) => typeLabel(typeMap[opt.type]) || opt.type}
             value={allCards.filter((c) => editCardIds.includes(c.id))}
             onChange={(_, newVal) => setEditCardIds(newVal.map((v) => v.id))}
             disableCloseOnSelect
@@ -520,7 +620,9 @@ export default function DiagramsPage() {
                   size={18}
                   color={typeMap[option.type]?.color}
                 />
-                <Box component="span" sx={{ ml: 0.5 }}>{option.name}</Box>
+                <Box component="span" sx={{ ml: 0.5 }}>
+                  {option.name}
+                </Box>
               </li>
             )}
             renderInput={(params) => (
@@ -534,23 +636,14 @@ export default function DiagramsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>{t("common:actions.cancel")}</Button>
-          <Button
-            variant="contained"
-            onClick={handleEdit}
-            disabled={!editName.trim()}
-          >
+          <Button variant="contained" onClick={handleEdit} disabled={!editName.trim()}>
             {t("common:actions.save")}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation */}
-      <Dialog
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>{t("gallery.delete.title")}</DialogTitle>
         <DialogContent>
           <Typography>

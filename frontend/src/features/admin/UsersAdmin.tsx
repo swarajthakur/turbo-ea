@@ -32,6 +32,7 @@ import "ag-grid-community/styles/ag-theme-quartz.css";
 import { api } from "@/api/client";
 import { useDateFormat } from "@/hooks/useDateFormat";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import { useIsRtl } from "@/hooks/useIsRtl";
 import type { User, SsoInvitation, AppRole } from "@/types";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import RolesAdmin from "@/features/admin/RolesAdmin";
@@ -101,6 +102,7 @@ export default function UsersAdmin() {
   const { t } = useTranslation(["admin", "common"]);
   const { formatDate, formatDateTime } = useDateFormat();
   const { mode } = useThemeMode();
+  const isRtl = useIsRtl();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [tab, setTab] = useState(0);
@@ -365,10 +367,9 @@ export default function UsersAdmin() {
       setCreateUserError(t("users.create.requiredFields"));
       return;
     }
-    if (!ssoEnabled && !createUserForm.password) {
-      setCreateUserError(t("users.create.passwordRequiredLocal"));
-      return;
-    }
+    // Password is optional for local accounts too: leaving it blank creates a
+    // password-less account that sets its own password on first login (via the
+    // returned setup link or «Forgot password»).
     try {
       setCreateUserSubmitting(true);
       setCreateUserError(null);
@@ -384,6 +385,8 @@ export default function UsersAdmin() {
       );
       setUsers((prev) => [...prev, created]);
       setCreateUserOpen(false);
+      // Password-less accounts set their password on first login via «Forgot
+      // password» on the login page; surface only an email-send failure here.
       if (createUserForm.send_email && created.email_error) {
         setWarning(created.email_error);
       } else {
@@ -1048,6 +1051,8 @@ export default function UsersAdmin() {
               sx={{ flex: 1, minHeight: 0 }}
             >
               <AgGridReact<User>
+                key={isRtl ? "rtl" : "ltr"}
+                enableRtl={isRtl}
                 rowData={filteredUsers}
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
@@ -1134,11 +1139,7 @@ export default function UsersAdmin() {
                   size="small"
                 />
                 <TextField
-                  label={
-                    ssoEnabled
-                      ? t("users.create.passwordOptional")
-                      : t("users.create.password")
-                  }
+                  label={t("users.create.passwordOptional")}
                   type="password"
                   value={createUserForm.password}
                   onChange={(e) =>
@@ -1146,11 +1147,10 @@ export default function UsersAdmin() {
                   }
                   fullWidth
                   size="small"
-                  required={!ssoEnabled}
                   helperText={
                     ssoEnabled
                       ? t("users.create.passwordSsoHelperText")
-                      : t("users.create.passwordHelperText")
+                      : t("users.create.passwordOptionalLocalHelperText")
                   }
                 />
                 <FormControl fullWidth size="small">

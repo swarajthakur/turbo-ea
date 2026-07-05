@@ -50,6 +50,7 @@
   "filter.any": "Any",
   "filter.minValue": "Min value",
   "filter.contains": "Contains...",
+  "filter.emptyValue": "(empty)",
   "filter.showArchivedOnly": "Show archived only",
   "filter.clearAll": "Clear all ({{count}})",
   "massEdit.title": "Mass Edit",
@@ -144,7 +145,6 @@
   "relation.noRelationsYet": "No relations yet",
   "relation.addRelation": "Add relation",
   "relation.searchType": "Search {{type}}...",
-  "relation.typeToSearch": "Type to search...",
   "relation.createNew": "Create new {{type}}",
   "relation.createAndAdd": "Create & Add",
   "relation.unknown": "Unknown",
@@ -224,5 +224,10 @@
   "import.errors.relationTypeRequired": "relation_type is required",
   "import.errors.unknownRelationType": "Unknown relation type: {{type}}",
   "import.warnings.formatVersionMismatch": "Workbook format version {{version}} differs from the current version. Some fields may not round-trip cleanly.",
-  "import.warnings.unknownRelationType": "Unknown relation type \"{{type}}\" — column ignored"
+  "import.warnings.unknownRelationType": "Unknown relation type \"{{type}}\" — column ignored",
+  "export.allFields": "Export all fields",
+  "export.allFieldsHint": "Full data set, re-importable",
+  "export.currentView": "Export current view",
+  "export.currentViewHint": "Mirrors the on-screen grid — not for re-import",
+  "export.viewSheetName": "View"
 }

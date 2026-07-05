@@ -24,14 +24,16 @@ import { invalidateAppTitle } from "@/hooks/useAppTitle";
 import { invalidateCurrency } from "@/hooks/useCurrency";
 import { invalidateBpmEnabled } from "@/hooks/useBpmEnabled";
 import { invalidateComplianceRegulations } from "@/hooks/useComplianceRegulations";
+import { invalidateResourceTypes } from "@/hooks/useResourceTypes";
 import { invalidateGrcEnabled } from "@/hooks/useGrcEnabled";
+import { invalidateSponsorButtonEnabled } from "@/hooks/useSponsorButtonEnabled";
 import { invalidatePpmEnabled } from "@/hooks/usePpmEnabled";
 import { invalidateArchiveRetentionDays } from "@/hooks/useArchiveRetentionDays";
 import { invalidateFileUploadsEnabled } from "@/hooks/useFileUploadsEnabled";
 import { invalidateEnabledLocalesGlobal } from "@/hooks/useEnabledLocales";
 import { invalidateLoginBranding } from "@/hooks/useLoginBranding";
 import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n";
-import type { ComplianceRegulation } from "@/types";
+import type { ComplianceRegulation, ResourceType } from "@/types";
 
 type BootstrapResponse = {
   currency: string;
@@ -41,6 +43,7 @@ type BootstrapResponse = {
   ppm_enabled: boolean;
   turbolens_enabled: boolean;
   grc_enabled: boolean;
+  sponsor_button_enabled: boolean;
   file_uploads_enabled: boolean;
   enabled_locales: string[];
   fiscal_year_start: number;
@@ -48,6 +51,7 @@ type BootstrapResponse = {
   bpm_row_order: string[];
   show_principles_tab: boolean;
   compliance_regulations: ComplianceRegulation[];
+  resource_types: ResourceType[];
   login_tagline: string;
   login_tagline_hidden: boolean;
   login_help_text: string;
@@ -82,6 +86,7 @@ export function primeBootstrap(): Promise<void> {
       invalidateBpmEnabled(r.bpm_enabled);
       invalidatePpmEnabled(r.ppm_enabled);
       invalidateGrcEnabled(r.grc_enabled);
+      invalidateSponsorButtonEnabled(r.sponsor_button_enabled);
       invalidateFileUploadsEnabled(r.file_uploads_enabled);
 
       if (typeof r.archive_retention_days === "number") {
@@ -97,6 +102,10 @@ export function primeBootstrap(): Promise<void> {
 
       invalidateComplianceRegulations(
         Array.isArray(r.compliance_regulations) ? r.compliance_regulations : [],
+      );
+
+      invalidateResourceTypes(
+        Array.isArray(r.resource_types) ? r.resource_types : [],
       );
 
       invalidateLoginBranding({

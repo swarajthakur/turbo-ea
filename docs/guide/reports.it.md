@@ -72,18 +72,34 @@ Il **Report Dipendenze** visualizza le **connessioni tra componenti** come un gr
 
 ![Layered Dependency View](../assets/img/en/13b_dependencies_c4.png)
 
-Passate alla **Layered Dependency View** usando i pulsanti di modalità di visualizzazione nella barra degli strumenti. È la notazione interna di Turbo EA per mostrare le dipendenze tra le card sui quattro livelli EA — ispirata al principio di stratificazione di ArchiMate e alla filosofia dei «buoni valori predefiniti» del modello C4, ma distinta da entrambi:
+Passate alla **Layered Dependency View** usando i pulsanti di modalità di visualizzazione nella barra degli strumenti. È la notazione interna di Turbo EA per mostrare le dipendenze tra le schede sui quattro livelli EA — ispirata al principio di stratificazione di ArchiMate e alla filosofia dei «buoni valori predefiniti» del modello C4, ma distinta da entrambi. La stessa vista viene riutilizzata nella pagina di dettaglio della scheda (mostrando il vicinato di dipendenze immediato della scheda) e nell'assistente [TurboLens Architect](turbolens.md#architecture-ai), così le dipendenze appaiono uguali ovunque.
 
-- **Corsie per livello** — Le card sono raggruppate per livello architetturale (Strategia e Trasformazione, Architettura di Business, Applicazione e Dati, Architettura Tecnica) all'interno di rettangoli di confine tratteggiati, in ordine fisso
-- **Nodi colorati per tipo** — Ogni nodo è colorato in base al suo tipo di card ed etichettato con il nome e il tipo della card
-- **Archi orientati ed etichettati** — Gli archi seguono la direzione della relazione del metamodello (origine → destinazione) e portano l'etichetta diretta della relazione (per es. *usa*, *supporta*, *gira su*)
-- **Card proposte** — Nell'assistente TurboLens Architect, le card non ancora confermate hanno un bordo tratteggiato e un badge verde **NEW**
-- **Canvas interattivo** — Spostate, zoomate e usate la minimappa per navigare diagrammi di grandi dimensioni
-- **Cliccate per ispezionare** — Cliccate su qualsiasi nodo per aprire il pannello laterale di dettaglio della card
-- **Nessuna card centrale richiesta** — La Layered Dependency View mostra tutte le card che corrispondono al filtro di tipo corrente
-- **Evidenziazione delle connessioni** — Passate il mouse su una card per evidenziare le sue connessioni; sui dispositivi touch, usate il pulsante di evidenziazione nel pannello dei controlli per evidenziare con il tocco
+**Leggere il diagramma**
 
-La stessa vista viene riutilizzata nella pagina di dettaglio della card (mostrando il vicinato di dipendenze immediato della card) e nell'assistente [TurboLens Architect](turbolens.md#architecture-ai), così le dipendenze appaiono uguali ovunque.
+- **Corsie per livello** — Le schede sono raggruppate per livello architetturale (Strategia e Trasformazione, Architettura di Business, Applicazione e Dati, Architettura Tecnica) all'interno di rettangoli di confine tratteggiati, in ordine fisso.
+- **Nodi colorati per tipo con icone** — Ogni nodo è colorato in base al suo tipo di scheda e mostra l'icona del tipo di scheda nell'angolo in alto a sinistra, così i tipi sono riconoscibili a colpo d'occhio anche senza colore.
+- **Archi orientati ed etichettati** — Gli archi seguono la direzione della relazione del metamodello (origine → destinazione) e portano l'etichetta diretta della relazione (per es. *usa*, *supporta*, *gira su*). Quando una relazione è qualificata con un valore (come un Tipo di supporto *Principale*), questo appare tra parentesi quadre dopo l'etichetta — ad esempio *supporta [Principale]*.
+- **Schede proposte** — Nell'assistente TurboLens Architect, le schede non ancora confermate hanno un bordo tratteggiato e un badge verde **NUOVO**.
+
+**Esplorare e navigare**
+
+- **Spostamento, zoom, minimappa** — Trascinate il canvas per spostarvi, scorrete per zoomare e usate la minimappa per navigare diagrammi di grandi dimensioni.
+- **Cliccate per ispezionare** — Cliccate su qualsiasi nodo per aprire il pannello laterale di dettaglio della scheda.
+- **Ricentrare** — Maiusc+clic o pressione prolungata su una scheda per centrare il diagramma su di essa; i pulsanti **Torna al selettore di schede**, **Scheda precedente** e **Scheda successiva** della barra degli strumenti percorrono la cronologia di navigazione.
+- **Modalità evidenziazione** — Passate il mouse su una scheda per evidenziare le sue connessioni; sui dispositivi touch, attivate la **Modalità evidenziazione** nel pannello dei controlli per evidenziare con il tocco.
+- **Modalità espansione** — Attivate la **Modalità espansione** nel pannello dei controlli, quindi cliccate su una scheda per mostrare tutte le sue relazioni su richiesta.
+- **Mostra genitore / Mostra figli** — Due alternative mirate alla modalità espansione. Attivate **Mostra genitore** (freccia in su) o **Mostra figli** (freccia in giù) nel pannello dei controlli, quindi cliccate su una scheda per aggiungere al diagramma solo il suo elemento padre della gerarchia o i suoi figli diretti. Le schede mostrate rimangono nel diagramma — così potete combinare genitori e figli — e vengono rimosse quando ricentrate o reimpostate la vista.
+- **Nessuna scheda centrale richiesta** — Nel report Dipendenze la Layered Dependency View mostra tutte le schede che corrispondono al filtro di tipo corrente, quindi non dovete scegliere prima una scheda di partenza.
+
+**Personalizzare la vista** (dalla barra degli strumenti)
+
+- **Menu di visualizzazione scheda** — Attivate l'etichetta del **tipo** e un **punto di stato del ciclo di vita**, abilitate gli **indicatori di gerarchia** (un piccolo chevron su ogni scheda che ha un genitore sopra o figli sotto non presenti nel diagramma — un suggerimento per usare gli strumenti Mostra) e scegliete **campi attributo aggiuntivi** da mostrare su ogni scheda — i primi due appaiono sulla scheda e l'insieme completo compare nel tooltip al passaggio del mouse. Le scelte vengono ricordate tra le visite.
+- **Mostra schede a fine vita** — Le schede correlate il cui ciclo di vita ha raggiunto la fine vita vengono nascoste per impostazione predefinita per mantenere il grafico focalizzato; attivate questa opzione (nel menu **Visualizzazione schede**) per farle ricomparire. La scheda su cui siete centrati viene sempre mostrata, anche se è essa stessa a fine vita.
+- **Mostra i valori delle relazioni** — Molte relazioni possono essere qualificate con un valore (ad es. un'applicazione *supporta* una capacità come *Principale*, *Secondario* o *Nessun supporto*). Quando è attivo (impostazione predefinita), questi valori appaiono tra parentesi quadre accanto all'etichetta della relazione (*supporta [Principale]*) e sono inclusi nelle esportazioni di immagini. Disattivatelo nel menu **Visualizzazione schede** per una vista più pulita; le relazioni senza valore restano invariate in entrambi i casi.
+- **Riorganizzare** — Trascinate una scheda per spostarla all'interno del suo livello, oppure trascinate un intero **riquadro di livello** per spostarlo con tutte le sue schede. **Reimposta vista** (nella barra degli strumenti a sinistra) ripristina la disposizione automatica e cancella ogni esplorazione.
+- **Sfondo** — Alternate lo sfondo del canvas tra griglia, punti e nessuno.
+- **Esportazione e schermo intero** — Esportate il diagramma in **PNG** o **SVG**, oppure apritelo a **schermo intero**.
+- **Crea diagramma** — Trasforma la vista corrente in un nuovo diagramma modificabile nel [modulo Diagrammi](diagrams.md). Ricrea le schede, le relazioni e le quattro corsie dei livelli di architettura, e ogni forma rimane collegata alla sua scheda di inventario. Ti viene chiesto un nome e poi vieni portato direttamente al nuovo diagramma. Disponibile per gli utenti che possono creare diagrammi.
 
 ## Report Costi
 

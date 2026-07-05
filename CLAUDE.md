@@ -51,14 +51,14 @@ When working on this codebase, follow these conventions:
 - The MCP server lives in `mcp-server/` — a separate Python package (`turbo-ea-mcp`) with its own `pyproject.toml` and Dockerfile.
 - It provides AI tool access to EA data via the [Model Context Protocol](https://modelcontextprotocol.io/) (FastMCP library).
 - **Two transport modes**: HTTP/SSE (production, via Docker `--profile mcp`) and stdio (local testing with Claude Desktop).
-- **Authentication**: In HTTP mode, users authenticate via OAuth 2.1 delegated to the Turbo EA SSO provider. The MCP server resolves OAuth tokens to Turbo EA JWTs. In stdio mode, `TURBO_EA_EMAIL`/`TURBO_EA_PASSWORD` env vars are used for direct login.
+- **Authentication**: In HTTP mode, users authenticate via OAuth 2.1 delegated to the Turbo EA SSO provider. The MCP server resolves OAuth tokens to Turbo EA JWTs. In stdio mode, `TURBO_EA_EMAIL`/`TURBO_EA_PASSWORD` env vars are used for direct login. **Redirect-URI validation is enforced**: clients register their `redirect_uris` via RFC 7591 dynamic registration (`POST /oauth/register`), the URIs are persisted in `OAuthStore.clients`, and `authorize()` refuses — with a direct 400, never a redirect — any request whose `redirect_uri` is not an exact match of a registered URI for that `client_id`; the token exchange re-checks `redirect_uri` against the one the code was issued for. **Never redirect an unvalidated `redirect_uri`** — doing so was the auth-code-exfiltration flaw fixed in 1.64.4 (CWE-601/346). Operators fronting the server with a fixed, non-registering integration can whitelist static redirect URIs via `MCP_OAUTH_ALLOWED_REDIRECT_URIS`.
 - **Read tools** (30, across eight clusters). **Cards & metamodel**: `search_cards`, `get_card`, `get_card_relations`, `get_card_hierarchy`, `list_card_types`, `get_relation_types`, `resolve_card_refs` (name-to-UUID pre-check), `analyze_impact` (dependency blast-radius for a proposed change). **Dashboards**: `get_dashboard`, `get_landscape`. **GRC (Risk Register)**: `list_risks`, `get_risk`, `get_risk_metrics`, `get_card_risks`. **GRC (Compliance)**: `list_compliance_findings`, `get_compliance_overview`. **Governance & Delivery**: `list_principles`, `list_adrs`, `get_adr`, `list_soaws`. **Reports**: `get_portfolio_report`, `get_cost_treemap`, `get_capability_heatmap`, `get_data_quality_report`. **Card context**: `get_card_stakeholders`, `get_card_comments`, `get_card_documents`. **Diagrams**: `list_diagrams`, `get_diagram`. (`resolve_card_refs` carries a read annotation — it resolves only, it never writes.)
 - **Audit & change history** (1, read). `get_change_history(batch_id?, actor_user_id?, tool_name?, origin?, limit?)` surfaces the mutation-batch ledger so agents and admins can reconstruct exactly what a previous MCP commit changed from a single id. Wraps `GET /mutation-batches` and `GET /mutation-batches/{id}/events`.
 - **Write tools** (17, annotated additive or destructive). **Additive** (13, `_WRITE_ADDITIVE_ANNOT`): `transition_card_lifecycle`, `create_risks`, `update_risks`, `add_card_comment`, `create_soaw`, `assign_stakeholders`, `update_cards_bulk`, `create_adr`, `update_adr`, `sign_adr`, `create_cards_bulk`, `create_diagram`, `import_bpmn`. **Destructive** (4, `_WRITE_DESTRUCTIVE_ANNOT`): `rollback_batch`, `update_diagram`, `archive_cards`, `upsert_relations_bulk`. The artifact-import subset (`create_cards_bulk` → `POST /cards/bulk-create`; `upsert_relations_bulk` → `POST /relations/bulk`; `create_diagram` → `POST /diagrams`; `import_bpmn` → find-or-create `BusinessProcess` then `PUT /bpm/processes/{id}/diagram`) lands structured rows the agent has read from its own context (spreadsheets, BPMN XML, DrawIO XML, PDFs, images). **Dry-run by default**: every mutating tool defaults to `dry_run=True`, which runs every validator and resolver server-side then rolls the transaction back so the agent can show the user a preview before committing. The backend's mutating endpoints carry the matching `dry_run: bool = False` request flag; `event_bus.publish` calls and side-effect emitters are gated on `not dry_run` so a preview never leaks events. Adding more mutating tools warrants careful security review.
 - **All data access respects RBAC**: The user's JWT is passed through to the backend API, so permission checks are enforced server-side. Write tools require the same permissions as the underlying REST routes — e.g. `inventory.create` / `inventory.edit` / `inventory.archive`, `relations.manage`, `diagrams.manage`, `bpm.edit`, `risks.manage`, `comments.create`, `stakeholders.manage`, `soaw.create`, `adr.create` / `adr.sign`.
 - **Write-tool guardrails.** Defense in depth so an LLM mishap can't cause mass damage. (a) Per-call size caps on the MCP path — defaults `MCP_MAX_CARDS_PER_CALL=200`, `MCP_MAX_RELATIONS_PER_CALL=500`. The underlying backend bulk endpoints still accept up to 2000/5000 for the legitimate Excel-importer UI, but the MCP tool wrappers reject larger payloads before forwarding. (b) `upsert_relations_bulk` refuses `action: "delete"` ops by default — relations should be removed from the web UI for an auditable trail; flip `MCP_ALLOW_RELATION_DELETE=true` only when an operator explicitly opts in. (c) Kill switch — `MCP_WRITES_ENABLED=false` disables all 17 write tools without a code redeploy; read tools keep working. (d) Audit origin — the MCP server sends `X-Turbo-EA-Origin: mcp` on every backend call; the `capture_request_origin` middleware in `app.main` mirrors it into the `request_origin` contextvar that `event_bus.publish` stamps into the event data payload (`{"origin": "mcp"}`) so admins can filter MCP-driven writes out of the timeline. Header values are whitelisted to `{mcp, web, api}` — any other value is dropped. (e) The toolset deliberately omits **hard card delete** (permanent deletion). Bulk-update and archive *are* exposed (`update_cards_bulk`, `archive_cards`) but archive is recoverable (soft-delete with a 30-day restore window) and both are annotated/dry-run-gated; any future MCP tool that performs an *irreversible* mutation (hard delete, force-purge) needs an RFC discussion first.
 - **Mutation batches.** Every MCP write call opens a `mutation_batches` row (`POST /mutation-batches`) before any writes, threads the resulting `batch_id` through every subsequent backend call via the `X-Turbo-EA-Batch` header, and closes the batch on success (`POST /mutation-batches/{id}/commit`). The same middleware that captures `X-Turbo-EA-Origin` mirrors the batch id into the `request_batch_id` contextvar so `event_bus.publish` stamps every event emitted during the request with that id — admins (or the `get_change_history` MCP tool) can then reconstruct the full per-event diff of a single batch from one id. Commits above `MCP_BATCH_CONFIRMATION_THRESHOLD` (default 20 rows) must echo back a one-shot `confirm_token` issued by the prior dry-run; the token has a 15-minute TTL. The MCP wrapper enforces the gate at the agent edge; the backend enforces it again on `POST /mutation-batches/{id}/commit`. The wrapper helper lives in `mcp-server/turbo_ea_mcp/batches.py`; the standardised mutation pattern is documented on its `mutation_batch` async-context-manager. **All 47 MCP tools carry `ToolAnnotations`** (`readOnlyHint` / `destructiveHint` / `idempotentHint`) so connectors can surface destructiveness in their UI.
-- **Config** is in `mcp-server/turbo_ea_mcp/config.py` — reads from env vars (`TURBO_EA_URL`, `TURBO_EA_PUBLIC_URL`, `MCP_PUBLIC_URL`, `MCP_PORT`, plus the six guardrail vars `MCP_WRITES_ENABLED`, `MCP_MAX_CARDS_PER_CALL`, `MCP_MAX_RELATIONS_PER_CALL`, `MCP_ALLOW_RELATION_DELETE`, `MCP_BATCH_CONFIRMATION_THRESHOLD`, `MCP_REQUIRE_DRYRUN_FIRST`).
+- **Config** is in `mcp-server/turbo_ea_mcp/config.py` — reads from env vars (`TURBO_EA_URL`, `TURBO_EA_PUBLIC_URL`, `MCP_PUBLIC_URL`, `MCP_PORT`, the six write-guardrail vars `MCP_WRITES_ENABLED`, `MCP_MAX_CARDS_PER_CALL`, `MCP_MAX_RELATIONS_PER_CALL`, `MCP_ALLOW_RELATION_DELETE`, `MCP_BATCH_CONFIRMATION_THRESHOLD`, `MCP_REQUIRE_DRYRUN_FIRST`, plus the OAuth redirect-URI allowlist `MCP_OAUTH_ALLOWED_REDIRECT_URIS`).
 - **Tests** live in `mcp-server/tests/` and use `pytest` + `pytest-asyncio`. Run with `cd mcp-server && pip install -e ".[dev]" && pytest`.
 - The MCP server shares the `/VERSION` file with backend/frontend for version consistency.
 
@@ -126,6 +126,51 @@ To add an Ardoq / HOPEX / BiZZdesign / etc. adapter, the only surface area is a 
 - **The apply pipeline is source-agnostic**. It walks `entity_kind` rows by action; it never reads the adapter. If you find yourself wanting to dispatch on `source_type` in `apply.py`, push the logic into a per-source extension hook on the adapter instead.
 - **Hierarchy edges go on `SourceEntity.parent_id`** at parse time (via the optional `HIERARCHY_RELATIONS` set + a parser pass). Never let a hierarchy edge surface as a Turbo EA relation.
 
+### Workspace Transfer (Export/Import) Conventions
+
+The **Admin → Settings → Migration → Workspace transfer** tool (added in PR #665) moves an entire Turbo EA workspace — metamodel, configuration, settings, users, the full card inventory, relations, and ~30 card-context / module tables — between Turbo EA instances as a single `.zip` bundle. It is **Turbo EA → Turbo EA** (a faithful round-trip clone), distinct from the Platform Migration importer above, which is **third-party EA platform → Turbo EA**.
+
+> ⚠️ **This feature serializes almost the entire database. Any DB schema change is potentially a workspace-transfer change and MUST be considered as part of that change** — otherwise the new/altered data silently fails to transfer between instances. The checklist below is mandatory whenever you touch a model or migration. There is no CI guard that catches an un-exported table; the round-trip tests only cover what's already wired.
+
+**Bundle layout** — `manifest.json` (format version, app version, timestamp, source URL, section list) + `workspace.xlsx` (one sheet per domain, the source of truth for references) + `assets/` (binary/large payloads: branding, file attachments, diagram + BPMN XML). `FORMAT_VERSION` ("1") lives in `schema.py`; bump it when the on-disk shape changes incompatibly (the importer refuses a bundle whose major version it doesn't understand).
+
+**Module layout** (`backend/app/services/workspace_io/`):
+
+```
+workspace_io/
+  __init__.py    # re-exports build_bundle / parse_bundle / apply_bundle / diff_bundle / FORMAT_VERSION
+  schema.py      # FORMAT_VERSION, sheet names, the card/relation REFERENCE ENCODING (escaped parent_path),
+                 #   and CONFIG_SECTIONS (declarative registry of the "simple" config tables)
+  secrets.py     # SINGLE source of truth for what never leaves an instance (see below)
+  exporter.py    # build_bundle() — bespoke core sheets + column-order constants (CARD_COLUMNS, …)
+  applier.py     # apply_bundle() / diff_bundle() — idempotent upsert engine, dry-run via savepoint rollback
+  entities.py    # generic introspection-driven export/import engine + EntitySection descriptor
+  sections.py    # ENTITY_SECTIONS — the list of module/card-context tables the generic engine drives
+  bundle.py      # WorkspaceBundle, zip pack/unpack, workbook (de)serialisation
+```
+
+**The bundle is built from two kinds of section:**
+
+- **Bespoke core sections** (`exporter.py` + `applier.py`): metamodel (card/relation types), the `CONFIG_SECTIONS` tables (roles, stakeholder roles, calculations, principles, compliance regulations), tag groups/tags, users, settings, cards, card tags, relations. These need hand-written export/apply logic — built-in protection, secret stripping, the one-relation-type-per-pair rule, topological card ordering, FK remap — so their column lists are **explicit constants** (`CARD_TYPE_COLUMNS`, `RELATION_TYPE_COLUMNS`, `CARD_COLUMNS`, `RELATION_COLUMNS`, …) in `exporter.py`. Adding a column to one of these models does **not** transfer it until you add the column name to the matching constant.
+- **Generic entity sections** (`entities.py`, driven by the `ENTITY_SECTIONS` descriptor list in `sections.py`): ~30 card-context / module tables (stakeholders, documents, comments, todos, file attachments, diagrams, BPM, PPM, GRC risks + mitigation tasks/occurrences, ADR/SoAW, saved reports, bookmarks, web portals, surveys). Each is a small declarative `EntitySection`; **value columns are auto-derived by SQLAlchemy introspection**, so adding a plain scalar/JSON column to a covered model transfers with zero changes here. The engine runs *after* the bespoke cards section so every card FK resolves.
+
+**Key design decisions** (don't break these):
+
+- **Module rows preserve their source UUIDs on import; cards do not.** Cards are matched/created by the bespoke cards section (by `external_id`, then `(type, parent, name)`), so their PKs are reassigned. Every other module row keeps its original PK, so every *intra-module* FK (a task's `wbs_id`, an occurrence's `task_id`, a comment's self `parent_id`) resolves verbatim with no remap. Only three things need translation: **card FKs** (encoded `{col}__ref` + `{col}__type`, resolved via `CardResolver`), **user FKs** (encoded `{col}__email`, resolved via the email→id map — instance-local UUIDs are meaningless on the target), and **binary/large assets** (offloaded to `assets/`).
+- **Idempotent upsert by natural key throughout** — re-importing the same bundle into the same instance is a true no-op (all-skip). Dry-run preview (`diff_bundle`) runs the *same* engine inside one savepoint that is rolled back, so the preview counts exactly match an apply.
+- **Secrets never leave the instance.** `secrets.py` is the single source of truth: SMTP/SSO/AI credentials (`GENERAL_SECRET_PATHS` / `EMAIL_SECRET_PATHS`) are dropped, and any `enc:`-prefixed Fernet value is defensively scrubbed (it's non-portable — derived from the source instance's `SECRET_KEY`). The importer never writes a secret field back; it preserves whatever the target already has. Synthetic (auto-created) users land **deactivated** with no password and a role clamped to `member` if their exported role is unknown.
+
+**Checklist when you change the DB schema** (do the matching step or the data won't transfer):
+
+1. **New module / card-context table** (something a card hangs off, or a feature's own data): add an `EntitySection` to `ENTITY_SECTIONS` in `sections.py`, in **dependency order** (intra-module parents before children). Declare its `card_fk_columns`, `user_fk_columns`, any `asset_columns` / `json_asset_columns`, and `self_parent_column`. Add a round-trip assertion to `test_workspace_io_roundtrip.py`.
+2. **New config / metamodel table**: add a `ConfigSection` to `CONFIG_SECTIONS` in `schema.py` (natural key + column list), or wire bespoke logic in `exporter.py`/`applier.py` if it needs built-in protection / FK remap.
+3. **New column on a bespoke core model** (CardType, RelationType, Card, Relation, TagGroup, User, …): add the column name to the matching `*_COLUMNS` constant in `exporter.py` (and `*_JSON` if it's JSONB). **This is the easy one to forget** — introspection does *not* cover the bespoke core sections.
+4. **New column on an entity-section model**: a plain scalar/JSON column needs nothing. But if it's a **card FK**, add it to `card_fk_columns`; if a **user FK**, add it to `user_fk_columns` (instance-local UUIDs must be remapped by email, never exported raw); if **binary/large/secret**, declare it as an asset or exclude it.
+5. **New secret-bearing settings path**: add it to `GENERAL_SECRET_PATHS` / `EMAIL_SECRET_PATHS` in `secrets.py`.
+6. **Incompatible on-disk shape change**: bump `FORMAT_VERSION` in `schema.py`.
+
+**Routes** (`backend/app/api/v1/workspace.py`, prefix `/admin/workspace`): `GET /export` (streams the `.zip`, `?include_archived=`), `POST /import` (upload → background dry-run preview), `GET /import/{id}` (poll status + diff/result), `POST /import/{id}/apply` (background apply), `DELETE /import/{id}` (discard). Gated by the dedicated `admin.export_workspace` / `admin.import_workspace` permissions (in `core/permissions.py`). The async preview/apply lifecycle is tracked in the `workspace_transfers` table; the uploaded bundle binary lives on disk under `data/workspace_transfers/{id}.bin`. Frontend: `WorkspaceTransferAdmin.tsx`, surfaced as the second tab of `MigrationHub.tsx`.
+
 ### Frontend Conventions
 - Route-level pages use `lazy()` imports in `App.tsx` for code splitting.
 - Shared hooks in `src/hooks/`, shared components in `src/components/`.
@@ -138,6 +183,7 @@ To add an Ardoq / HOPEX / BiZZdesign / etc. adapter, the only surface area is a 
 - Use MUI 6 components — do not introduce other UI libraries.
 - Icons use Google Material Symbols via the `MaterialSymbol` component.
 - When nesting MUI Dialogs, use `disableRestoreFocus` on inner dialogs.
+- **Picking an existing card — always use `CardPicker`.** Any dropdown/autocomplete that selects a card from the inventory (relations, hierarchy parent/child, predecessors/successors, the Create-card parent, vendor/Provider linking, ADR card links, BPM element linking, compliance findings, …) must reuse `frontend/src/components/CardPicker.tsx`. It is a single-select MUI `Autocomplete` built on the app-wide `frontend/src/hooks/useCardSearch.ts` engine and gives every picker the same behaviour for free: **browse on open** (lists cards alphabetically with an empty input — never require typing first), filter-as-you-type (server-side via `GET /cards?search=`), and **infinite scroll** (`pageSize` first page, `loadMore()` on listbox scroll). Pass `types` (one key or an array), controlled `value`/`onChange` (`CardOption = {id,name,type}`), `excludeIds` for client-side exclusions (self, ancestors/descendants, already-linked), and `enabled` to gate fetching to when the picker is actually open. Do **not** hand-roll an `Autocomplete` + debounced `/cards?search=` effect, and never gate results behind a `search.length` check — that reintroduces the search-only friction #702 removed. The only sanctioned exceptions are `VendorField` (needs a freeSolo "create new Provider" affordance, so it consumes `useCardSearch` directly) and the diagram Insert-Cards dialog / left sidebar (a multi-select infinite-scroll grid, also on `useCardSearch`). `useCardSearch` is the shared engine — reuse it directly only for those non-single-select cases; otherwise use `CardPicker`.
 - **Design tokens**: All colors, spacing aliases, icon sizes, and typography defaults live in `frontend/src/theme/tokens.ts` (re-exported from `frontend/src/theme/index.ts`). Never hardcode hex codes — import the named token (`STATUS_COLORS.success`, `SEVERITY_COLORS.high`, `LAYER_COLORS["Application & Data"]`, etc.). See [`frontend/UI_GUIDELINES.md`](frontend/UI_GUIDELINES.md) for the full design system, layout patterns, and do's/don'ts.
 - **Dependency diagrams — Layered Dependency View (LDV)**: All dependency visualizations (Dependencies Report, Card Detail dependency section, TurboLens Architect target architecture) use Turbo EA's house notation, the **Layered Dependency View**. Cards are grouped into the four EA layers (Strategy & Transformation → Business Architecture → Application & Data → Technical Architecture) as swim lanes; nodes are colored by card type; edges follow metamodel `relation_type` direction with the forward label; proposed/uncommitted cards have a dashed border + green "NEW" badge. Inspired by ArchiMate's layering and the C4 Model's "good defaults" philosophy, but distinct from both — do **not** describe it as "C4" in user-facing strings or documentation. The renderer is `frontend/src/features/reports/C4DiagramView.tsx` + `c4Layout.ts` (file/symbol names retained for compatibility); reuse it for any new dependency view. See `frontend/UI_GUIDELINES.md` § 3.10 for the full spec.
 - **DrawIO card shapes carry the card-type icon.** Cards inserted onto a DrawIO diagram (`frontend/src/features/diagrams/drawio-shapes.ts`) render their metamodel icon as a white glyph in the top-left corner via a `shape=label;image=...` style — baked into the single cell so it drags/exports with the shape (no child cells/overlays). The icon is a **vector SVG data-URI**, not the Material Symbols font, because font glyphs can't be reliably rasterised into images (the DrawIO iframe has no access to the app webfont — see `features/reports/reportExport.ts`). Path data lives in the **generated, committed** `frontend/src/features/diagrams/iconPaths.ts`, built from the curated picker set (`src/components/iconCatalog.ts`) by `npm run gen:diagram-icons` (sources: `@material-symbols/svg-400` + `@mui/icons-material` fallback for legacy names; both devDeps). Regenerate and commit `iconPaths.ts` when you add icon names to the catalogue — there is no pre-commit hook. The SVG URI is `encodeURIComponent`-encoded so it has no raw `;`/`=` and survives mxGraph's `;`/`=`-delimited style parser and the view-recolour helpers' `split(";")`.
@@ -145,12 +191,12 @@ To add an Ardoq / HOPEX / BiZZdesign / etc. adapter, the only surface area is a 
 ### Internationalization (i18n)
 - **All user-facing strings must use translation keys**, never hardcoded English text. Use `useTranslation()` from `react-i18next` with the appropriate namespace.
 - **14 namespaces**: `common`, `auth`, `nav`, `inventory`, `cards`, `reports`, `admin`, `bpm`, `ppm`, `diagrams`, `delivery`, `grc`, `notifications`, `validation`. Use the namespace that matches the feature area.
-- **9 supported locales**: `en` (English, baseline), `de` (German), `fr` (French), `es` (Spanish), `it` (Italian), `pt` (Portuguese), `zh` (Chinese Simplified), `ru` (Russian), `da` (Danish).
+- **10 supported locales**: `en` (English, baseline), `de` (German), `fr` (French), `es` (Spanish), `it` (Italian), `pt` (Portuguese), `zh` (Chinese Simplified), `ru` (Russian), `da` (Danish), `ar` (Arabic — **right-to-left**; see `RTL_LOCALES` / `isRtlLocale` in `frontend/src/i18n/index.ts`). Components built on third-party widgets that don't inherit the document `dir` (AG Grid, Recharts) must opt into RTL themselves via the `useIsRtl()` hook (`frontend/src/hooks/useIsRtl.ts`).
 - **English is the source of truth**. All keys must exist in `frontend/src/i18n/locales/en/{namespace}.json` first. The i18n config uses `fallbackLng: "en"` and `returnEmptyString: false`, so missing or empty translations gracefully fall back to English.
 - **Interpolation**: Use `{{variable}}` syntax for dynamic values (e.g., `"Selected {{count}} cards"`). Preserve these placeholders exactly when translating.
 - **Plurals**: i18next uses `_one` / `_other` suffixes (e.g., `"count_one": "{{count}} item"`, `"count_other": "{{count}} items"`). All locales need both forms.
 - **JSON safety**: Never use unescaped ASCII double quotes `"` inside JSON string values. For Chinese use corner brackets `「」`, for other languages use `«»` or escaped `\"`.
-- **Metamodel labels** (card type names, field labels, relation labels) are translated separately via the `translations` JSONB column on `card_types` and `relation_types`. Use `useResolveLabel()` / `useResolveMetaLabel()` from `src/hooks/useResolveLabel.ts` to resolve these at render time.
+- **Metamodel labels — always resolve with the entity-aware resolvers; NEVER pass `.key` as the fallback.** Card-type, relation-type, field, option, and subtype display names are translated via the `translations` JSONB column on `card_types` / `relation_types` (and inline on fields/options/subtypes). Resolve them with the **entity-aware** helpers from `frontend/src/hooks/useResolveLabel.ts`: `useTypeLabel()` / `typeLabel(entity, locale)` for card types (also portal type info and stakeholder role defs), `useRelationLabel()` / `relationLabel(rt, locale, reverse?)` for relation verbs (pass `reverse=true` for the incoming direction), and `useFieldLabel()` / `useOptionLabel()` / `useSubtypeLabel()` (`fieldLabel` / `optionLabel` / `subtypeLabel(entity, locale)`) for fields, options, and subtypes. Pass the **whole entity** — these compute the correct `entity.label || entity.key` fallback internally. **Do NOT call the low-level `useResolveLabel()` / `useResolveMetaLabel()` (`rl` / `rml`, `resolveLabel` / `resolveMetaLabel`) with `entity.key` as the fallback** (e.g. `rml(type.key, type.translations, "label")`). Admin-created custom entities ship with an **empty `translations` map**, so the fallback is exactly what renders — passing `.key` leaks the internal slug ("itAsset") instead of the display name ("IT Asset"). This bug recurred twice (#661 subtypes, #731 card/relation types) precisely because the `.key`-fallback pattern was copied between call sites; the entity-aware resolvers exist so it cannot recur. Use the low-level primitives only for loose string values that have no entity object, and even then pass the human label, never the key. In non-React code (`excelExport.ts`, `excelImport.ts`, plain helpers) use the pure `typeLabel` / `relationLabel` / `fieldLabel` variants with `i18n.language`.
 
 #### Adding a New Language
 
@@ -409,7 +455,7 @@ turbo-ea/
 │   │   ├── api/
 │   │   │   ├── deps.py                # Auth dependencies (get_current_user, require_permission)
 │   │   │   └── v1/
-│   │   │       ├── router.py          # Mounts all API routers (48 include_router calls)
+│   │   │       ├── router.py          # Mounts all API routers (50 include_router calls)
 │   │   │       ├── auth.py            # /auth (login, register, me, SSO, set-password)
 │   │   │       ├── cards.py           # /cards CRUD + hierarchy + approval status + CSV export
 │   │   │       ├── metamodel.py       # /metamodel (types + relation types + field/section usage)
@@ -425,6 +471,7 @@ turbo-ea/
 │   │   │       ├── ppm.py             # /ppm (status reports, costs, budgets, risks, tasks, WBS)
 │   │   │       ├── ppm_reports.py     # /reports/ppm (dashboard, gantt, group-options)
 │   │   │       ├── diagrams.py        # /diagrams CRUD (DrawIO XML storage)
+│   │   │       ├── diagram_groups.py  # /diagram-groups (diagram folders + per-user favorites)
 │   │   │       ├── soaw.py            # /soaw (Statement of Architecture Work)
 │   │   │       ├── reports.py         # /reports (dashboard, portfolio, matrix, etc.)
 │   │   │       ├── saved_reports.py   # /saved-reports (persisted report configs)
@@ -452,13 +499,14 @@ turbo-ea/
 │   │   │       ├── process_catalogue.py    # /process-catalogue (industry process reference)
 │   │   │       ├── value_stream_catalogue.py # /value-stream-catalogue (value stream reference)
 │   │   │       ├── migration.py        # /migration (platform-migration importer — LeanIX etc.)
-│   │   │       └── mutation_batches.py # /mutation-batches (MCP write ledger + per-event diff)
+│   │   │       ├── mutation_batches.py # /mutation-batches (MCP write ledger + per-event diff)
+│   │   │       └── workspace.py         # /admin/workspace (full-workspace export/import — TEA↔TEA)
 │   │   ├── core/
 │   │   │   ├── security.py            # JWT creation/validation (PyJWT HS256), bcrypt
 │   │   │   ├── permissions.py         # Permission key registry (single source of truth)
 │   │   │   ├── encryption.py          # Fernet symmetric encryption for DB secrets
 │   │   │   └── rate_limit.py          # slowapi rate limiter instance
-│   │   ├── models/                    # SQLAlchemy ORM models (49 files, see Database section)
+│   │   ├── models/                    # SQLAlchemy ORM models (52 files, see Database section)
 │   │   ├── schemas/                   # Pydantic request/response models
 │   │   │   ├── auth.py                # Auth schemas
 │   │   │   ├── card.py                # Card schemas
@@ -484,7 +532,7 @@ turbo-ea/
 │   │   ├── config.py                  # Settings from env vars + APP_VERSION
 │   │   ├── database.py                # Async engine + session factory
 │   │   └── main.py                    # FastAPI app, lifespan (migrations + seed + purge loop + AI auto-config)
-│   ├── alembic/                       # Database migrations (100 versions)
+│   ├── alembic/                       # Database migrations (116 versions)
 │   ├── tests/
 │   └── pyproject.toml
 │
@@ -517,7 +565,13 @@ turbo-ea/
 │   │   │   ├── useComplianceRegulations.ts # Compliance regulation catalogue
 │   │   │   ├── useSavedReport.ts      # Saved report caching
 │   │   │   ├── useThumbnailCapture.ts # SVG → PNG for report thumbnails
-│   │   │   └── useTimeline.ts         # Process timeline data
+│   │   │   ├── useTimeline.ts         # Process timeline data
+│   │   │   ├── useResourceTypes.ts    # Resource type catalogue (metamodel resource types)
+│   │   │   ├── useLoginBranding.ts    # Public login-page branding (singleton)
+│   │   │   ├── useFileUploadsEnabled.ts # File-attachment feature flag (singleton)
+│   │   │   ├── useArchiveRetentionDays.ts # Archived-card purge window (singleton)
+│   │   │   ├── useSponsorButtonEnabled.ts # Sponsor affordance toggle (singleton)
+│   │   │   └── useCardTabActivity.ts  # Per-card tab unread/activity indicators
 │   │   ├── layouts/AppLayout.tsx       # Top nav bar + mobile drawer + badge debounce
 │   │   ├── components/
 │   │   │   ├── CreateCardDialog.tsx
@@ -676,7 +730,9 @@ turbo-ea/
 │   │   │       ├── AuthAdmin.tsx          # SSO / Authentication settings
 │   │   │       ├── PrinciplesAdmin.tsx    # EA principles CRUD (statement, rationale, implications)
 │   │   │       ├── TurboLensAdmin.tsx     # TurboLens analysis settings
-│   │   │       └── AiAdmin.tsx            # AI suggestion settings (provider, model, search)
+│   │   │       ├── AiAdmin.tsx            # AI suggestion settings (provider, model, search)
+│   │   │       ├── AuditLogAdmin.tsx      # Audit log over the mutation-batch ledger (+ filter sidebar, batch drawer)
+│   │   │       └── ResourceTypesAdmin.tsx # Resource type catalogue management (see metamodel/settings)
 │   │   ├── App.tsx                          # Routes + MUI theme (lazy imports)
 │   │   └── main.tsx                         # React entry point
 │   ├── drawio-config/                       # PreConfig.js, PostConfig.js
@@ -740,7 +796,7 @@ turbo-ea/
 | `TURBO_EA_PUBLIC_URL` | `http://localhost:8920` | Public-facing Turbo EA URL for OAuth redirects and bundled nginx hostname/proto derivation |
 | `MCP_PUBLIC_URL` | `http://localhost:8001` | (MCP server) Public URL for OAuth metadata |
 | `MCP_PORT` | `8001` | (MCP server) Bind port |
-| `MCP_WRITES_ENABLED` | `true` | (MCP server) Kill switch for all 5 write tools — set to `false` to put the MCP server into read-only mode without a code redeploy. Read tools keep working. |
+| `MCP_WRITES_ENABLED` | `true` | (MCP server) Kill switch for all 17 write tools — set to `false` to put the MCP server into read-only mode without a code redeploy. Read tools keep working. |
 | `MCP_MAX_CARDS_PER_CALL` | `200` | (MCP server) Per-call size cap for `create_cards_bulk`. The backend `/cards/bulk-create` endpoint still accepts up to 2000 for the legitimate Excel importer; the MCP wrapper enforces this lower cap so a dry-run preview stays reviewable. |
 | `MCP_MAX_RELATIONS_PER_CALL` | `500` | (MCP server) Per-call size cap for `upsert_relations_bulk`. Backend accepts up to 5000 from the UI. |
 | `MCP_ALLOW_RELATION_DELETE` | `false` | (MCP server) When `false` (default), `upsert_relations_bulk` refuses `action: "delete"` ops — relations must be removed via the web UI for an explicit audit trail. Set `true` only when an operator opts in. |
@@ -816,6 +872,9 @@ All tables use UUID primary keys and `created_at`/`updated_at` timestamps (from 
 | `events` | `Event` | Audit trail: event_type + JSONB data, linked to card and user |
 | `diagrams` | `Diagram` | DrawIO diagram storage: name, type, data (JSONB with XML + thumbnail) |
 | `diagram_initiatives` | (association) | M:N between diagrams and initiative cards |
+| `diagram_groups` | `DiagramGroup` | Named folders that organise diagrams in the gallery |
+| `diagram_favorites` | `DiagramFavorite` | Per-user favorited diagrams (M:N user × diagram) |
+| `resource_types` | `ResourceType` | Admin-managed resource-type catalogue used by the metamodel |
 | `statement_of_architecture_works` | `SoAW` | TOGAF SoAW documents linked to initiatives |
 | `app_settings` | `AppSettings` | Singleton row: email_settings, general_settings (incl. AI config), custom_logo, custom_favicon |
 | `surveys` | `Survey` | Data-maintenance surveys with target_type, filters, actions |
@@ -835,6 +894,7 @@ All tables use UUID primary keys and `created_at`/`updated_at` timestamps (from 
 | `compliance_regulations` | `ComplianceRegulation` | Admin-managed regulation catalogue driving the GRC Compliance scanner |
 | `turbolens_*` | TurboLens models | Vendor analysis, duplicates, modernizations, analysis runs, compliance findings — see TurboLens section |
 | `mutation_batches` | `MutationBatch` | MCP write ledger — every MCP write call opens a batch; each emitted row in the `events` table is stamped with its `batch_id` (see MCP section) |
+| `workspace_transfers` | `WorkspaceTransfer` | Async preview/apply lifecycle of an uploaded full-workspace export bundle (`uploaded → parsing → previewed → applying → applied`/`failed`). Bundle binary stored on disk under `data/workspace_transfers/{id}.bin` (see Workspace Transfer Conventions) |
 
 ### Migration (Platform Import) Tables
 
@@ -857,7 +917,7 @@ All tables use UUID primary keys and `created_at`/`updated_at` timestamps (from 
 
 ### Migrations
 
-Located in `backend/alembic/versions/` (100 migration files, sequentially numbered `001_` through `100_`). The app auto-runs Alembic on startup:
+Located in `backend/alembic/versions/` (116 migration files, sequentially numbered `001_` through `116_`). The app auto-runs Alembic on startup:
 - Fresh DB: `create_all` + stamp head
 - Existing DB without Alembic: stamp head
 - Normal: `upgrade head` (run pending migrations)
@@ -1074,6 +1134,8 @@ Base path: `/api/v1`. All endpoints except auth and public portals require `Auth
 | **Documents** | `GET/POST /cards/{id}/documents`, `DELETE /documents/{id}` |
 | **Bookmarks** | `GET/POST /bookmarks`, `PATCH/DELETE /bookmarks/{id}` |
 | **Diagrams** | `GET/POST /diagrams`, `GET/PATCH/DELETE /diagrams/{id}` |
+| **Diagram Groups** | `GET/POST /diagram-groups`, `PATCH/DELETE /diagram-groups/{id}`, favorite toggling |
+| **Resource Types** | `GET/POST /metamodel/resource-types`, `PATCH/DELETE /metamodel/resource-types/{id}` |
 | **SoAW** | `GET/POST /soaw`, `GET/PATCH/DELETE /soaw/{id}` |
 | **Surveys** | Full CRUD + `/surveys/{id}/send`, `/surveys/{id}/respond/{card_id}` |
 | **EOL** | `/eol/products`, `/eol/products/fuzzy`, `/eol/mass-search`, `/eol/mass-link` |
@@ -1089,6 +1151,7 @@ Base path: `/api/v1`. All endpoints except auth and public portals require `Auth
 | **Process Catalogue** | `GET /process-catalogue/*` (industry business process reference) |
 | **Value Stream Catalogue** | `GET /value-stream-catalogue/*` (value stream reference set) |
 | **OData Feeds** | `GET /bookmarks/{id}/odata` (OData-style JSON feed for saved views) |
+| **Workspace Transfer** | `GET /admin/workspace/export` (stream `.zip`), `POST /admin/workspace/import` (upload + dry-run), `GET /admin/workspace/import/{id}`, `POST /admin/workspace/import/{id}/apply`, `DELETE /admin/workspace/import/{id}` — full TEA↔TEA export/import, gated by `admin.export_workspace` / `admin.import_workspace` |
 | **Health** | `GET /api/health` (no auth, includes version) |
 
 ---
@@ -1288,7 +1351,7 @@ Each type has an optional `section_config` (JSONB) controlling layout:
 
 Single source of truth for all valid permission keys. Two categories:
 
-**App-level permissions** (27 groups, 70 keys): `inventory.*`, `relations.*`, `stakeholders.*`, `comments.*`, `documents.*`, `diagrams.*`, `bpm.*`, `ppm.*`, `reports.*`, `surveys.*`, `soaw.*`, `adr.*`, `tags.*`, `bookmarks.*`, `saved_reports.*`, `eol.*`, `web_portals.*`, `notifications.*`, `servicenow.*`, `turbolens.*`, `compliance.*` (view + manage for the GRC Compliance scanner — the CVE half of the old "Security & Compliance" tab was removed), `risks.*` (view + manage for the EA Risk Register), `grc.*`, `costs.*`, `ai.*`, `users.*`, `admin.*`
+**App-level permissions** (27 groups, 72 keys): `inventory.*`, `relations.*`, `stakeholders.*`, `comments.*`, `documents.*`, `diagrams.*`, `bpm.*`, `ppm.*`, `reports.*`, `surveys.*`, `soaw.*`, `adr.*`, `tags.*`, `bookmarks.*`, `saved_reports.*`, `eol.*`, `web_portals.*`, `notifications.*`, `servicenow.*`, `turbolens.*`, `compliance.*` (view + manage for the GRC Compliance scanner — the CVE half of the old "Security & Compliance" tab was removed), `risks.*` (view + manage for the EA Risk Register), `grc.*`, `costs.*`, `ai.*`, `users.*`, `admin.*` (includes `admin.export_workspace` / `admin.import_workspace` for the Workspace Transfer tool)
 
 **Card-level permissions** (15 keys): `card.view`, `card.edit`, `card.archive`, `card.delete`, `card.approval_status`, `card.manage_stakeholders`, `card.manage_relations`, `card.manage_documents`, `card.manage_comments`, `card.create_comments`, `card.bpm_edit`, `card.bpm_manage_drafts`, `card.bpm_approve`, `card.manage_adr_links`, `card.manage_diagram_links`
 

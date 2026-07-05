@@ -797,6 +797,18 @@
             ],
             "title": "Card Type"
           },
+          "column_state": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column State"
+          },
           "columns": {
             "anyOf": [
               {
@@ -903,6 +915,18 @@
               }
             ],
             "title": "Card Type"
+          },
+          "column_state": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column State"
           },
           "columns": {
             "anyOf": [
@@ -2975,6 +2999,123 @@
         "title": "ComplianceFindingDecisionUpdate",
         "type": "object"
       },
+      "ComplianceFindingDetailUpdate": {
+        "description": "Body for ``PATCH /compliance-findings/{id}/details``.\n\nEdits the human-authored content of a finding \u2014 compliance\n``status``, ``severity``, ``requirement``, gap/evidence/remediation,\ncategory, article, regulation, and linked card \u2014 **without** touching\nthe lifecycle ``decision`` (that has its own endpoint). All fields are\noptional so callers can send a partial update.",
+        "properties": {
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "gap_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gap Description"
+          },
+          "regulation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regulation"
+          },
+          "regulation_article": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regulation Article"
+          },
+          "remediation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remediation"
+          },
+          "requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "ComplianceFindingDetailUpdate",
+        "type": "object"
+      },
       "ComplianceFindingOut": {
         "properties": {
           "ai_detected": {
@@ -3633,17 +3774,28 @@
           "name": {
             "title": "Name",
             "type": "string"
-          },
-          "type": {
-            "default": "free_draw",
-            "title": "Type",
-            "type": "string"
           }
         },
         "required": [
           "name"
         ],
         "title": "DiagramCreate",
+        "type": "object"
+      },
+      "DiagramGroupsUpdate": {
+        "properties": {
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group_ids"
+        ],
+        "title": "DiagramGroupsUpdate",
         "type": "object"
       },
       "DiagramSave": {
@@ -3904,6 +4056,51 @@
           "app_base_url": {
             "default": "",
             "title": "App Base Url",
+            "type": "string"
+          },
+          "graph_sender": {
+            "default": "",
+            "title": "Graph Sender",
+            "type": "string"
+          },
+          "method": {
+            "default": "smtp_basic",
+            "title": "Method",
+            "type": "string"
+          },
+          "oauth_client_id": {
+            "default": "",
+            "title": "Oauth Client Id",
+            "type": "string"
+          },
+          "oauth_client_secret": {
+            "default": "",
+            "title": "Oauth Client Secret",
+            "type": "string"
+          },
+          "oauth_provider": {
+            "default": "microsoft",
+            "title": "Oauth Provider",
+            "type": "string"
+          },
+          "oauth_scope": {
+            "default": "",
+            "title": "Oauth Scope",
+            "type": "string"
+          },
+          "oauth_tenant_id": {
+            "default": "",
+            "title": "Oauth Tenant Id",
+            "type": "string"
+          },
+          "oauth_token_endpoint": {
+            "default": "",
+            "title": "Oauth Token Endpoint",
+            "type": "string"
+          },
+          "service_account_json": {
+            "default": "",
+            "title": "Service Account Json",
             "type": "string"
           },
           "smtp_from": {
@@ -4355,6 +4552,80 @@
           "enabled"
         ],
         "title": "GrcEnabledPayload",
+        "type": "object"
+      },
+      "GroupCreate": {
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GroupCreate",
+        "type": "object"
+      },
+      "GroupUpdate": {
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "title": "GroupUpdate",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -8793,6 +9064,160 @@
         "title": "ResetPasswordRequest",
         "type": "object"
       },
+      "ResourceTypeCreate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "is_enabled": {
+            "default": true,
+            "title": "Is Enabled",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "translations": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translations"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "label"
+        ],
+        "title": "ResourceTypeCreate",
+        "type": "object"
+      },
+      "ResourceTypeUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "is_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Enabled"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "translations": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translations"
+          }
+        },
+        "title": "ResourceTypeUpdate",
+        "type": "object"
+      },
       "RestoreImpactPassenger": {
         "properties": {
           "id": {
@@ -10580,6 +11005,19 @@
         "title": "SourceOut",
         "type": "object"
       },
+      "SponsorButtonEnabledPayload": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "SponsorButtonEnabledPayload",
+        "type": "object"
+      },
       "SsoCallbackRequest": {
         "properties": {
           "code": {
@@ -11148,6 +11586,17 @@
             ],
             "title": "Color"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -11323,6 +11772,17 @@
               }
             ],
             "title": "Color"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "name": {
             "anyOf": [
@@ -12055,6 +12515,20 @@
               }
             ],
             "title": "Dashboard Default Tab"
+          },
+          "diagram_libraries": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagram Libraries"
           }
         },
         "title": "UiPreferencesUpdate",
@@ -12870,6 +13344,17 @@
               }
             ],
             "title": "Result"
+          },
+          "source_app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source App Version"
           },
           "source_url": {
             "anyOf": [
@@ -14219,7 +14704,7 @@
     },
     "/api/v1/auth/forgot-password": {
       "post": {
-        "description": "Initiate a password reset for a local account.\n\nAnti-enumeration: always returns `{\"ok\": True}` regardless of whether the\nemail matches a user. An email is only sent when ALL of the following hold:\n\n- A user exists with the given email.\n- The user has a local password (not SSO-only).\n- The user is active.\n- SMTP is configured.\n\nTokens live for one hour and are stored on the user row directly.",
+        "description": "Initiate a password reset \u2014 or first-time password setup \u2014 for a local account.\n\nAnti-enumeration: always returns `{\"ok\": True}` regardless of whether the\nemail matches a user. An email is only sent for an active local account when\nSMTP is configured, and its shape depends on the account's state:\n\n- The account already has a password \u2192 a one-hour **reset** link.\n- The account has no password but a setup token (created without a\n  password, e.g. via a stakeholder invite left un-emailed) \u2192 a **set-password**\n  link so the user can self-serve on first login. A missing setup token is\n  minted here so the account is never permanently locked out.\n\nSSO-only accounts (no password, marked `auth_provider=\"sso\"`) get nothing.",
         "operationId": "forgot_password_api_v1_auth_forgot_password_post",
         "requestBody": {
           "content": {
@@ -19314,6 +19799,59 @@
         ]
       }
     },
+    "/api/v1/compliance/compliance-findings/{finding_id}/details": {
+      "patch": {
+        "description": "Edit a finding's descriptive / assessment fields.\n\nDistinct from ``PATCH /compliance-findings/{id}`` which only\ntransitions the lifecycle ``decision``. This endpoint updates the\nhuman-authored content of a finding \u2014 compliance ``status``,\n``severity``, ``requirement``, gap/evidence/remediation, category,\narticle, regulation, and linked card \u2014 without touching the lifecycle\nstate. The ``finding_key`` is recomputed so a later re-scan still\nupserts cleanly. Requires ``compliance.manage``.",
+        "operationId": "update_compliance_finding_details_api_v1_compliance_compliance_findings__finding_id__details_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "finding_id",
+            "required": true,
+            "schema": {
+              "title": "Finding Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplianceFindingDetailUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceFindingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Compliance Finding Details",
+        "tags": [
+          "Compliance"
+        ]
+      }
+    },
     "/api/v1/compliance/compliance-scan": {
       "post": {
         "description": "Trigger the compliance (per-regulation AI gap analysis) pipeline only.",
@@ -19384,6 +19922,145 @@
         ]
       }
     },
+    "/api/v1/diagram-groups": {
+      "get": {
+        "operationId": "list_groups_api_v1_diagram_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Groups",
+        "tags": [
+          "diagrams"
+        ]
+      },
+      "post": {
+        "operationId": "create_group_api_v1_diagram_groups_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group",
+        "tags": [
+          "diagrams"
+        ]
+      }
+    },
+    "/api/v1/diagram-groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_group_api_v1_diagram_groups__group_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Group",
+        "tags": [
+          "diagrams"
+        ]
+      },
+      "patch": {
+        "operationId": "update_group_api_v1_diagram_groups__group_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Group",
+        "tags": [
+          "diagrams"
+        ]
+      }
+    },
     "/api/v1/diagrams": {
       "get": {
         "operationId": "list_diagrams_api_v1_diagrams_get",
@@ -19402,6 +20079,78 @@
                 }
               ],
               "title": "Card Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Mine",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "favorites",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Favorites",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": "updated_at",
+              "title": "Sort By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_dir",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "title": "Sort Dir",
+              "type": "string"
             }
           }
         ],
@@ -19463,6 +20212,26 @@
           }
         },
         "summary": "Create Diagram",
+        "tags": [
+          "diagrams"
+        ]
+      }
+    },
+    "/api/v1/diagrams/favorites": {
+      "get": {
+        "description": "Return the set of diagram ids the current user has favorited.",
+        "operationId": "list_favorite_diagrams_api_v1_diagrams_favorites_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Favorite Diagrams",
         "tags": [
           "diagrams"
         ]
@@ -19682,6 +20451,132 @@
           }
         },
         "summary": "Unlink Card From Diagram",
+        "tags": [
+          "diagrams"
+        ]
+      }
+    },
+    "/api/v1/diagrams/{diagram_id}/favorite": {
+      "delete": {
+        "description": "Remove a diagram from favorites.",
+        "operationId": "remove_diagram_favorite_api_v1_diagrams__diagram_id__favorite_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "diagram_id",
+            "required": true,
+            "schema": {
+              "title": "Diagram Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Diagram Favorite",
+        "tags": [
+          "diagrams"
+        ]
+      },
+      "post": {
+        "description": "Add a diagram to favorites. Idempotent.",
+        "operationId": "add_diagram_favorite_api_v1_diagrams__diagram_id__favorite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "diagram_id",
+            "required": true,
+            "schema": {
+              "title": "Diagram Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Diagram Favorite",
+        "tags": [
+          "diagrams"
+        ]
+      }
+    },
+    "/api/v1/diagrams/{diagram_id}/groups": {
+      "put": {
+        "description": "Replace a diagram's group memberships (multi-group).",
+        "operationId": "set_diagram_groups_api_v1_diagrams__diagram_id__groups_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "diagram_id",
+            "required": true,
+            "schema": {
+              "title": "Diagram Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiagramGroupsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Diagram Groups",
         "tags": [
           "diagrams"
         ]
@@ -20956,6 +21851,187 @@
           }
         },
         "summary": "Restore Relation Type",
+        "tags": [
+          "metamodel"
+        ]
+      }
+    },
+    "/api/v1/metamodel/resource-types": {
+      "get": {
+        "description": "List resource types (link types & file categories).\n\nAuthenticated read so the card Resources tab can fetch the lists for\nany user. Write operations remain gated behind ``admin.metamodel``.",
+        "operationId": "list_resource_types_api_v1_metamodel_resource_types_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "enabled_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Enabled Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Resource Types",
+        "tags": [
+          "metamodel"
+        ]
+      },
+      "post": {
+        "description": "Create a new resource type (admin only).",
+        "operationId": "create_resource_type_api_v1_metamodel_resource_types_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceTypeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Resource Type",
+        "tags": [
+          "metamodel"
+        ]
+      }
+    },
+    "/api/v1/metamodel/resource-types/{resource_type_id}": {
+      "delete": {
+        "description": "Delete a resource type (admin only).\n\nBuilt-in rows are protected \u2014 they can be disabled but not hard-deleted.",
+        "operationId": "delete_resource_type_api_v1_metamodel_resource_types__resource_type_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_type_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Resource Type",
+        "tags": [
+          "metamodel"
+        ]
+      },
+      "patch": {
+        "description": "Update a resource type (admin only).\n\n``kind`` and ``key`` are immutable. ``built_in`` rows can be edited and\ndisabled but never deleted.",
+        "operationId": "update_resource_type_api_v1_metamodel_resource_types__resource_type_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_type_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Type Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceTypeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Resource Type",
         "tags": [
           "metamodel"
         ]
@@ -29560,6 +30636,64 @@
           }
         },
         "summary": "Update Registration Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/sponsor-button-enabled": {
+      "get": {
+        "description": "Public endpoint \u2014 returns whether the Sponsor button is shown in the user menu.\n\nDefaults to True so existing installations keep showing it; administrators can\nhide it from the avatar menu via the admin UI. It always remains reachable from\nAdmin \u2192 Settings regardless of this flag.",
+        "operationId": "get_sponsor_button_enabled_api_v1_settings_sponsor_button_enabled_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Sponsor Button Enabled",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Admin endpoint \u2014 show or hide the Sponsor button in the user (avatar) menu.",
+        "operationId": "update_sponsor_button_enabled_api_v1_settings_sponsor_button_enabled_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SponsorButtonEnabledPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Sponsor Button Enabled",
         "tags": [
           "settings"
         ]

@@ -36,6 +36,10 @@ Clicca **+ Nuova rilevazione** nella toolbar Conformità per aprire il dialogo d
 
 `compliance.manage` è richiesto per creare, modificare, ritirare o bulk-azionare rilevazioni. `compliance.view` basta per leggere il registro e triagiare dalla scheda Conformità a livello di card.
 
+### Modificare una rilevazione
+
+Apri una rilevazione — dalla griglia Conformità o dalla scheda **Conformità** di una card — e fai clic su **Modifica** nel drawer per cambiare, dopo la creazione, il suo **stato** di conformità (ad esempio Conforme → Parziale), gravità, requisito, lacuna, evidenza, rimedio, articolo o card collegata. La modifica del contenuto non tocca la decisione del ciclo di vita della rilevazione; per quello usa la timeline del ciclo di vita. Richiede `compliance.manage`.
+
 ## Eseguire una scansione IA
 
 !!! info "IA richiesta per le scansioni, non per le rilevazioni manuali"
@@ -101,7 +105,7 @@ La scheda Conformità mostra anche un **KPI complessivo di conformità** in cima
 
 ## Conformità su una singola card
 
-![Dettaglio della card — scheda Conformità](../assets/img/it/56_card_compliance_tab.png)
+![Dettaglio della card — scheda Conformità](../assets/img/it/56_scheda_conformita_tab.png)
 
 Le card in scope di qualsiasi rilevazione espongono anche una scheda **Conformità** sulla loro pagina di dettaglio (governata da `compliance.view`). Elenca ogni rilevazione attualmente collegata alla card con le stesse azioni Riconosci / Accetta / **Crea rischio** / **Apri rischio** della vista GRC — in modo che un Application Owner possa triagiare le proprie rilevazioni senza lasciare la card. La stessa regola di auto-nascondimento si applica alla scheda **Rischi** nel dettaglio della card: entrambe le schede appaiono solo quando la card ha effettivamente elementi collegati, in modo che le card senza attività GRC non si trascinino schede vuote.
 

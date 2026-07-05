@@ -28,7 +28,12 @@ import TableRow from "@mui/material/TableRow";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { api } from "@/api/client";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveMetaLabel, useResolveLabel } from "@/hooks/useResolveLabel";
+import {
+  useTypeLabel,
+  useRelationLabel,
+  useFieldLabel,
+  useOptionLabel,
+} from "@/hooks/useResolveLabel";
 import { FIELD_TYPE_OPTIONS } from "@/features/admin/metamodel/constants";
 import type {
   Survey,
@@ -44,9 +49,11 @@ export default function SurveyBuilder() {
   const { t } = useTranslation(["admin", "common"]);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { types } = useMetamodel();
-  const rml = useResolveMetaLabel();
-  const rl = useResolveLabel();
+  const { types, relationTypes } = useMetamodel();
+  const typeLabel = useTypeLabel();
+  const relLabel = useRelationLabel();
+  const fieldLabel = useFieldLabel();
+  const optLabel = useOptionLabel();
 
   const STEPS = [
     t("surveyBuilder.steps.basics"),
@@ -210,14 +217,57 @@ export default function SurveyBuilder() {
         fields.push({
           section: section.section,
           key: f.key,
-          label: rl(f.key, f.translations),
+          label: fieldLabel(f),
           type: f.type,
-          options: f.options?.map((o) => ({ ...o, label: rl(o.key, o.translations) })),
+          options: f.options?.map((o) => ({ ...o, label: optLabel(o) })),
         });
       }
     }
     return fields;
-  }, [selectedType, rl]);
+  }, [selectedType, fieldLabel, optLabel]);
+
+  // Relation types the surveyed card type can participate in, expanded into one
+  // entry per direction (a self-referential relation yields both). Each becomes
+  // a selectable survey "field" with kind === "relation".
+  const allRelations = useMemo(() => {
+    if (!targetTypeKey) return [];
+    const relatedTypeLabel = (key: string) => {
+      const ct = types.find((c) => c.key === key);
+      return ct ? typeLabel(ct) : key;
+    };
+    const entries: {
+      key: string;
+      relation_type_key: string;
+      direction: "outgoing" | "incoming";
+      related_type_key: string;
+      label: string;
+      relatedTypeLabel: string;
+    }[] = [];
+    for (const rt of relationTypes) {
+      if (rt.is_hidden) continue;
+      if (rt.source_type_key === targetTypeKey) {
+        entries.push({
+          key: `rel:${rt.key}:outgoing`,
+          relation_type_key: rt.key,
+          direction: "outgoing",
+          related_type_key: rt.target_type_key,
+          label: relLabel(rt),
+          relatedTypeLabel: relatedTypeLabel(rt.target_type_key),
+        });
+      }
+      if (rt.target_type_key === targetTypeKey) {
+        entries.push({
+          key: `rel:${rt.key}:incoming`,
+          relation_type_key: rt.key,
+          direction: "incoming",
+          related_type_key: rt.source_type_key,
+          label: relLabel(rt, true),
+          relatedTypeLabel: relatedTypeLabel(rt.source_type_key),
+        });
+      }
+    }
+    return entries;
+  }, [relationTypes, targetTypeKey, types, typeLabel, relLabel]);
 
   // All tags from all groups
   const allTags = useMemo(
@@ -326,6 +376,28 @@ export default function SurveyBuilder() {
       setSelectedFields((prev) => [
         ...prev,
         { key: field.key, section: field.section, label: field.label, type: field.type, options: field.options, action: "maintain" },
+      ]);
+    }
+  };
+
+  const toggleRelation = (rel: typeof allRelations[number]) => {
+    const exists = selectedFields.find((f) => f.key === rel.key);
+    if (exists) {
+      setSelectedFields((prev) => prev.filter((f) => f.key !== rel.key));
+    } else {
+      setSelectedFields((prev) => [
+        ...prev,
+        {
+          key: rel.key,
+          section: "",
+          label: rel.label,
+          type: "relation",
+          kind: "relation",
+          relation_type_key: rel.relation_type_key,
+          direction: rel.direction,
+          related_type_key: rel.related_type_key,
+          action: "maintain",
+        },
       ]);
     }
   };
@@ -480,7 +552,7 @@ export default function SurveyBuilder() {
                 <MenuItem key={ct.key} value={ct.key}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <MaterialSymbol icon={ct.icon} size={18} color={ct.color} />
-                    {rml(ct.key, ct.translations, "label")}
+                    {typeLabel(ct)}
                   </Box>
                 </MenuItem>
               ))}
@@ -723,7 +795,7 @@ export default function SurveyBuilder() {
             {t("surveyBuilder.fields.title")}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t("surveyBuilder.fields.description", { type: rml(selectedType?.key ?? "", selectedType?.translations, "label") || "card" })}
+            {t("surveyBuilder.fields.description", { type: selectedType ? typeLabel(selectedType) : "card" })}
           </Typography>
 
           {!selectedType && (
@@ -790,6 +862,76 @@ export default function SurveyBuilder() {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+
+          {selectedType && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                {t("surveyBuilder.relations.title")}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {t("surveyBuilder.relations.description")}
+              </Typography>
+
+              {allRelations.length === 0 ? (
+                <Alert severity="info">{t("surveyBuilder.relations.noRelations")}</Alert>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell padding="checkbox" />
+                        <TableCell>{t("surveyBuilder.relations.columns.relation")}</TableCell>
+                        <TableCell>{t("surveyBuilder.relations.columns.relatedType")}</TableCell>
+                        <TableCell>{t("surveyBuilder.fields.columns.action")}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {allRelations.map((r) => {
+                        const selected = selectedFields.find((sf) => sf.key === r.key);
+                        return (
+                          <TableRow
+                            key={r.key}
+                            hover
+                            onClick={() => toggleRelation(r)}
+                            sx={{ cursor: "pointer" }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox checked={!!selected} size="small" />
+                            </TableCell>
+                            <TableCell>{r.label}</TableCell>
+                            <TableCell>
+                              <Chip label={r.relatedTypeLabel} size="small" variant="outlined" />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {selected && (
+                                <TextField
+                                  select
+                                  size="small"
+                                  value={selected.action}
+                                  onChange={(e) =>
+                                    setFieldAction(r.key, e.target.value as "maintain" | "confirm")
+                                  }
+                                  sx={{ minWidth: 120 }}
+                                >
+                                  <MenuItem value="maintain">
+                                    {t("surveyBuilder.fields.maintain")}
+                                  </MenuItem>
+                                  <MenuItem value="confirm">
+                                    {t("surveyBuilder.fields.confirm")}
+                                  </MenuItem>
+                                </TextField>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
           )}
 
           {selectedFields.length > 0 && (

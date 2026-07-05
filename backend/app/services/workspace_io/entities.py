@@ -1,10 +1,11 @@
 """Generic, introspection-driven export/import engine for module entities.
 
-Phase A handles metamodel/config/settings/cards/relations with bespoke logic.
-Phases B and C cover ~30 card-context and module tables (stakeholders, comments,
-attachments, diagrams, BPM, PPM, GRC risks, ADR/SoAW, surveys, …). Rather than
-writing a bespoke applier per table, this engine drives them all from a small
-:class:`EntitySection` descriptor plus SQLAlchemy column introspection.
+The bespoke core sections handle metamodel/config/settings/cards/relations with
+hand-written logic. This generic engine covers ~30 card-context and module tables
+(stakeholders, comments, attachments, diagrams, BPM, PPM, GRC risks, ADR/SoAW,
+surveys, …) — the generic entity sections. Rather than writing a bespoke applier
+per table, it drives them all from a small :class:`EntitySection` descriptor plus
+SQLAlchemy column introspection.
 
 Key design decision — **preserve source UUIDs**. Every module row keeps its
 original primary key on import, so every *intra-module* foreign key (a task's
@@ -13,7 +14,8 @@ resolves verbatim with no remapping. Only three things need translation:
 
 * **card FKs** — a column pointing at ``cards.id``. Exported as ``{col}__ref`` +
   ``{col}__type`` (full ``parent_path / name``); resolved via ``CardResolver`` on
-  import. Cards do *not* preserve UUIDs (they're matched/created in Phase A).
+  import. Cards do *not* preserve UUIDs (they're matched/created by the bespoke
+  cards section).
 * **user FKs** — a column pointing at ``users.id``. Exported as ``{col}__email``;
   resolved via the email→id map on import.
 * **binary/large assets** — ``LargeBinary``, or a Text/JSONB column holding
@@ -65,6 +67,10 @@ class EntitySection:
     filename_column: str | None = None
     self_parent_column: str | None = None
     exclude_columns: tuple[str, ...] = ()
+    # Optional SQLAlchemy whereclause limiting which rows are exported (e.g.
+    # only analysis runs referenced by a compliance finding). Import is
+    # unaffected — whatever rows are in the bundle are applied.
+    export_where: Any = None
 
     def value_columns(self) -> list[str]:
         managed = (
@@ -196,7 +202,10 @@ async def export_entity_section(
     assets: dict[str, bytes],
 ) -> tuple[list[str], list[dict[str, Any]]]:
     """Return ``(header, rows)`` for a section and append any binary assets."""
-    objs: list[Any] = list((await db.execute(sa.select(section.model))).scalars().all())
+    stmt = sa.select(section.model)
+    if section.export_where is not None:
+        stmt = stmt.where(section.export_where)
+    objs: list[Any] = list((await db.execute(stmt)).scalars().all())
     value_cols = section.value_columns()
     pk0 = section.pk_columns()[0]
     rows: list[dict[str, Any]] = []
@@ -309,7 +318,7 @@ async def apply_entity_section(
         for col in value_cols:
             kwargs[col] = _from_cell(row.get(col), _kind(model, col))
 
-        unresolved = False
+        unresolved: str | None = None
         for col in section.card_fk_columns:
             ref = row.get(f"{col}__ref")
             ctype = row.get(f"{col}__type")
@@ -320,17 +329,31 @@ async def apply_entity_section(
                 elif _nullable(model, col):
                     kwargs[col] = None
                 else:
-                    unresolved = True
+                    unresolved = f"card {col} = {ref!r} ({ctype})"
                     break
             else:
                 kwargs[col] = None
         if unresolved:
             sr.conflict += 1
+            sr.errors.append(f"{section.sheet}: required {unresolved} not found — row skipped")
             continue
 
+        # A required user that can't be matched by email must not slip through
+        # as NULL — the flush-time IntegrityError would abort the whole import.
+        missing_user: str | None = None
         for col in section.user_fk_columns:
             email = row.get(f"{col}__email")
-            kwargs[col] = email_to_id.get(str(email).lower()) if email else None
+            uid = email_to_id.get(str(email).lower()) if email else None
+            if uid is None and not _nullable(model, col):
+                missing_user = f"{col} = {email!r}"
+                break
+            kwargs[col] = uid
+        if missing_user:
+            sr.conflict += 1
+            sr.errors.append(
+                f"{section.sheet}: required user {missing_user} not found — row skipped"
+            )
+            continue
 
         for col, kind, _ext in section.asset_columns:
             path = row.get(f"{col}__asset")
@@ -350,7 +373,7 @@ async def apply_entity_section(
             sr.failed += 1
             continue
         if pk_vals in existing_pks:
-            sr.skipped += 1
+            sr.skip("already_present")
             continue
 
         db.add(model(**kwargs))

@@ -5,6 +5,275 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.64.4] - 2026-07-05
+
+### Security
+- **Hardened the MCP OAuth sign-in against authorization-code redirection.** The MCP server now records the redirect addresses each connecting tool registers and only ever sends an authorization code to an address that tool actually registered. A sign-in request that names an unknown client or an unregistered redirect address is rejected outright instead of being redirected, and the token exchange additionally checks that the redirect address matches the one the code was issued for. This closes a flaw where a crafted sign-in link could route a signed-in user's authorization code to an attacker-controlled address (CWE-601 / CWE-346). Operators who front the MCP server with a fixed, non-registering integration can allow specific redirect addresses via the new `MCP_OAUTH_ALLOWED_REDIRECT_URIS` environment variable. Reported by [EQSTLab](https://github.com/EQSTLab) (SK Shield) via coordinated disclosure (GHSA-wx5f-576r-gpcx).
+
+## [1.64.3] - 2026-07-04
+
+### Changed
+- **The login page hides the email/password fields when every account uses SSO.** When Single Sign-On is enabled and there are no active local accounts left, the sign-in screen shows a streamlined card — a "Sign in to {app}" heading, the SSO button, and a "you'll be redirected" hint — with the (unusable) email and password form hidden. If any active local or invited account still exists, the form stays visible so those users can sign in or set their password. Deactivated local accounts don't count, since they can't sign in anyway.
+
+### Fixed
+- **No more flash of the email/password fields on the login page.** The sign-in screen now shows a brief spinner while it checks the SSO configuration, instead of flashing the email/password form and then hiding it. The resolved configuration is cached for the session, so a page refresh renders the correct layout instantly without a repeat round-trip.
+- **No more flicker of a customised application name.** The app title is remembered between loads, so screens that show it (the login heading, the browser tab) render your customised name immediately instead of briefly showing the default "Turbo EA" and swapping.
+- **The sign-in card is now vertically centred.** For the compact SSO-only card the card sits at the true vertical centre of the screen with the logo above it; when the email/password form is shown, the logo and card are balanced as a group so the taller card doesn't sit too high. On mobile the login screen now centres against the visible viewport height, so the form is no longer pushed down behind the browser's address bar.
+
+## [1.64.2] - 2026-07-04
+
+### Fixed
+- **You can now create a non-SSO user without setting a password for them.** Assigning a stakeholder role to a brand-new local user (or creating one from Admin → Users) no longer requires you to invent a password or force an invitation email. Leave the password blank and the account is created in a "Pending Setup" state; the person sets their own password on first login. The invitation email is only sent when you tick the box.
+- **Forgot password now works for users who have never set one.** A local account created without a password can use the login page's "Forgot password" link to receive its set-password link, instead of getting nothing — this is how a user created without an invitation email gets in.
+
+## [1.64.1] - 2026-07-03
+
+### Fixed
+- **The MCP Server URL shown in admin settings now actually connects.** The Admin → Settings → AI panel displayed `https://your-domain/mcp` as the URL to share with your team, but that path does not reach the MCP protocol endpoint — the correct URL is `https://your-domain/mcp/mcp` (the first `/mcp` is the reverse-proxy path, the second the protocol endpoint). The same fix was applied to the Claude setup step in the MCP admin guide, which already showed the correct URL in its VS Code example.
+- **The MCP admin guide caught up with the server it documents.** The guide (all 10 languages) claimed 30 tools (25 read + 5 write), listed only 5 write tools, and stated that archive and bulk-update tools don't exist. It now documents the actual 47 tools (30 read + 17 write, split additive vs destructive), the mutation-batch audit ledger with confirm-token gating, all six guardrail environment variables, and the full set of backend permissions the write tools require.
+
+## [1.64.0] - 2026-07-03
+
+### Added
+- **Workspace transfer now moves compliance findings.** GRC compliance findings (and the analysis runs they reference) are included in the export bundle, so the Compliance page is no longer empty after migrating to a new instance. Other TurboLens analysis results (vendors, duplicates, modernization, saved assessments) stay instance-local — re-run the analyses on the target. (discussion #667)
+- **Workspace transfer now moves saved-view shares.** A saved inventory view shared with other users keeps its shares (including the can-edit flag) across an export/import.
+- **The import preview explains itself.** Each section row in the workspace-import pre-check can be expanded to show *why* items were skipped (already present, identical to the target, duplicate in bundle, …) and any conflict/failure messages — previously the reasons were counted but never shown. A legend clarifies that "Skipped" means no action was needed. (discussion #667)
+- **Advisory version check on import.** The pre-check now shows which Turbo EA version the bundle was exported from and warns (without blocking) when it differs from the importing instance. (discussion #667)
+
+### Changed
+- **Heads-up: your Average Completion may drop after this upgrade — that is a correction, not data loss.** Some installs carried inflated data-quality scores: the demo seed used an approximation that ignored the relations, tags, and stakeholders buckets, and older workspace imports scored cards before their relations were applied. On the first startup after upgrading, a one-shot background task rescores every card with the canonical scorer, so the Dashboard's Average Completion (and its distribution) may visibly decrease. The new values are the accurate ones — no card data is changed, only the completeness score. (discussion #667)
+
+### Fixed
+- **Demo-seeded instances no longer show an inflated Average Completion.** Seeding now finishes with a canonical rescore of every card instead of leaving the insert-time approximation in place until each card is edited. (discussion #667)
+- **Data-quality scores and calculated fields now match the source instance after a workspace import.** Cards were scored — and relation-dependent calculated fields evaluated — before their tags, relations, stakeholders, and PPM data were imported, so calculated values were clobbered and the Dashboard's Average Completion drifted lower on the target. Both now run in a final pass over every active card once everything has landed, which also repairs cards mis-scored by earlier imports. (discussion #667)
+- **No more stale menus after a workspace import.** Applying an import now refreshes the app's cached feature flags, metamodel, compliance regulations, and other boot-time settings — previously the PPM menu could briefly be replaced by "EA Delivery" and the compliance overview could show an outdated regulation list until a manual browser refresh. (discussion #667)
+- **A missing required user no longer aborts a workspace import.** A row whose mandatory owner can't be matched by email (e.g. a saved view) is now reported as a per-row conflict instead of failing the entire import.
+- **User-manual screenshots render again on several translated pages.** The Compliance guide (de/es/fr/it/pt/ru/da/ar) and the Russian Diagrams guide referenced screenshots by their English filenames; they now point at the localized captures.
+
+## [1.63.2] - 2026-07-02
+
+### Fixed
+- **Draw.io "Remember this setting" now persists your shape libraries.** Selecting shape libraries in the Draw.io **More Shapes** dialog and enabling **Remember this setting** now saves your choice to your user profile and restores it every time you reopen the diagram editor — on any browser or device — instead of resetting to the default set each session.
+
+## [1.63.1] - 2026-07-02
+
+### Fixed
+- **Closed surveys no longer clutter the Todos list.** A survey set to the closed state (and its badge count) now disappears from the "My Surveys" list for users who never submitted a response, instead of leaving an un-openable row behind.
+- **Business Capability Map app-count chips are now readable in dark mode.** The count chip on each capability box previously rendered white text on a light background in dark mode; its text is now pinned dark so it stays legible in both themes.
+
+## [1.63.0] - 2026-07-02
+
+### Added
+- **Modern email sending: OAuth 2.0 and Microsoft Graph.** Email now supports a **sending method** beyond SMTP username/password, so Turbo EA keeps delivering mail after Microsoft 365 and Google Workspace disable basic SMTP authentication. Choose **Microsoft Graph API** (app-only `sendMail`, no stored mailbox password — recommended for Microsoft 365) or **SMTP with OAuth 2.0 (XOAUTH2)** for Microsoft 365 (app-only credentials) and Google Workspace (service account with domain-wide delegation), all configured under **Admin → Settings → Email**. Classic **SMTP (username & password)** remains the default, so existing setups are unchanged. OAuth credentials are stored encrypted and never leave the instance in a Workspace Transfer.
+
+### Fixed
+- **OAuth email settings now survive a backend restart.** The startup loader restores the sending method and OAuth/Graph fields from the database, not just the legacy SMTP fields.
+- **Partial email-settings updates no longer reset the sending method.** API clients built against the older payload shape can update a single field without blanking the stored OAuth configuration.
+- **Graph sends work with the default From address.** The placeholder From is no longer forced as an explicit Graph `from` header (which required a Send-As grant and failed every send); a deliberately configured brand address still applies.
+- **Rejected OAuth tokens now surface as clear authentication errors** in the SMTP OAuth method instead of a confusing downstream failure, and the sender mailbox is validated as required before sending.
+- **Workspace import never writes email credentials from a bundle.** The importer now refuses all email secret fields (not just the SMTP password), preserving the target instance's own encrypted values.
+
+## [1.62.5] - 2026-07-01
+
+### Fixed
+- **Card side-panel now shows the card type's name, not its internal key.** For admin-created custom card types (with an empty translations map) the quick-look side panel leaked the internal slug (e.g. `itAsset`) instead of the display name ("IT Asset"); it now resolves the label the same structural way as the rest of the app.
+
+### Changed
+- **ServiceNow read screens no longer require the manage permission.** Listing connections, mappings, sync runs, and staged records now only needs `servicenow.view`; `servicenow.manage` remains required for any change. This lets a read-only role review the integration without being able to modify it. Existing custom roles that hold `servicenow.manage` are automatically granted `servicenow.view` on upgrade, so nobody loses read access they had before.
+- **MCP write tools `transition_card_lifecycle`, `add_card_comment`, and `sign_adr` now default to a dry-run preview**, matching every other mutating MCP tool — the agent shows the planned change first and only writes when called again with `dry_run=false`.
+- **The Audit Log admin screen is now fully translated** into all supported languages (previously English-only).
+
+### Security
+- **Registered the `admin.todos` permission** in the permission catalogue so it can be granted to custom (non-admin) roles; it was enforced in code but missing from the registry, so only the wildcard admin role could ever satisfy it.
+
+## [1.62.4] - 2026-07-01
+
+### Security
+- **Bumped the nginx base image to `1.30.3-alpine`** for the frontend and edge-nginx images, clearing the `libexpat` < 2.8.2 CVEs (CVE-2026-50219, CVE-2026-56131/56132, and the CVE-2026-56403–56412 series) surfaced by the daily Trivy image scan. The `db` (`postgres:18-alpine`) and build-stage bases track moving tags and pick up Alpine package fixes on the next no-cache rebuild.
+
+## [1.62.3] - 2026-06-30
+
+### Fixed
+- **Custom card and relation types now show their name, not their internal key** (#731). A custom Card Type or Relation Type created in the metamodel (with a key like `itAsset` and a name like "IT Asset") was displayed by its key across the Inventory type list and grid, the Create-Card type picker, diagrams, reports, dashboards, and more. It now shows the configured name everywhere, in every language. Label resolution was made structural so the issue cannot recur.
+
+## [1.62.2] - 2026-06-30
+
+### Fixed
+- **Enabling "Supports Lineage" on a card type now shows the lineage section** (#729). Turning on Supports Lineage in the Metamodel for any card type (e.g. Business Context, Objective) previously had no visible effect on the card detail page. The Predecessors/Successors lineage section now appears automatically, and existing installs are backfilled.
+
+## [1.62.1] - 2026-06-30
+
+### Fixed
+- **Select-field option colors now save reliably.** The color shown in the option color picker is the default for a new or untouched option, but it was only displayed — not stored — so its color dot never appeared in the card editor or Inventory until the picker was explicitly clicked. Every option now persists the color the picker shows on Save, and upgrading backfills the color on options that were previously saved without one (only where other options in the same field already have colors, so intentionally color-less built-ins are left untouched).
+- **Metamodel keys no longer lock when they match an existing key.** When adding a new select-field option (or relation-attribute dimension/value), typing a key that matched an existing one used to lock the new field so it couldn't be edited — and silently hid the collision. New keys now stay editable, and a key that duplicates another in the same list is flagged in red and blocks saving until it's made unique.
+
+## [1.62.0] - 2026-06-30
+
+### Added
+- **Saved views now remember column layout and sorting.** A saved Inventory view restores not just which columns are shown and your filters, but also the columns' left-to-right order, widths, pinning, and the sort order — so a view shared with stakeholders reopens exactly as it was arranged. Your personal grid arrangement is also remembered between visits.
+- **The Inventory remembers the active view and side-panel tab across refreshes.** After applying a saved view, reloading the page re-renders that same view (still highlighted as active) and keeps the same filter/columns/views tab open.
+- **"Export current view" from the Inventory.** The Export button is now a menu with two choices: **Export all fields** (the existing full, re-importable workbook) and **Export current view** — a flat, single-sheet snapshot that mirrors what's on screen (only the visible columns, in their current order, for the filtered rows). The current-view export is meant for sharing and is not suitable for re-import.
+
+### Fixed
+- **Inventory column filter on the Tags column now works** (#728). Typing a tag name in the Tags column's header filter returned no rows because the column holds a list of tag objects; it now matches against the tag names as shown.
+
+## [1.61.0] - 2026-06-30
+
+### Added
+- **Admins can hide the Sponsor button from the user menu.** A new toggle in **Settings → General → Modules** controls whether the Sponsor button appears in the profile (avatar) menu for all users. The Sponsor button itself is shown in that settings panel too, so sponsorship stays reachable from Settings even when it is hidden from the menu. The panel also notes how sponsoring companies can have their logo featured on turbo-ea.org (contact `sponsorship@turbo-ea.org`).
+## [1.60.0] - 2026-06-30
+
+### Added
+- **Sponsor Turbo EA from the profile menu.** A purple-to-pink **Sponsor** button now sits next to the version number in the profile menu. Clicking it opens a dialog explaining why sponsorship matters, with a link to the "Why I built Turbo EA" blog post and one-time or monthly options via GitHub Sponsors. The version label is also slightly larger and easier to read.
+
+## [1.59.1] - 2026-06-30
+
+### Fixed
+- **Select field options added later now keep their color.** When an admin added a new option to an existing single-select or multi-select field, the new option could be saved without a color even though the picker showed a default — so its color dot was missing in the card editor and Inventory filter. New options now adopt the displayed default color, matching what the picker shows.
+- **Select field options now require a key.** The field editor let an option be saved with only a label and no key; on a card such an option appeared in the dropdown but could not be selected, displayed, or saved. The editor now keeps Save disabled until every option has a valid key.
+
+### Changed
+- **Empty mandatory fields are highlighted in red across the Metamodel editor.** Required inputs — card-type key/name, field key/label, select-option keys, subtype key/label, relation key/verb, relation-value dimensions and options, and stakeholder-role key/name — now show a red border when left empty, so it's clear what still needs filling in before Save is enabled. A key field turns red once you start filling in its row (i.e. type the matching label/name) while the key is still empty, so a not-yet-started row is never flagged.
+
+## [1.59.0] - 2026-06-30
+
+### Added
+- **Edit a compliance finding.** Open any finding and use the new **Edit** button to change its compliance status (e.g. Compliant → Partial), severity, requirement, gap, evidence, remediation, article, or linked card after it was created — previously these could only be set at creation time.
+
+### Fixed
+- **Accepting a compliance finding from a card now asks for a rationale.** On a card's Compliance tab, choosing **Accepted** in the lifecycle opens the review-note dialog (the same as in the GRC Compliance module) instead of failing with "review_note is required".
+- **The bulk "Update decision" dropdown shows readable labels** (e.g. "In Review") instead of raw keys like `compliance.lifecycle.in_review`.
+- **Risk detail page on mobile.** The status-workflow stepper now scrolls within its card instead of stretching the page, so every section renders at the same width; the risk matrix and header also adapt to narrow screens.
+- **Card subtype now shows its label, not its key.** The card side panel header displayed the raw subtype key (e.g. `aiModel`) instead of the translated label (e.g. "AI Model").
+- **Compliance tab is readable on mobile.** A card's Compliance tab now renders findings as a stacked, tappable list on small screens instead of a cramped six-column table.
+
+## [1.58.0] - 2026-06-29
+
+### Added
+- **Admin-configurable link types & file categories.** A new **Resources** tab under **Admin → Metamodel** lets admins curate the two lists shown on every card's Resources tab: the **link types** for document links and the **categories** for file attachments. Add your own entries, rename or reorder the built-ins, pick an icon for link types, translate labels per language, or disable entries you don't use. Built-in entries can be disabled but not deleted; the defaults now include a new **Contract** link type. The lists travel with **Workspace Transfer** between instances.
+## [1.57.0] - 2026-06-27
+
+### Added
+- **Redesigned Diagrams gallery.** Diagram cards are now more compact, and a left **filter sidebar** narrows the gallery to *All diagrams*, *Created by me*, or your *Favorites*. A **search box** matches a diagram's name, its author, and the names of the cards drawn inside it. Diagrams can be organized into **groups** — shared, workspace-wide labels that a diagram can belong to several of at once — shown as collapsible headings with anything unassigned under *Ungrouped*. Each card has a **favorite** star (per user), and a *Sort* control orders by recently updated, recently created, or name. Diagram groups, their membership, and favorites are included in **Workspace Transfer**, so they clone between instances along with the diagrams.
+
+### Removed
+- **Removed the unused Data Flow / Free Draw diagram type.** The distinction was never used by any feature; diagrams are now a single kind.
+- **Removed the Diagrams list/table view.** The gallery is now card-only, with grouping, search, and filters.
+
+### Fixed
+- **The diagram editor's "Save & Exit" button now works.** Clicking *Save & Exit* in the DrawIO toolbar saves the diagram and returns to the viewer; previously it neither saved nor exited.
+- **The Diagrams filter sidebar matches the inventory sidebar and is collapsible.** Same colours and styling; it collapses to a slim rail via a chevron on desktop (width and state remembered, drag-to-resize) and opens as a slide-in panel on mobile.
+- **Adding a diagram to a group now updates the gallery instantly** instead of requiring a page refresh.
+
+## [1.56.0] - 2026-06-27
+
+### Added
+- **Reveal a card's parent or children on the dependency diagram.** The Layered Dependency View (Dependencies report and the card-detail dependency section) has two new tools in the left toolbar beside Highlight and Expand: **Reveal parent** and **Reveal children**. Turn one on, then click any card to add its hierarchy parent or its direct children to the diagram — a targeted alternative to Expand, which pulls in every neighbour at once. Revealed cards stay on the diagram so you can layer parents and children together in one view; re-centering or **Reset view** clears them.
+
+### Changed
+- **The dependency diagram's "Show parent hierarchy" toggle is now "Show hierarchy markers".** Instead of pulling every card's ancestors into the view at once, the **Card display** menu now adds a minimalistic chevron to any card that has a parent or children not currently shown — a subtle hint to use the new Reveal tools — keeping the diagram uncluttered. Bringing parents/children into view is now done deliberately with the Reveal parent / Reveal children tools.
+- **The dependency diagram's left toolbar is reorganised into two groups.** View controls (**Fullscreen** at the top, then zoom, re-center, **Reset view**) are separated by a divider line from the exploration tools (Highlight, Expand, Reveal parent, Reveal children). Reset and Fullscreen moved here from the top bar. The re-center button now uses a map-pin icon so it's no longer confused with Fullscreen.
+- **"Reset view" now fully resets the diagram.** Besides undoing manual node drags, it clears any parent/children/expand exploration and returns to the starting card — a true clean slate.
+
+## [1.55.0] - 2026-06-27
+
+### Added
+- **Turn a dependency diagram into an editable diagram.** The Layered Dependency View (Dependencies report and the card-detail dependency section) has a new **Create diagram** button in its toolbar. It recreates the on-screen graph — cards, relationships, and the four architecture layer lanes — as a new diagram in the Diagram module, where you can keep editing it. Every shape stays linked to its inventory card. You're prompted for a name, then taken straight to the new diagram. The button only appears for users who can create diagrams.
+
+## [1.54.0] - 2026-06-27
+
+### Changed
+- **Card pickers now let you browse, not just search.** Every dropdown that links a card — relations (card detail and the inventory grid), parent/child hierarchy, predecessors/successors, the Create card parent, vendor/Provider linking, ADR card links, BPM element linking, and compliance findings — now shows cards immediately when you open it, sorted alphabetically, and loads more as you scroll. The list narrows from the very first character you type. No more guessing an exact name before anything appears.
+
+## [1.53.0] - 2026-06-27
+
+### Added
+- **Relationship values now appear in dependency diagrams.** When a relation is qualified with a value (e.g. an application *supports* a capability as *Leading*), the Layered Dependency View (Dependencies report, the card-detail dependency section) shows it in brackets next to the label — *supports [Leading]*. Relations without a value render exactly as before. A new **Show relationship values** toggle in the **Card display** menu (on by default) can hide them.
+
+### Fixed
+- **Dependency-diagram image export no longer breaks on direction arrows.** The flow-direction indicators (→ ↔ ←) are now drawn as vector graphics instead of font glyphs, and exports are downloaded as a binary blob. Previously, a diagram containing these arrows would export a blank/invalid image that the browser saved with a `.txt` extension; PNG and SVG exports now save correctly (with the arrows and relationship-value labels visible).
+- **Dependency-diagram export now works on iPhone/iPad and stops logging console errors.** Image export no longer attempts to fetch remote web fonts (which the Content Security Policy blocked, spamming the console), and the rendered image is now scaled to stay within WebKit's canvas size/area limit — fixing export on iOS, where it previously failed with a "Load failed" error or produced nothing. Desktop export quality is unchanged.
+
+## [1.52.0] - 2026-06-27
+
+### Changed
+- **Dependency view hides end-of-life cards by default.** The Layered Dependency View (Dependencies report, the card-detail dependency section, and TurboLens Architect) no longer shows related cards whose lifecycle has reached End of Life — keeping the graph focused on what still matters. A new **Show end-of-life cards** toggle in the **Card display** menu brings them back. The card you are centered on is always shown, even if it is itself end-of-life.
+
+## [1.51.0] - 2026-06-26
+
+### Added
+- **Tags can have a description.** Admin → Metamodel → Tags: each tag now has an optional description (tag groups already had one), shown as a tooltip in the admin and carried through workspace export/import.
+
+## [1.50.1] - 2026-06-26
+
+### Fixed
+- **Arabic right-to-left layout now extends to data grids and charts.** With Arabic selected, the Inventory grid and the other data tables (Risk Register, Compliance, ADRs, Users, Audit Log) mirror to right-to-left — column order, header and cell alignment, and horizontal scrolling all follow RTL. Charts across the Dashboard, the Data Quality and Cost reports, and the BPM dashboard/assessment views also flip: axes move to the right and read right-to-left, category labels and axis numbers sit outside the plot, and legends and tooltips are RTL-aligned and spaced.
+- **Currency selector is now translated, and Saudi Riyal shows its own symbol.** The currency picker in **Admin → Settings** lists currencies by their localized name in the active language instead of fixed English text. Saudi Riyal now displays the dedicated ⃁ symbol (falling back to "SAR" on platforms whose fonts don't yet include it).
+
+## [1.50.0] - 2026-06-26
+
+### Added
+- **Stakeholder roles count toward data quality.** Admin → Metamodel → a card type's **Data quality** panel has a new **Stakeholder roles** contributor alongside Description, Lifecycle, Relations and Tags. Each stakeholder role defined for the type is a completeness slot that's satisfied once someone is assigned to it. Like the other built-in factors it counts at *Normal* weight by default (only for types that actually define roles); set it to *Ignore* to exclude it.
+
+## [1.49.0] - 2026-06-26
+
+### Added
+- **Layered Dependency View is now interactive.** The dependency diagram (Dependencies report, the card-detail dependency section, and TurboLens Architect) gained a toolbar: drag cards to rearrange them within their layer — and drag a whole **layer box** to move it with all its cards — with **Reset layout** to restore the automatic arrangement, plus **Fullscreen**, **Export** to PNG or SVG, and a canvas **background** that cycles between grid, dots, and none.
+- **Configurable card appearance in the dependency view.** A new **Card display** menu lets you toggle the type label and a lifecycle-status dot, and pick extra attribute fields to show directly on each card — the first two render on the card and the full set appears in the hover tooltip. Choices are remembered between visits.
+- **Show parent hierarchy in the dependency view.** A new toggle adds each card's parent card to the diagram and draws the *contains / part of* containment link, so hierarchical context (e.g. a parent Organization) is visible alongside the relationship graph.
+- **Card-type icons in the dependency view.** Each card in the Layered Dependency View now shows its metamodel icon in the top-left corner, making card types recognisable at a glance.
+
+## [1.48.0] - 2026-06-26
+
+### Added
+- **Surveys can now ask respondents to maintain relationships, not just attributes.** When building a survey, the Fields step has a new **Relations** section listing every relationship the target card type can have (in both directions). Pick any to have respondents review the linked cards — set each to **Maintain** (edit the linked set: add or remove cards via a search picker) or **Confirm** (acknowledge the current links are correct). Applying a response syncs the relations on the card, recorded in its history like a normal relation change.
+
+## [1.47.3] - 2026-06-26
+
+### Fixed
+- **Metamodel: custom self-relations are no longer blocked by the built-in "succeeds" relation.** Creating a self-referential relation type (e.g. Data Object → Data Object) failed with "a relation type already exists" for card types that ship a built-in successor relation — most types, including Application, IT Component and Data Object. The hidden successor relation is no longer counted toward the one-relation-per-pair rule, so you can add your own self-relation alongside it.
+
+## [1.47.2] - 2026-06-25
+
+### Fixed
+- **Inventory: applying a saved view keeps you on the Views tab.** Clicking a saved view in the sidebar no longer jumps back to the Filters tab, so you can switch between views in quick succession without losing your place.
+
+## [1.47.1] - 2026-06-25
+
+### Fixed
+- **Inventory: relationship filters no longer linger after switching card type.** Setting a relationship filter for one card type and then switching to another type left the now-irrelevant filter active in the background, silently emptying the result list. Switching the selected card type now clears the type-specific relationship (and subtype/attribute) filters.
+
+## [1.47.0] - 2026-06-25
+
+### Added
+- **Arabic (العربية) language support, with right-to-left layout.** Arabic is now selectable as an interface language in the user menu and in **Admin → Settings → Languages**. The whole UI — navigation, forms, dialogs and menus — mirrors to right-to-left when Arabic is active, and the documentation site gains an Arabic entry in its language switcher.
+- **Fully translated Arabic user manual.** Every documentation page is now available in Arabic, with Arabic full-text search enabled.
+
+## [1.46.1] - 2026-06-25
+
+### Changed
+- **Stakeholder picker: finish the "Invite" → "Add" wording.** The inline new-user form that opens from the Stakeholders picker now reads **Add new user** with an **Add user** button (previously "Invite new user" / "Invite & add"), and the success/error toasts say "added" instead of "invited" — matching the picker option renamed earlier. The optional "Send invitation email" toggle keeps its wording, since it still controls whether an invitation email is sent.
+
+## [1.46.0] - 2026-06-25
+
+### Added
+- **Inventory filters: an "(empty)" option to find cards with no value.** The Subtype, Lifecycle, Tags, Relationships, and single/multi-select custom-attribute filters each now offer an **(empty)** entry. Selecting it lists only the cards that have no value set for that field — for example every card with no lifecycle — without having to positively select every other value. It combines with normal values (matches either) and across filters (matches all).
+
+## [1.45.3] - 2026-06-25
+
+### Fixed
+- **Card relations: the attribute ("label") edit icon only shows when a relationship actually has subtypes.** The small edit icon on a relation row — and the inline "Add relation" details box and the diagram relation picker's details box — now appear only when the relation type defines selectable subtype options, instead of for any relation type that merely declares an (empty) attribute. This removes a confusing icon that opened an editor with nothing to choose.
+
+## [1.45.2] - 2026-06-25
+
+### Changed
+- **Stakeholder picker: "Add a new user" instead of "Invite".** The card Stakeholders picker's option for a not-yet-existing user now reads "Add a new user" / "Add «email» as a new user" rather than "Invite…", since a user can be added without an invitation email being sent.
+
+## [1.45.1] - 2026-06-24
+
+### Fixed
+- **GRC → Compliance: disabled regulations no longer clutter the regulation tabs.** A regulation you disable under Profile → Metamodel → Regulations is now hidden from the Compliance tab's regulation slider when it has no findings. Disabled regulations that still have findings stay visible (muted) so historical data remains auditable.
+
 ## [1.45.0] - 2026-06-24
 
 ### Added

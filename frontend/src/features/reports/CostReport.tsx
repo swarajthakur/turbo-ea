@@ -24,9 +24,10 @@ import MetricCard from "./MetricCard";
 import { useMetamodel } from "@/hooks/useMetamodel";
 import { useSavedReport } from "@/hooks/useSavedReport";
 import { useThumbnailCapture } from "@/hooks/useThumbnailCapture";
-import { useCurrency } from "@/hooks/useCurrency";
+import { useCurrency, type CurrencyFormatter } from "@/hooks/useCurrency";
+import { useIsRtl } from "@/hooks/useIsRtl";
 import { useAuth } from "@/hooks/useAuth";
-import { useResolveLabel, useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useTypeLabel, useFieldLabel, useOptionLabel } from "@/hooks/useResolveLabel";
 import CardDetailSidePanel from "@/components/CardDetailSidePanel";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { api } from "@/api/client";
@@ -121,18 +122,22 @@ function treemapColor(index: number): string {
 }
 
 const TreemapContent = ({
-  x, y, width, height, name, cost, index, id, costFmt, onCellClick, clickable,
+  x, y, width, height, name, cost, index, id, costFmt, onCellClick, clickable, isRtl,
 }: {
   x: number; y: number; width: number; height: number; name: string; cost: number; index: number;
   id?: string;
-  costFmt: Intl.NumberFormat;
+  costFmt: CurrencyFormatter;
   onCellClick?: (id: string, name: string) => void;
   clickable?: boolean;
+  isRtl?: boolean;
 }) => {
   if (width < 4 || height < 4) return null;
   const showLabel = width > 50 && height > 30;
   const showCost = width > 70 && height > 45;
   const handleClick = id && onCellClick ? () => onCellClick(id, name) : undefined;
+  // In RTL, anchor the cell labels at the top-right corner so they read correctly.
+  const labelX = isRtl ? x + width - 6 : x + 6;
+  const textDir = isRtl ? { textAnchor: "end" as const, direction: "rtl" as const } : {};
   return (
     <g
       onClick={handleClick}
@@ -140,12 +145,12 @@ const TreemapContent = ({
     >
       <rect x={x} y={y} width={width} height={height} fill={treemapColor(index)} stroke="#fff" strokeWidth={2} rx={3} />
       {showLabel && (
-        <text x={x + 6} y={y + 16} fontSize={11} fontWeight={600} fill="#fff" style={{ pointerEvents: "none" }}>
+        <text x={labelX} y={y + 16} fontSize={11} fontWeight={600} fill="#fff" style={{ pointerEvents: "none" }} {...textDir}>
           {name.length > Math.floor(width / 7) ? name.slice(0, Math.floor(width / 7) - 1) + "\u2026" : name}
         </text>
       )}
       {showCost && (
-        <text x={x + 6} y={y + 30} fontSize={10} fill="rgba(255,255,255,0.8)" style={{ pointerEvents: "none" }}>
+        <text x={labelX} y={y + 30} fontSize={10} fill="rgba(255,255,255,0.8)" style={{ pointerEvents: "none" }} {...textDir}>
           {costFmt.format(cost)}
         </text>
       )}
@@ -160,9 +165,11 @@ const TreemapContent = ({
 export default function CostReport() {
   const { t } = useTranslation(["reports", "common"]);
   const { types, relationTypes, loading: ml } = useMetamodel();
-  const rl = useResolveLabel();
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
+  const fieldLabel = useFieldLabel();
+  const optLabel = useOptionLabel();
   const { fmt } = useCurrency();
+  const isRtl = useIsRtl();
   const { user } = useAuth();
   const canViewCostsGlobally = !!(
     user?.permissions?.["*"] || user?.permissions?.["costs.view"]
@@ -242,8 +249,8 @@ export default function CostReport() {
   const typeDef = useMemo(() => types.find((t) => t.key === cardTypeKey), [types, cardTypeKey]);
   const costFields = useMemo(() => {
     const raw = typeDef ? pickCostFields(typeDef.fields_schema) : [];
-    return raw.map((f) => ({ ...f, label: rl(f.key, f.translations) }));
-  }, [typeDef, rl]);
+    return raw.map((f) => ({ ...f, label: fieldLabel(f) }));
+  }, [typeDef, fieldLabel]);
 
   // Auto-select cost field when card type changes
   useEffect(() => {
@@ -260,12 +267,12 @@ export default function CostReport() {
     for (const s of typeDef.fields_schema) for (const f of s.fields) {
       if (f.type === "single_select") out.push({
         ...f,
-        label: rl(f.key, f.translations),
-        options: f.options?.map((o) => ({ ...o, label: rl(o.key, o.translations) })),
+        label: fieldLabel(f),
+        options: f.options?.map((o) => ({ ...o, label: optLabel(o) })),
       });
     }
     return out;
-  }, [typeDef, rl]);
+  }, [typeDef, fieldLabel, optLabel]);
 
   // Aggregate options: every (related-type, cost-field) pair reachable via any relation
   // type involving the current card type. The relation label is intentionally NOT shown —
@@ -290,22 +297,22 @@ export default function CostReport() {
     for (const otherKey of reachable) {
       const otherType = typeMap.get(otherKey);
       if (!otherType) continue;
-      const typeLabel = rml(otherType.key, otherType.translations, "label") || otherType.label;
+      const otherTypeLabel = typeLabel(otherType);
       for (const f of pickCostFields(otherType.fields_schema)) {
-        const fieldLabel = rl(f.key, f.translations);
+        const otherFieldLabel = fieldLabel(f);
         out.push({
           value: `${otherKey}:${f.key}`,
-          label: t("cost.costSourceItem", { type: typeLabel, field: fieldLabel }),
+          label: t("cost.costSourceItem", { type: otherTypeLabel, field: otherFieldLabel }),
           typeKey: otherKey,
-          typeLabel,
+          typeLabel: otherTypeLabel,
           fieldKey: f.key,
-          fieldLabel,
+          fieldLabel: otherFieldLabel,
         });
       }
     }
     out.sort((a, b) => a.label.localeCompare(b.label));
     return out;
-  }, [typeDef, types, relationTypes, cardTypeKey, rl, rml, t]);
+  }, [typeDef, types, relationTypes, cardTypeKey, typeLabel, fieldLabel, t]);
 
   // Drop any selected pair that's no longer offered (e.g. after switching card type).
   useEffect(() => {
@@ -405,8 +412,8 @@ export default function CostReport() {
   const printParams = useMemo(() => {
     const params: { label: string; value: string }[] = [];
     const tp = types.find((tp) => tp.key === cardTypeKey);
-    const typeLabel = rml(tp?.key ?? "", tp?.translations, "label") || cardTypeKey;
-    params.push({ label: t("common:labels.type"), value: typeLabel });
+    const tpLabel = typeLabel(tp) || cardTypeKey;
+    params.push({ label: t("common:labels.type"), value: tpLabel });
     if (activeAggregates.length > 0) {
       params.push({
         label: t("cost.costSource"),
@@ -428,7 +435,7 @@ export default function CostReport() {
       });
     }
     return params;
-  }, [cardTypeKey, types, costField, costFields, activeAggregates, groupBy, groupableFields, view, drillStack, t, rml]);
+  }, [cardTypeKey, types, costField, costFields, activeAggregates, groupBy, groupableFields, view, drillStack, t, typeLabel]);
 
   // Drill is offered at depth 0 whenever at least one aggregate source is
   // active. With multiple sources, depth 1 renders one chart per source so
@@ -455,8 +462,8 @@ export default function CostReport() {
 
   const rootTypeLabel = useMemo(() => {
     const tp = types.find((tp) => tp.key === cardTypeKey);
-    return rml(tp?.key ?? "", tp?.translations, "label") || cardTypeKey;
-  }, [types, cardTypeKey, rml]);
+    return typeLabel(tp) || cardTypeKey;
+  }, [types, cardTypeKey, typeLabel]);
 
   if (!canViewCostsGlobally) {
     return (
@@ -534,7 +541,7 @@ export default function CostReport() {
       toolbar={
         <>
           <TextField select size="small" label={t("cost.cardType")} value={cardTypeKey} onChange={(e) => { setCardTypeKey(e.target.value); setDrillStack([]); }} sx={{ minWidth: 150 }}>
-            {types.filter((tp) => !tp.is_hidden).map((tp) => <MenuItem key={tp.key} value={tp.key}>{rml(tp.key, tp.translations, "label")}</MenuItem>)}
+            {types.filter((tp) => !tp.is_hidden).map((tp) => <MenuItem key={tp.key} value={tp.key}>{typeLabel(tp)}</MenuItem>)}
           </TextField>
           {aggregateOptions.length > 0 && (
             <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
@@ -717,6 +724,7 @@ export default function CostReport() {
                             costFmt={fmt}
                             onCellClick={handleRectClick}
                             clickable={canDrill}
+                            isRtl={isRtl}
                           />
                         }
                       >

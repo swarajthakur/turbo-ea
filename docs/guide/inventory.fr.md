@@ -22,6 +22,8 @@ Le panneau latéral gauche permet de **filtrer** les fiches selon différents cr
 - **Afficher uniquement les archives** -- Basculer pour voir les fiches archivées (supprimées de manière logique)
 - **Tout effacer** -- Réinitialiser tous les filtres actifs d'un coup
 
+> **Trouver les cartes sans valeur.** Les filtres Sous-type, Cycle de vie, Étiquettes, Relations et attributs personnalisés de type liste proposent chacun une option **(vide)**. Sélectionnez-la pour n'afficher que les cartes qui n'ont *aucune* valeur pour ce champ — par exemple toutes les cartes sans cycle de vie défini. Elle se combine avec des valeurs normales (correspond à l'une d'elles) et entre plusieurs filtres (correspond à tous).
+
 Un **badge de nombre de filtres actifs** indique combien de filtres sont actuellement appliqués.
 
 ### Onglet Colonnes
@@ -49,7 +51,7 @@ Lorsqu'un type de carte est sélectionné pour la première fois, **toutes les c
 
 Un **point indicateur de modification** apparaît sur l'en-tête de l'onglet « Colonnes » lorsque la sélection de colonnes diffère des valeurs par défaut. Le même indicateur apparaît sur l'onglet **Filtres** lorsque des filtres sont actifs, permettant de voir d'un coup d'œil quels paramètres ont été modifiés.
 
-Votre sélection de colonnes, vos filtres actifs et votre ordre de tri sont **automatiquement conservés** dans votre navigateur. Lorsque vous revenez à la page d'inventaire, votre configuration précédente est restaurée. Les vues enregistrées (signets) conservent également la sélection complète des colonnes, de sorte que le passage d'une vue à l'autre restaure exactement les colonnes que vous aviez configurées.
+Votre sélection de colonnes, la **disposition des colonnes** (ordre de gauche à droite, largeurs et colonnes épinglées), vos filtres actifs et votre ordre de tri sont **automatiquement conservés** dans votre navigateur. Lorsque vous revenez à la page d'inventaire, votre configuration précédente est restaurée. Les vues enregistrées (signets) conservent également cette disposition complète, de sorte que le passage d'une vue à l'autre restaure exactement les colonnes que vous aviez configurées — et dans la même disposition —, ce qui est important lorsque vous partagez une vue organisée avec des parties prenantes.
 
 ### Tableau principal
 
@@ -170,3 +172,5 @@ Cliquez sur **Importer** dans la barre d'outils, déposez le classeur et vérifi
 ### Export
 
 Cliquez sur **Exporter**. Le filtre courant détermine le contenu : avec un filtre mono-type, une seule feuille de cartes ; sans filtre, une feuille par type présent. Dans tous les cas, le classeur inclut `Relations` et `_Meta` et peut être réimporté sans perdre les attributs spécifiques au type.
+
+Vous pouvez aussi choisir **Exporter la vue actuelle** dans le menu Exporter — un instantané plat sur une seule feuille qui reflète ce qui est affiché (uniquement les colonnes visibles, dans leur ordre actuel, pour les lignes filtrées). Il est destiné au partage et **ne convient pas à la réimportation**.

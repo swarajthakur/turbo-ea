@@ -50,6 +50,7 @@
   "filter.any": "Tous",
   "filter.minValue": "Valeur min.",
   "filter.contains": "Contient…",
+  "filter.emptyValue": "(vide)",
   "filter.showArchivedOnly": "Afficher uniquement les archivés",
   "filter.clearAll": "Tout effacer ({{count}})",
   "massEdit.title": "Modification en masse",
@@ -144,7 +145,6 @@
   "relation.noRelationsYet": "Aucune relation pour le moment",
   "relation.addRelation": "Ajouter une relation",
   "relation.searchType": "Rechercher {{type}}…",
-  "relation.typeToSearch": "Saisissez pour rechercher…",
   "relation.createNew": "Créer un nouveau {{type}}",
   "relation.createAndAdd": "Créer et ajouter",
   "relation.unknown": "Inconnu",
@@ -224,5 +224,10 @@
   "import.errors.relationTypeRequired": "relation_type est requis",
   "import.errors.unknownRelationType": "Type de relation inconnu : {{type}}",
   "import.warnings.formatVersionMismatch": "La version du format de classeur {{version}} diffère de la version actuelle. Certains champs peuvent ne pas être restaurés correctement.",
-  "import.warnings.unknownRelationType": "Type de relation inconnu « {{type}} » — colonne ignorée"
+  "import.warnings.unknownRelationType": "Type de relation inconnu « {{type}} » — colonne ignorée",
+  "export.allFields": "Exporter tous les champs",
+  "export.allFieldsHint": "Jeu de données complet, réimportable",
+  "export.currentView": "Exporter la vue actuelle",
+  "export.currentViewHint": "Reflète la grille affichée — non réimportable",
+  "export.viewSheetName": "Vue"
 }

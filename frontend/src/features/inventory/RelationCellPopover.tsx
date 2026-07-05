@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -7,15 +7,15 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import MaterialSymbol from "@/components/MaterialSymbol";
+import CardPicker from "@/components/CardPicker";
 import { api } from "@/api/client";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useTypeLabel, useRelationLabel } from "@/hooks/useResolveLabel";
 import type { Relation, RelationType } from "@/types";
 
 interface RelationCellPopoverProps {
@@ -45,21 +45,21 @@ export default function RelationCellPopover({
 }: RelationCellPopoverProps) {
   const { t } = useTranslation(["inventory", "common"]);
   const { getType } = useMetamodel();
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
+  const relLabel = useRelationLabel();
 
   const isSource = relationType.source_type_key === selectedType;
   const targetTypeKey = isSource ? relationType.target_type_key : relationType.source_type_key;
   const targetTypeConfig = getType(targetTypeKey);
   const verb = isSource
-    ? rml(relationType.key, relationType.translations, "label")
-    : (rml(relationType.key, relationType.translations, "reverse_label") || rml(relationType.key, relationType.translations, "label"));
+    ? relLabel(relationType)
+    : relLabel(relationType, true);
 
   const [relations, setRelations] = useState<Relation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // Search state
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [targetSearch, setTargetSearch] = useState("");
   const [selectedTarget, setSelectedTarget] = useState<SearchResult | null>(null);
   const [adding, setAdding] = useState(false);
@@ -88,35 +88,17 @@ export default function RelationCellPopover({
       setError("");
       setTargetSearch("");
       setSelectedTarget(null);
-      setSearchResults([]);
       setCreateMode(false);
       setCreateName("");
     }
   }, [open, loadRelations]);
 
-  // Search for target cards
-  useEffect(() => {
-    if (!open || targetSearch.length < 1) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(() => {
-      api
-        .get<{ items: SearchResult[] }>(
-          `/cards?type=${targetTypeKey}&search=${encodeURIComponent(targetSearch)}&page_size=20`
-        )
-        .then((res) => {
-          // Exclude current card and already-related cards
-          const existingIds = new Set(
-            relations.map((r) => (isSource ? r.target_id : r.source_id))
-          );
-          existingIds.add(cardId);
-          setSearchResults(res.items.filter((item) => !existingIds.has(item.id)));
-        })
-        .catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [targetTypeKey, targetSearch, open, cardId, relations, isSource]);
+  // Exclude the current card and already-related cards from the picker.
+  const excludeIds = useMemo(() => {
+    const ids = new Set(relations.map((r) => (isSource ? r.target_id : r.source_id)));
+    ids.add(cardId);
+    return [...ids];
+  }, [relations, isSource, cardId]);
 
   const handleAdd = async () => {
     if (!selectedTarget) return;
@@ -189,7 +171,7 @@ export default function RelationCellPopover({
           <Typography component="span" variant="body1" color="text.secondary" sx={{ mx: 1 }}>
             {verb} &rarr;
           </Typography>
-          {otherType ? rml(otherType.key, otherType.translations, "label") : targetTypeKey}
+          {otherType ? typeLabel(otherType) : targetTypeKey}
         </Typography>
         <IconButton size="small" onClick={onClose} edge="end">
           <MaterialSymbol icon="close" size={20} />
@@ -235,34 +217,15 @@ export default function RelationCellPopover({
         {!createMode ? (
           <>
             <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-              <Autocomplete
-                size="small"
+              <CardPicker
                 fullWidth
-                options={searchResults}
-                getOptionLabel={(opt) => opt.name}
+                types={targetTypeKey}
                 value={selectedTarget}
-                onChange={(_, val) => setSelectedTarget(val)}
-                inputValue={targetSearch}
-                onInputChange={(_, val) => setTargetSearch(val)}
-                renderOption={(props, opt) => {
-                  const tConf = getType(opt.type);
-                  return (
-                    <li {...props} key={opt.id}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        {tConf && <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: tConf.color }} />}
-                        <Typography variant="body2">{opt.name}</Typography>
-                      </Box>
-                    </li>
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={t("relation.searchType", { type: rml(targetTypeConfig?.key ?? "", targetTypeConfig?.translations, "label") || targetTypeKey })}
-                  />
-                )}
-                noOptionsText={targetSearch ? t("common:labels.noResults") : t("relation.typeToSearch")}
-                filterOptions={(x) => x}
+                onChange={setSelectedTarget}
+                onInputChange={setTargetSearch}
+                excludeIds={excludeIds}
+                enabled={open}
+                placeholder={t("relation.searchType", { type: typeLabel(targetTypeConfig) || targetTypeKey })}
               />
               <Button
                 variant="contained"
@@ -280,13 +243,13 @@ export default function RelationCellPopover({
               startIcon={<MaterialSymbol icon="add" size={16} />}
               onClick={() => { setCreateMode(true); setCreateName(targetSearch); }}
             >
-              {t("relation.createNew", { type: rml(targetTypeConfig?.key ?? "", targetTypeConfig?.translations, "label") || targetTypeKey })}
+              {t("relation.createNew", { type: typeLabel(targetTypeConfig) || targetTypeKey })}
             </Button>
           </>
         ) : (
           <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
             <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-              {t("relation.createNew", { type: rml(targetTypeConfig?.key ?? "", targetTypeConfig?.translations, "label") || targetTypeKey })}
+              {t("relation.createNew", { type: typeLabel(targetTypeConfig) || targetTypeKey })}
             </Typography>
             <TextField
               fullWidth

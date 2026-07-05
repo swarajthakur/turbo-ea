@@ -1,20 +1,24 @@
-"""Entity-section descriptors for Phase B (card context + assets) and Phase C
-(module data), consumed by the generic :mod:`entities` engine.
+"""Entity-section descriptors for the card-context and module tables, consumed by
+the generic :mod:`entities` engine.
 
 Listed in dependency order: a section's intra-module parents come first
 (``PpmWbs`` before ``PpmTask`` before ``PpmTaskComment``; ``Risk`` before
 ``RiskCard``/``RiskMitigationTask`` before the occurrences; ``ArchitectureDecision``
 before its card links; ``Survey`` before ``SurveyResponse``). Cards and relations
-are applied earlier by the Phase A pipeline, so card FKs always resolve.
+are applied earlier by the bespoke core sections, so card FKs always resolve.
 """
 
 from __future__ import annotations
+
+import sqlalchemy as sa
 
 from app.models.architecture_decision import ArchitectureDecision
 from app.models.architecture_decision_card import ArchitectureDecisionCard
 from app.models.bookmark import Bookmark
 from app.models.comment import Comment
 from app.models.diagram import Diagram
+from app.models.diagram_favorite import DiagramFavorite
+from app.models.diagram_group import DiagramGroup
 from app.models.document import Document
 from app.models.file_attachment import FileAttachment
 from app.models.ppm_cost_line import PpmBudgetLine, PpmCostLine
@@ -35,14 +39,19 @@ from app.models.soaw import SoAW
 from app.models.stakeholder import Stakeholder
 from app.models.survey import Survey, SurveyResponse
 from app.models.todo import Todo
+from app.models.turbolens import TurboLensAnalysisRun, TurboLensComplianceFinding
 from app.models.web_portal import WebPortal
 from app.services.workspace_io.entities import EntitySection
 
 # Sheet name for the bespoke Diagram↔Card association (handled like CardTags).
 SHEET_DIAGRAM_CARDS = "DiagramCards"
+# Sheet name for the bespoke Diagram↔Group association (both PKs preserved).
+SHEET_DIAGRAM_GROUP_MEMBERS = "DiagramGroupMembers"
+# Sheet name for the bespoke Bookmark↔User share association (user matched by email).
+SHEET_BOOKMARK_SHARES = "BookmarkShares"
 
 ENTITY_SECTIONS: tuple[EntitySection, ...] = (
-    # --- Phase B: card context -------------------------------------------
+    # --- Card context ----------------------------------------------------
     EntitySection(
         "Stakeholders", Stakeholder, card_fk_columns=("card_id",), user_fk_columns=("user_id",)
     ),
@@ -79,7 +88,11 @@ ENTITY_SECTIONS: tuple[EntitySection, ...] = (
         json_asset_columns=(("data", "xml", "drawio"),),
         filename_column="name",
     ),
-    # --- Phase C: BPM ----------------------------------------------------
+    # Diagram groups (shared) + per-user favorites. After Diagrams so the
+    # favorites' diagram_id (an intra-module FK, preserved verbatim) resolves.
+    EntitySection("DiagramGroups", DiagramGroup, user_fk_columns=("created_by",)),
+    EntitySection("DiagramFavorites", DiagramFavorite, user_fk_columns=("user_id",)),
+    # --- BPM --------------------------------------------------------------
     EntitySection(
         "ProcessDiagrams",
         ProcessDiagram,
@@ -106,7 +119,7 @@ ENTITY_SECTIONS: tuple[EntitySection, ...] = (
         card_fk_columns=("process_id",),
         user_fk_columns=("assessor_id",),
     ),
-    # --- Phase C: PPM (wbs before task before comment/dependency) --------
+    # --- PPM (wbs before task before comment/dependency) -----------------
     EntitySection(
         "PpmStatusReports",
         PpmStatusReport,
@@ -130,7 +143,7 @@ ENTITY_SECTIONS: tuple[EntitySection, ...] = (
     ),
     EntitySection("PpmTaskComments", PpmTaskComment, user_fk_columns=("user_id",)),
     EntitySection("PpmDependencies", PpmDependency, card_fk_columns=("initiative_id",)),
-    # --- Phase C: GRC risk register --------------------------------------
+    # --- GRC risk register -----------------------------------------------
     EntitySection("Risks", Risk, user_fk_columns=("owner_id", "accepted_by", "created_by")),
     EntitySection("RiskCards", RiskCard, card_fk_columns=("card_id",)),
     EntitySection(
@@ -141,7 +154,31 @@ ENTITY_SECTIONS: tuple[EntitySection, ...] = (
         RiskMitigationTaskOccurrence,
         user_fk_columns=("assigned_owner_id", "completed_by", "owner_at_completion"),
     ),
-    # --- Phase C: governance / delivery ----------------------------------
+    # --- TurboLens compliance ----------------------------------------------
+    # Runs before findings (NOT-NULL run_id resolves verbatim — module PKs are
+    # preserved); after Risks so a promoted finding's risk_id back-link resolves.
+    # Only runs actually referenced by a finding are exported — vendor/duplicate/
+    # architect analysis results stay instance-local (they can be regenerated).
+    EntitySection(
+        "TurbolensAnalysisRuns",
+        TurboLensAnalysisRun,
+        user_fk_columns=("created_by",),
+        export_where=sa.or_(
+            TurboLensAnalysisRun.id.in_(sa.select(TurboLensComplianceFinding.run_id)),
+            TurboLensAnalysisRun.id.in_(
+                sa.select(TurboLensComplianceFinding.last_seen_run_id).where(
+                    TurboLensComplianceFinding.last_seen_run_id.is_not(None)
+                )
+            ),
+        ),
+    ),
+    EntitySection(
+        "ComplianceFindings",
+        TurboLensComplianceFinding,
+        card_fk_columns=("card_id",),
+        user_fk_columns=("reviewed_by",),
+    ),
+    # --- Governance / delivery -------------------------------------------
     EntitySection(
         "Adrs",
         ArchitectureDecision,
@@ -156,7 +193,7 @@ ENTITY_SECTIONS: tuple[EntitySection, ...] = (
         user_fk_columns=("created_by",),
         self_parent_column="parent_id",
     ),
-    # --- Phase C: saved views + surveys ----------------------------------
+    # --- Saved views + surveys -------------------------------------------
     EntitySection("SavedReports", SavedReport, user_fk_columns=("owner_id",)),
     EntitySection("Bookmarks", Bookmark, user_fk_columns=("user_id",)),
     EntitySection("WebPortals", WebPortal, user_fk_columns=("created_by",)),

@@ -63,7 +63,7 @@ Il nome speciale di sezione `__description` aggiunge campi alla sezione Descrizi
 
 #### Punteggio di qualità dei dati
 
-Il punteggio di **qualità dei dati** di una card misura in modo ponderato quanto è completa. Ogni fattore che contribuisce — ogni campo e quattro fattori integrati — è gestito in un unico posto: la scheda **Qualità dei dati** dell'editor del tipo di card. (L'editor è organizzato in schede – Generale, Relazioni, Ruoli degli stakeholder e Qualità dei dati – le traduzioni sono disponibili dall'icona nell'intestazione.)
+Il punteggio di **qualità dei dati** di una card misura in modo ponderato quanto è completa. Ogni fattore che contribuisce — ogni campo e cinque fattori integrati — è gestito in un unico posto: la scheda **Qualità dei dati** dell'editor del tipo di card. (L'editor è organizzato in schede – Generale, Relazioni, Ruoli degli stakeholder e Qualità dei dati – le traduzioni sono disponibili dall'icona nell'intestazione.)
 
 L'importanza di ciascun fattore si imposta con un semplice cursore a quattro livelli, che mostra anche il numero sottostante:
 
@@ -72,7 +72,7 @@ L'importanza di ciascun fattore si imposta con un semplice cursore a quattro liv
 - **Importante (2)** — conta il doppio.
 - **Critico (3)** — conta il triplo.
 
-Il pannello elenca i quattro **fattori integrati** — **Descrizione**, **Ciclo di vita** (se è impostata almeno una data del ciclo di vita), **Relazioni obbligatorie** e **Tag obbligatori** — seguiti da ogni campo raggruppato per sezione, ciascuno con lo stesso cursore. Ad esempio, imposta il **Ciclo di vita** su *Ignora* per un tipo le cui card legittimamente non riportano mai date, così da non penalizzarle.
+Il pannello elenca i cinque **fattori integrati** — **Descrizione**, **Ciclo di vita** (se è impostata almeno una data del ciclo di vita), **Relazioni obbligatorie**, **Tag obbligatori** e **Ruoli degli stakeholder** (ogni ruolo definito per il tipo è soddisfatto quando vi viene assegnato uno stakeholder) — seguiti da ogni campo raggruppato per sezione, ciascuno con lo stesso cursore. Ad esempio, imposta il **Ciclo di vita** su *Ignora* per un tipo le cui card legittimamente non riportano mai date, così da non penalizzarle.
 
 Una barra di **composizione del punteggio** in cima al pannello mostra la quota di ciascun fattore sul punteggio massimo possibile, per vedere a colpo d'occhio quali fattori dominano. Nel layout della card della scheda **Generale**, ogni campo — e le sezioni integrate Descrizione, Ciclo di vita e Relazioni — mostra un piccolo badge con il livello attuale, per vedere la ponderazione senza lasciare quella scheda.
 
@@ -224,3 +224,19 @@ Per ogni tipo di card, la sezione **Layout** nel cassetto del tipo controlla com
 - **Espansione predefinita** — Scegliete se ogni sezione inizia espansa o compressa
 - **Layout colonne** — Impostate 1 o 2 colonne per sezione personalizzata
 - **Spostare campi tra le sezioni** — Usare l'azione **sposta** di un campo (accanto ai pulsanti di modifica ed elimina) per ricollocarlo in un'altra sezione, mantenendone la configurazione
+
+## Risorse
+
+La scheda **Risorse** gestisce i due elenchi proposti nella scheda **Risorse** di ogni carta:
+
+- **Tipi di link** — la categoria di un link a un documento (es. *Documentazione*, *Contratto*, *Sicurezza*). Ogni tipo di link porta anche un'**icona** mostrata accanto al link.
+- **Categorie di file** — la categoria assegnata a un allegato caricato.
+
+Per ogni elenco puoi:
+
+- **Aggiungere una voce** — con una chiave (un identificatore minuscolo memorizzato sulle carte, fisso dopo la creazione), un'etichetta visualizzata e — per i tipi di link — un'icona.
+- **Modificare** etichetta, icona, ordinamento e traduzioni per lingua di qualsiasi voce, incluse quelle integrate.
+- **Attivare / disattivare** una voce con l'interruttore — le voci disattivate scompaiono dal selettore, ma i valori esistenti sulle carte vengono mantenuti.
+- **Eliminare** una voce personalizzata — le voci integrate non possono essere eliminate, solo disattivate.
+
+Un tipo di link **Contratto** integrato è attivo per impostazione predefinita. Entrambi gli elenchi sono inclusi nel **Trasferimento dell'area di lavoro** e si clonano così tra le istanze.

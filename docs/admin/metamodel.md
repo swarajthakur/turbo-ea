@@ -4,7 +4,7 @@ The **Metamodel** defines your platform's entire data structure — what types o
 
 ![Metamodel Configuration](../assets/img/en/20_admin_metamodel.png)
 
-Navigate to **Admin > Metamodel** to access the metamodel editor. It has seven tabs: **Card Types**, **Relation Types**, **Calculations**, **Tags**, **Metamodel Graph**, **EA Principles**, and **Compliance Regulations**.
+Navigate to **Admin > Metamodel** to access the metamodel editor. It has eight tabs: **Card Types**, **Relation Types**, **Calculations**, **Tags**, **Metamodel Graph**, **EA Principles**, **Compliance Regulations**, and **Resources**.
 
 ## Card Types
 
@@ -63,7 +63,7 @@ The special section name `__description` adds fields to the Description section 
 
 #### Data quality scoring
 
-A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus four built-in factors — is managed in one place: the **Data quality** tab of the card-type editor. (The editor is organised into tabs — Main, Relations, Stakeholder roles, and Data quality — with translations available from the icon in the header.)
+A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus five built-in factors — is managed in one place: the **Data quality** tab of the card-type editor. (The editor is organised into tabs — Main, Relations, Stakeholder roles, and Data quality — with translations available from the icon in the header.)
 
 Each factor has an importance set with a simple slider across four tiers, which also shows the underlying number:
 
@@ -72,7 +72,7 @@ Each factor has an importance set with a simple slider across four tiers, which 
 - **Important (2)** — counts twice as much.
 - **Critical (3)** — counts three times as much.
 
-The panel lists the four **built-in factors** — **Description**, **Lifecycle** (whether any lifecycle date is set), **mandatory Relations**, and **mandatory Tags** — followed by every field grouped by its section, each with the same slider. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
+The panel lists the five **built-in factors** — **Description**, **Lifecycle** (whether any lifecycle date is set), **mandatory Relations**, **mandatory Tags**, and **Stakeholder roles** (each role defined for the type is satisfied once a stakeholder is assigned to it) — followed by every field grouped by its section, each with the same slider. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
 
 A **score composition** bar at the top of the tab shows each factor's share of the maximum possible score, so you can see at a glance which factors dominate. In the **Main** tab's card layout, each field — and the built-in Description, Lifecycle and Relations sections — shows a small badge with its current tier number, so you can see the weighting without leaving that tab.
 
@@ -214,6 +214,22 @@ For each row you can:
 - **Delete** a custom regulation — built-in regulations cannot be deleted, only disabled.
 
 The compliance scanner and risk-promotion flow work **even when no AI provider is configured** — manual finding entry, status transitions and the promotion-to-Risk path all stay available. AI is only required when you actually trigger a new scan.
+
+## Resources
+
+The **Resources** tab manages the two lists offered on every card's **Resources** tab:
+
+- **Link types** — the category of a document link (e.g. *Documentation*, *Contract*, *Security*). Each link type also carries an **icon** shown next to the link.
+- **File categories** — the category assigned to an uploaded file attachment.
+
+For each list you can:
+
+- **Add an entry** — give it a key (a lowercase identifier stored on cards, fixed once created), a display label, and — for link types — an icon.
+- **Edit** the label, icon, sort order, and per-language translations of any entry, including the built-in ones.
+- **Enable / disable** an entry with the toggle — disabled entries disappear from the picker but existing values on cards are preserved.
+- **Delete** a custom entry — built-in entries cannot be deleted, only disabled.
+
+A built-in **Contract** link type ships enabled by default. Both lists are included in **Workspace Transfer**, so your customisations clone between instances.
 
 ## Card Layout Editor
 

@@ -36,6 +36,10 @@ Cliquez **+ Nouveau constat** dans la barre d'outils Conformité pour ouvrir le 
 
 `compliance.manage` est requis pour créer, modifier, retirer ou bulk-actionner des constats. `compliance.view` suffit pour lire le registre et trier depuis l'onglet Conformité d'une fiche.
 
+### Modifier un constat
+
+Ouvrez un constat — depuis la grille Conformité ou depuis l'onglet **Conformité** d'une fiche — et cliquez sur **Modifier** dans le tiroir pour changer, après sa création, son **statut** de conformité (par exemple Conforme → Partiel), sa sévérité, son exigence, son écart, sa preuve, sa remédiation, son article ou sa fiche liée. Modifier le contenu ne touche pas à la décision de cycle de vie du constat ; utilisez pour cela la chronologie du cycle de vie. Nécessite `compliance.manage`.
+
 ## Exécuter un scan IA
 
 !!! info "IA requise pour les scans, pas pour les constats manuels"
@@ -101,7 +105,7 @@ L'onglet Conformité affiche aussi un **KPI global de conformité** en haut de p
 
 ## Conformité sur une seule fiche
 
-![Détail de la fiche — onglet Conformité](../assets/img/fr/56_card_compliance_tab.png)
+![Détail de la fiche — onglet Conformité](../assets/img/fr/56_fiche_conformite_tab.png)
 
 Les fiches dans le périmètre de n'importe quel constat exposent aussi un onglet **Conformité** sur leur page de détail (gouverné par `compliance.view`). Il liste chaque constat actuellement lié à la fiche avec les mêmes actions Acquitter / Accepter / **Créer un risque** / **Ouvrir le risque** que la vue GRC — de sorte qu'un Application Owner peut trier ses propres constats sans quitter la fiche. La même règle d'auto-masquage s'applique à l'onglet **Risques** dans le détail de la fiche : les deux onglets n'apparaissent que lorsque la fiche a effectivement des éléments liés, de sorte que les fiches sans activité GRC ne traînent pas d'onglets vides.
 

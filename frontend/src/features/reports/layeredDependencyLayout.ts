@@ -11,8 +11,9 @@
 
 import dagre from "@dagrejs/dagre";
 import type { Node, Edge } from "@xyflow/react";
+import { getCurrentPhase } from "@/components/LifecycleBadge";
 import { LAYER_COLORS } from "@/theme/tokens";
-import type { CardType } from "@/types";
+import type { CardType, RelationType, FieldOption } from "@/types";
 
 /* ------------------------------------------------------------------ */
 /*  Input types (same as DependencyReport)                             */
@@ -27,6 +28,11 @@ export interface GNode {
   parent_id?: string | null;
   path?: string[];
   proposed?: boolean;
+  /** Whether this card has any child card in the full dataset (set by the
+   *  consumer, which holds the whole graph). Drives the "has hidden children"
+   *  hierarchy marker — the view only sees the visible slice, so it can't
+   *  derive this on its own. */
+  hasChildren?: boolean;
 }
 
 export interface GEdge {
@@ -39,6 +45,48 @@ export interface GEdge {
   attributes?: Record<string, unknown>;
 }
 
+/**
+ * Resolve which card ids the "Reveal parent" / "Reveal children" toolbar tools
+ * surface when `clickedId` is clicked. Hierarchy-based (uses `parent_id`):
+ *  - "parents": the clicked card's single hierarchical parent (if present in the graph).
+ *  - "children": every card whose `parent_id` is the clicked card.
+ * Returns ids only — the consumer adds them to its visible BFS set. Pure so it
+ * can be shared by every LDV consumer and unit-tested.
+ */
+export function resolveRevealIds(
+  nodes: GNode[],
+  nodeMap: Map<string, GNode>,
+  clickedId: string,
+  kind: "parents" | "children",
+): string[] {
+  if (kind === "parents") {
+    const parentId = nodeMap.get(clickedId)?.parent_id;
+    return parentId && nodeMap.has(parentId) ? [parentId] : [];
+  }
+  return nodes.filter((n) => n.parent_id === clickedId).map((n) => n.id);
+}
+
+/**
+ * Drop nodes whose current lifecycle phase is `endOfLife`, then drop any edge
+ * that lost an endpoint. The centered card (`centerId`) and any proposed/NEW
+ * card are always kept, so an end-of-life card can still be inspected when it
+ * is the focus of the view.
+ */
+export function filterEndOfLifeNodes(
+  nodes: GNode[],
+  edges: GEdge[],
+  centerId?: string,
+): { nodes: GNode[]; edges: GEdge[] } {
+  const visible = nodes.filter(
+    (n) => n.id === centerId || n.proposed || getCurrentPhase(n.lifecycle) !== "endOfLife",
+  );
+  const ids = new Set(visible.map((n) => n.id));
+  return {
+    nodes: visible,
+    edges: edges.filter((e) => ids.has(e.source) && ids.has(e.target)),
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Custom node data                                                   */
 /* ------------------------------------------------------------------ */
@@ -48,6 +96,7 @@ export interface LdvNodeData {
   typeKey: string;
   typeLabel: string;
   typeColor: string;
+  typeIcon: string;
   category: string;
   nodeId?: string;
   onClick?: (id: string, shiftKey: boolean) => void;
@@ -66,6 +115,14 @@ export interface LdvGroupData {
 
 export interface LdvEdgeData {
   relLabel: string;
+  /**
+   * Relation flow direction, surfaced separately from `relLabel` so the edge
+   * component can render it as a vector SVG arrow (→ / ↔ / ←) rather than a
+   * Unicode glyph baked into the text — the glyph relies on a system-font
+   * fallback that html-to-image can't embed, so it disappears in PNG/SVG
+   * exports. Vector shapes rasterise identically live and in export.
+   */
+  flowDirection?: "forward" | "reverse" | "bidirectional";
   description?: string;
   connectedToHovered?: boolean;
   isHovered?: boolean;
@@ -96,6 +153,9 @@ const CATEGORY_COLORS: Record<string, string> = LAYER_COLORS;
 
 /** Padding inside each group boundary */
 const PAD = 30;
+/** Extra empty space inside each layer box so cards can be dragged/rearranged
+ *  within their layer (they are clamped to the box via extent: "parent"). */
+const DRAG_ROOM = 56;
 /** Height reserved for the category label at top of group */
 const LABEL_H = 32;
 /** Vertical gap between stacked category groups */
@@ -113,6 +173,10 @@ function typeColor(key: string, types: CardType[]): string {
 
 function typeLabel(key: string, types: CardType[]): string {
   return types.find((t) => t.key === key)?.label || key;
+}
+
+function typeIcon(key: string, types: CardType[]): string {
+  return types.find((t) => t.key === key)?.icon || "category";
 }
 
 function typeCategory(key: string, types: CardType[]): string {
@@ -214,10 +278,46 @@ function layoutGroup(
 /*  Build React Flow nodes + edges with per-group layout               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Build the bracketed suffix for a relation's single-select attribute value(s),
+ * e.g. `" [Leading]"` or `" [Owner · Leading]"`. Returns undefined when the
+ * relation has no displayable value. `flowDirection` is intentionally excluded —
+ * it is shown as a direction arrow, not a bracketed value.
+ *
+ * `resolveOptionLabel` localises an option to its display text (the caller binds
+ * it to the current locale). Pure (no React) so it is unit-testable.
+ */
+export function relationValueSuffix(
+  edge: GEdge,
+  relTypeByKey: Map<string, RelationType>,
+  resolveOptionLabel: (opt: FieldOption) => string,
+): string | undefined {
+  const rt = relTypeByKey.get(edge.type);
+  const attrs = edge.attributes;
+  if (!rt || !attrs) return undefined;
+  const parts: string[] = [];
+  for (const field of rt.attributes_schema || []) {
+    if (field.type !== "single_select" || field.key === "flowDirection") continue;
+    const raw = attrs[field.key];
+    if (raw == null || raw === "") continue;
+    const opt = field.options?.find((o) => o.key === raw);
+    if (!opt) continue;
+    parts.push(resolveOptionLabel(opt));
+  }
+  return parts.length > 0 ? ` [${parts.join(" · ")}]` : undefined;
+}
+
 export function buildLdvFlow(
   gNodes: GNode[],
   gEdges: GEdge[],
   types: CardType[],
+  /**
+   * Optional resolver that returns a bracketed suffix for a relation's
+   * single-select attribute value(s), e.g. `" [Leading]"`. Returns undefined
+   * when the relation has no displayable value. When omitted, labels render
+   * exactly as before (label-only).
+   */
+  relValueResolver?: (edge: GEdge) => string | undefined,
 ): { nodes: Node[]; edges: Edge[] } {
   if (gNodes.length === 0) return { nodes: [], edges: [] };
 
@@ -270,8 +370,8 @@ export function buildLdvFlow(
     groupLayouts.push({
       cat,
       positioned,
-      groupW: innerW + 2 * PAD,
-      groupH: innerH + LABEL_H + 2 * PAD,
+      groupW: innerW + 2 * PAD + DRAG_ROOM,
+      groupH: innerH + LABEL_H + 2 * PAD + DRAG_ROOM,
     });
   }
 
@@ -320,6 +420,7 @@ export function buildLdvFlow(
           typeKey: nd.type,
           typeLabel: typeLabel(nd.type, types),
           typeColor: typeColor(nd.type, types),
+          typeIcon: typeIcon(nd.type, types),
           category: gl.cat,
           proposed: nd.proposed,
         } satisfies LdvNodeData,
@@ -331,11 +432,15 @@ export function buildLdvFlow(
     yOffset += gl.groupH + GROUP_GAP;
   }
 
+  // Lookup map for node-by-id, reused by the position + grouping passes below
+  // (was a linear `.find()` inside each loop — O(N²)).
+  const nodeById = new Map(rfNodes.map((n) => [n.id, n]));
+
   // Compute absolute center positions for each node (for edge routing)
   const absPos = new Map<string, { x: number; y: number }>();
   for (const n of rfNodes) {
     if (n.type === "ldvNode" && n.parentId) {
-      const parent = rfNodes.find((p) => p.id === n.parentId);
+      const parent = nodeById.get(n.parentId);
       if (parent) {
         absPos.set(n.id, {
           x: parent.position.x + n.position.x + LDV_NODE_W / 2,
@@ -368,13 +473,14 @@ export function buildLdvFlow(
     const isNormalized = e.source < e.target;
     const [lo, hi] = isNormalized ? [e.source, e.target] : [e.target, e.source];
     const key = `${lo}||${hi}`;
+    // Append the relation's single-select attribute value (e.g. " [Leading]")
+    // so it flows through the per-pair merge / " / " join / dedup unchanged.
+    const valueSuffix = relValueResolver?.(e) ?? "";
     // Forward label = label when arrow goes lo→hi; reverse = when hi→lo
-    const fwdLbl = isNormalized
-      ? (e.label || e.type)
-      : (e.reverse_label || e.label || e.type);
-    const revLbl = isNormalized
-      ? (e.reverse_label || e.label || e.type)
-      : (e.label || e.type);
+    const fwdLbl =
+      (isNormalized ? (e.label || e.type) : (e.reverse_label || e.label || e.type)) + valueSuffix;
+    const revLbl =
+      (isNormalized ? (e.reverse_label || e.label || e.type) : (e.label || e.type)) + valueSuffix;
 
     // Re-orient flowDirection to the pair-normalised lo→hi axis so different
     // relation types between the same pair don't fight each other.
@@ -447,14 +553,10 @@ export function buildLdvFlow(
       if (fd === "forward") fd = "reverse";
       else if (fd === "reverse") fd = "forward";
     }
-    // Prefix the label with a direction glyph so the meaning is readable
-    // even at distance / on print. Arrows on the edge convey the same info
-    // but the glyph makes the textual label self-describing.
-    const labelText = labels.join(" / ");
-    let relLabel = labelText;
-    if (fd === "bidirectional") relLabel = `↔ ${labelText}`;
-    else if (fd === "forward") relLabel = `→ ${labelText}`;
-    else if (fd === "reverse") relLabel = `← ${labelText}`;
+    // The direction is carried on `flowDirection` and rendered as a vector SVG
+    // arrow next to the label by the edge component, so it survives image
+    // export (a Unicode glyph baked into the text does not — see LdvEdgeData).
+    const relLabel = labels.join(" / ");
     return {
       source: e.source,
       target: e.target,
@@ -601,7 +703,7 @@ export function buildLdvFlow(
   const nodeGroupCat = new Map<string, string>();
   for (const n of rfNodes) {
     if (n.type === "ldvNode" && n.parentId) {
-      const parent = rfNodes.find((p) => p.id === n.parentId);
+      const parent = nodeById.get(n.parentId);
       if (parent && parent.type === "ldvGroup") {
         nodeGroupCat.set(n.id, parent.id);
       }
@@ -851,6 +953,7 @@ export function buildLdvFlow(
       label: e.relLabel,
       data: {
         relLabel: e.relLabel,
+        flowDirection: e.flowDirection,
         description: e.description,
         pathOffset: pathOffsets[i],
         minOffset: edgeHandles[i].minOffset,

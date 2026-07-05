@@ -19,7 +19,7 @@ from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-SUPPORTED_LOCALES = {"en", "de", "fr", "es", "it", "pt", "zh", "ru", "da"}
+SUPPORTED_LOCALES = {"en", "de", "fr", "es", "it", "pt", "zh", "ru", "da", "ar"}
 
 
 class UserCreate(BaseModel):
@@ -53,6 +53,10 @@ class NotificationPreferencesUpdate(BaseModel):
 
 class UiPreferencesUpdate(BaseModel):
     dashboard_default_tab: Literal["overview", "workspace", "admin"] | None = None
+    # Enabled Draw.io "More Shapes" libraries the user chose to remember, in the
+    # order Draw.io reports them (e.g. ["general", "uml", "archimate3"]). Restored
+    # as the embedded editor's `libs` URL param so the selection survives sessions.
+    diagram_libraries: list[str] | None = None
 
 
 class InvitationCreate(BaseModel):
@@ -200,7 +204,8 @@ async def resend_invitation_by_invitation(
     if not sent:
         raise HTTPException(
             400,
-            "SMTP is not configured. Configure SMTP in admin settings before resending.",
+            "Email is not configured. Configure an email sending method in admin "
+            "settings before resending.",
         )
 
     return {"email_sent": True, "sent_to": inv.email}
@@ -273,6 +278,13 @@ async def update_ui_preferences(
             prefs.pop("dashboard_default_tab", None)
         else:
             prefs["dashboard_default_tab"] = value
+
+    if "diagram_libraries" in data:
+        libs = data["diagram_libraries"]
+        if libs is None:
+            prefs.pop("diagram_libraries", None)
+        else:
+            prefs["diagram_libraries"] = libs
 
     current_user.ui_preferences = prefs
     await db.commit()
@@ -479,19 +491,12 @@ async def create_user(
     sso_enabled = sso_cfg.get("enabled", False)
 
     if body.auth_provider == "local":
+        # A local account may be created without a password: it gets a
+        # single-use setup token (below) so the user picks their own
+        # password on first login. When no invite email is sent, the
+        # setup link is returned in the response so the creator can hand
+        # it over out-of-band (and «Forgot password» can re-deliver it).
         auth_provider = "local"
-        if not body.password and not body.send_email:
-            # Local account with no password and no invite — the user has
-            # no way to reach the system. Bulk imports leave the password
-            # column blank by design (passwords don't belong in
-            # spreadsheets) and rely on the welcome email to deliver a
-            # password-setup link instead.
-            raise HTTPException(
-                400,
-                "Local accounts need an invitation email to deliver the "
-                "password-setup link. Tick «send invites» on the import "
-                "step and try again.",
-            )
     elif body.auth_provider == "sso":
         auth_provider = "sso"
         if not sso_enabled:
@@ -501,14 +506,15 @@ async def create_user(
                 "Enable SSO in admin settings first.",
             )
     else:
-        # Legacy heuristic — no explicit provider passed.
-        if not body.password and not sso_enabled:
-            raise HTTPException(
-                400,
-                "A password is required when creating a local account. "
-                "Enable SSO or set a password for the new user.",
-            )
-        auth_provider = "sso" if not body.password else "local"
+        # Legacy heuristic — no explicit provider passed. A password means
+        # a local account. Without a password we default to SSO when it's
+        # enabled (the invite binds the SSO identity on first sign-in);
+        # otherwise the account is local and password-less, relying on the
+        # setup-token flow rather than being rejected.
+        if not body.password:
+            auth_provider = "sso" if sso_enabled else "local"
+        else:
+            auth_provider = "local"
 
     pw_hash = hash_password(body.password) if body.password else None
 
@@ -574,9 +580,9 @@ async def create_user(
             response["email_sent"] = bool(sent)
             if not sent:
                 response["email_error"] = (
-                    "SMTP is not configured, so the invitation email could not "
-                    "be sent. The account was created — configure SMTP in admin "
-                    "settings and re-send manually if needed."
+                    "Email is not configured, so the invitation email could not "
+                    "be sent. The account was created — configure an email "
+                    "sending method in admin settings and re-send manually if needed."
                 )
         except Exception as exc:
             import logging

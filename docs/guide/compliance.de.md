@@ -36,6 +36,10 @@ Klick **+ Neuer Befund** in der Compliance-Symbolleiste, um den Erstellungsdialo
 
 `compliance.manage` ist erforderlich, um Befunde zu erstellen, zu bearbeiten, stillzulegen oder bulk-zu-aktionieren. `compliance.view` reicht, um das Register zu lesen und vom kartenseitigen Compliance-Reiter zu triagieren.
 
+### Einen Befund bearbeiten
+
+Öffnen Sie einen Befund — aus dem Compliance-Raster oder aus dem **Compliance**-Reiter einer Karte — und klicken Sie im Drawer auf **Bearbeiten**, um nach der Erstellung dessen Compliance-**Status** (zum Beispiel Konform → Teilweise), Schweregrad, Anforderung, Lücke, Nachweis, Behebung, Artikel oder verknüpfte Karte zu ändern. Das Bearbeiten des Inhalts lässt die Lebenszyklus-Entscheidung des Befunds unberührt; verwenden Sie dafür die Lebenszyklus-Zeitleiste. Erfordert `compliance.manage`.
+
 ## Einen KI-Scan ausführen
 
 !!! info "KI für Scans erforderlich, nicht für manuelle Befunde"
@@ -101,7 +105,7 @@ Der Compliance-Reiter zeigt zudem oben auf der Seite einen **Gesamt-Compliance-K
 
 ## Compliance auf einer einzelnen Karte
 
-![Kartendetail — Compliance-Reiter](../assets/img/de/56_card_compliance_tab.png)
+![Kartendetail — Compliance-Reiter](../assets/img/de/56_karte_compliance_tab.png)
 
 Karten, die im Scope eines beliebigen Befunds liegen, exponieren ebenfalls einen **Compliance**-Reiter auf ihrer Detailseite (durch `compliance.view` gesteuert). Er listet jeden mit der Karte verknüpften Befund mit denselben Aktionen Acknowledge / Accept / **Risiko erstellen** / **Risiko öffnen** wie die GRC-Ansicht — sodass ein Application Owner seine eigenen Befunde triagieren kann, ohne die Karte zu verlassen. Dieselbe Auto-Ausblende-Regel gilt für den **Risiken**-Reiter in den Kartendetails: beide Reiter erscheinen nur, wenn die Karte tatsächlich verknüpfte Einträge hat, sodass Karten ohne GRC-Aktivität keine leeren Reiter mitschleppen.
 

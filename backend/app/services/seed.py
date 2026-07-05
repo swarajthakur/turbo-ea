@@ -18,6 +18,7 @@ from app.core.permissions import (
 from app.models.card_type import CardType
 from app.models.compliance_regulation import ComplianceRegulation
 from app.models.relation_type import RelationType
+from app.models.resource_type import ResourceType
 from app.models.role import Role
 from app.models.stakeholder_role_definition import StakeholderRoleDefinition
 
@@ -37,6 +38,7 @@ BUSINESS_CRITICALITY_OPTIONS = [
             "zh": "关键任务",
             "ru": "Критически важный",
             "da": "Missionskritisk",
+            "ar": "حَرِج للمهمة",
         },
     },
     {
@@ -52,6 +54,7 @@ BUSINESS_CRITICALITY_OPTIONS = [
             "zh": "业务关键",
             "ru": "Критичный для бизнеса",
             "da": "Forretningskritisk",
+            "ar": "حَرِج للأعمال",
         },
     },
     {
@@ -67,6 +70,7 @@ BUSINESS_CRITICALITY_OPTIONS = [
             "zh": "业务运营",
             "ru": "Операционный",
             "da": "Forretningsoperationel",
+            "ar": "تشغيلي للأعمال",
         },
     },
     {
@@ -82,6 +86,7 @@ BUSINESS_CRITICALITY_OPTIONS = [
             "zh": "行政管理",
             "ru": "Административный",
             "da": "Administrativ",
+            "ar": "إداري",
         },
     },
 ]
@@ -100,6 +105,7 @@ FUNCTIONAL_SUITABILITY_OPTIONS = [
             "zh": "完美",
             "ru": "Отлично",
             "da": "Perfekt",
+            "ar": "مثالي",
         },
     },
     {
@@ -115,6 +121,7 @@ FUNCTIONAL_SUITABILITY_OPTIONS = [
             "zh": "适当",
             "ru": "Подходящий",
             "da": "Passende",
+            "ar": "مناسب",
         },
     },
     {
@@ -130,6 +137,7 @@ FUNCTIONAL_SUITABILITY_OPTIONS = [
             "zh": "不足",
             "ru": "Недостаточный",
             "da": "Utilstrækkelig",
+            "ar": "غير كافٍ",
         },
     },
     {
@@ -145,6 +153,7 @@ FUNCTIONAL_SUITABILITY_OPTIONS = [
             "zh": "不合理",
             "ru": "Неприемлемый",
             "da": "Urimelig",
+            "ar": "غير معقول",
         },
     },
 ]
@@ -163,6 +172,7 @@ TECHNICAL_SUITABILITY_OPTIONS = [
             "zh": "完全适合",
             "ru": "Полностью подходящий",
             "da": "Helt passende",
+            "ar": "مناسب تمامًا",
         },
     },
     {
@@ -178,6 +188,7 @@ TECHNICAL_SUITABILITY_OPTIONS = [
             "zh": "足够",
             "ru": "Адекватный",
             "da": "Tilstrækkelig",
+            "ar": "كافٍ",
         },
     },
     {
@@ -193,6 +204,7 @@ TECHNICAL_SUITABILITY_OPTIONS = [
             "zh": "不合理",
             "ru": "Неприемлемый",
             "da": "Urimelig",
+            "ar": "غير معقول",
         },
     },
     {
@@ -208,6 +220,7 @@ TECHNICAL_SUITABILITY_OPTIONS = [
             "zh": "不适当",
             "ru": "Неподходящий",
             "da": "Upassende",
+            "ar": "غير مناسب",
         },
     },
 ]
@@ -225,6 +238,7 @@ HOSTING_TYPE_OPTIONS = [
             "zh": "本地部署",
             "ru": "Локальное размещение",
             "da": "On-premise",
+            "ar": "محلي (On-Premise)",
         },
     },
     {
@@ -239,6 +253,7 @@ HOSTING_TYPE_OPTIONS = [
             "zh": "云端 (SaaS)",
             "ru": "Облако (SaaS)",
             "da": "Cloud (SaaS)",
+            "ar": "سحابي (SaaS)",
         },
     },
     {
@@ -253,6 +268,7 @@ HOSTING_TYPE_OPTIONS = [
             "zh": "云端 (PaaS)",
             "ru": "Облако (PaaS)",
             "da": "Cloud (PaaS)",
+            "ar": "سحابي (PaaS)",
         },
     },
     {
@@ -267,6 +283,7 @@ HOSTING_TYPE_OPTIONS = [
             "zh": "云端 (IaaS)",
             "ru": "Облако (IaaS)",
             "da": "Cloud (IaaS)",
+            "ar": "سحابي (IaaS)",
         },
     },
     {
@@ -281,6 +298,7 @@ HOSTING_TYPE_OPTIONS = [
             "zh": "混合",
             "ru": "Гибридный",
             "da": "Hybrid",
+            "ar": "هجين",
         },
     },
 ]
@@ -299,6 +317,7 @@ RESOURCE_CLASSIFICATION_OPTIONS = [
             "zh": "标准",
             "ru": "Стандартный",
             "da": "Standard",
+            "ar": "قياسي",
         },
     },
     {
@@ -314,6 +333,7 @@ RESOURCE_CLASSIFICATION_OPTIONS = [
             "zh": "引入中",
             "ru": "Внедрение",
             "da": "Indfasning",
+            "ar": "إدخال تدريجي",
         },
     },
     {
@@ -329,6 +349,7 @@ RESOURCE_CLASSIFICATION_OPTIONS = [
             "zh": "容忍",
             "ru": "Допускаемый",
             "da": "Tolereret",
+            "ar": "مُتسامَح معه",
         },
     },
     {
@@ -344,6 +365,7 @@ RESOURCE_CLASSIFICATION_OPTIONS = [
             "zh": "淘汰中",
             "ru": "Вывод из эксплуатации",
             "da": "Udfasning",
+            "ar": "إخراج تدريجي",
         },
     },
     {
@@ -359,6 +381,7 @@ RESOURCE_CLASSIFICATION_OPTIONS = [
             "zh": "已拒绝",
             "ru": "Отклонённый",
             "da": "Afvist",
+            "ar": "مرفوض",
         },
     },
 ]
@@ -377,6 +400,7 @@ DATA_SENSITIVITY_OPTIONS = [
             "zh": "公开",
             "ru": "Публичный",
             "da": "Offentlig",
+            "ar": "عام",
         },
     },
     {
@@ -392,6 +416,7 @@ DATA_SENSITIVITY_OPTIONS = [
             "zh": "内部",
             "ru": "Внутренний",
             "da": "Intern",
+            "ar": "داخلي",
         },
     },
     {
@@ -407,6 +432,7 @@ DATA_SENSITIVITY_OPTIONS = [
             "zh": "机密",
             "ru": "Конфиденциальный",
             "da": "Fortrolig",
+            "ar": "سري",
         },
     },
     {
@@ -422,6 +448,7 @@ DATA_SENSITIVITY_OPTIONS = [
             "zh": "受限",
             "ru": "Ограниченный",
             "da": "Begrænset",
+            "ar": "مقيّد",
         },
     },
 ]
@@ -440,6 +467,7 @@ INITIATIVE_STATUS_OPTIONS = [
             "zh": "按计划",
             "ru": "По плану",
             "da": "På sporet",
+            "ar": "ضمن المسار",
         },
     },
     {
@@ -455,6 +483,7 @@ INITIATIVE_STATUS_OPTIONS = [
             "zh": "有风险",
             "ru": "Под угрозой",
             "da": "I fare",
+            "ar": "معرّض للخطر",
         },
     },
     {
@@ -470,6 +499,7 @@ INITIATIVE_STATUS_OPTIONS = [
             "zh": "偏离计划",
             "ru": "Отклонение от плана",
             "da": "Ude af spor",
+            "ar": "خارج المسار",
         },
     },
     {
@@ -485,6 +515,7 @@ INITIATIVE_STATUS_OPTIONS = [
             "zh": "暂停",
             "ru": "Приостановлено",
             "da": "På pause",
+            "ar": "مُعلَّق",
         },
     },
     {
@@ -500,6 +531,7 @@ INITIATIVE_STATUS_OPTIONS = [
             "zh": "已完成",
             "ru": "Завершено",
             "da": "Afsluttet",
+            "ar": "مكتمل",
         },
     },
 ]
@@ -517,6 +549,7 @@ FREQUENCY_OPTIONS = [
             "zh": "实时",
             "ru": "В реальном времени",
             "da": "I realtid",
+            "ar": "في الوقت الفعلي",
         },
     },
     {
@@ -531,6 +564,7 @@ FREQUENCY_OPTIONS = [
             "zh": "每日",
             "ru": "Ежедневно",
             "da": "Dagligt",
+            "ar": "يومي",
         },
     },
     {
@@ -545,6 +579,7 @@ FREQUENCY_OPTIONS = [
             "zh": "每周",
             "ru": "Еженедельно",
             "da": "Ugentligt",
+            "ar": "أسبوعي",
         },
     },
     {
@@ -559,6 +594,7 @@ FREQUENCY_OPTIONS = [
             "zh": "每月",
             "ru": "Ежемесячно",
             "da": "Månedligt",
+            "ar": "شهري",
         },
     },
     {
@@ -573,6 +609,7 @@ FREQUENCY_OPTIONS = [
             "zh": "按需",
             "ru": "По запросу",
             "da": "On-demand",
+            "ar": "عند الطلب",
         },
     },
     {
@@ -587,6 +624,7 @@ FREQUENCY_OPTIONS = [
             "zh": "批处理",
             "ru": "Пакетная обработка",
             "da": "Batch",
+            "ar": "دفعي",
         },
     },
 ]
@@ -605,6 +643,7 @@ SUPPORT_TYPE_OPTIONS = [
             "zh": "主导",
             "ru": "Ведущий",
             "da": "Førende",
+            "ar": "رائد",
         },
     },
     {
@@ -620,6 +659,7 @@ SUPPORT_TYPE_OPTIONS = [
             "zh": "支持",
             "ru": "Поддерживающий",
             "da": "Støttende",
+            "ar": "داعم",
         },
     },
     {
@@ -635,6 +675,7 @@ SUPPORT_TYPE_OPTIONS = [
             "zh": "无支持",
             "ru": "Без поддержки",
             "da": "Ingen support",
+            "ar": "بلا دعم",
         },
     },
 ]
@@ -653,6 +694,7 @@ USAGE_TYPE_OPTIONS = [
             "zh": "所有者",
             "ru": "Владелец",
             "da": "Ejer",
+            "ar": "مالك",
         },
     },
     {
@@ -668,6 +710,7 @@ USAGE_TYPE_OPTIONS = [
             "zh": "用户",
             "ru": "Пользователь",
             "da": "Bruger",
+            "ar": "مستخدم",
         },
     },
     {
@@ -683,6 +726,7 @@ USAGE_TYPE_OPTIONS = [
             "zh": "利益相关者",
             "ru": "Заинтересованная сторона",
             "da": "Interessent",
+            "ar": "صاحب مصلحة",
         },
     },
 ]
@@ -701,6 +745,7 @@ TIME_MODEL_OPTIONS = [
             "zh": "容忍",
             "ru": "Терпеть",
             "da": "Tolerér",
+            "ar": "تحمّل",
         },
     },
     {
@@ -716,6 +761,7 @@ TIME_MODEL_OPTIONS = [
             "zh": "投资",
             "ru": "Инвестировать",
             "da": "Invester",
+            "ar": "استثمار",
         },
     },
     {
@@ -731,6 +777,7 @@ TIME_MODEL_OPTIONS = [
             "zh": "迁移",
             "ru": "Мигрировать",
             "da": "Migrér",
+            "ar": "ترحيل",
         },
     },
     {
@@ -746,6 +793,7 @@ TIME_MODEL_OPTIONS = [
             "zh": "淘汰",
             "ru": "Ликвидировать",
             "da": "Eliminér",
+            "ar": "إلغاء",
         },
     },
 ]
@@ -766,6 +814,7 @@ PROCESS_TYPE_OPTIONS = [
             "zh": "核心",
             "ru": "Основной",
             "da": "Kerne",
+            "ar": "أساسي",
         },
     },
     {
@@ -781,6 +830,7 @@ PROCESS_TYPE_OPTIONS = [
             "zh": "支持",
             "ru": "Поддержка",
             "da": "Støtte",
+            "ar": "دعم",
         },
     },
     {
@@ -796,6 +846,7 @@ PROCESS_TYPE_OPTIONS = [
             "zh": "管理",
             "ru": "Управление",
             "da": "Ledelse",
+            "ar": "إدارة",
         },
     },
 ]
@@ -814,6 +865,7 @@ PROCESS_MATURITY_OPTIONS = [
             "zh": "1 - 初始",
             "ru": "1 - Начальный",
             "da": "1 - Indledende",
+            "ar": "1 - أولي",
         },
     },
     {
@@ -829,6 +881,7 @@ PROCESS_MATURITY_OPTIONS = [
             "zh": "2 - 已管理",
             "ru": "2 - Управляемый",
             "da": "2 - Styret",
+            "ar": "2 - مُدار",
         },
     },
     {
@@ -844,6 +897,7 @@ PROCESS_MATURITY_OPTIONS = [
             "zh": "3 - 已定义",
             "ru": "3 - Определённый",
             "da": "3 - Defineret",
+            "ar": "3 - مُعرَّف",
         },
     },
     {
@@ -859,6 +913,7 @@ PROCESS_MATURITY_OPTIONS = [
             "zh": "4 - 已量化",
             "ru": "4 - Измеряемый",
             "da": "4 - Målt",
+            "ar": "4 - مُقاس",
         },
     },
     {
@@ -874,6 +929,7 @@ PROCESS_MATURITY_OPTIONS = [
             "zh": "5 - 已优化",
             "ru": "5 - Оптимизированный",
             "da": "5 - Optimeret",
+            "ar": "5 - مُحسَّن",
         },
     },
 ]
@@ -892,6 +948,7 @@ AUTOMATION_LEVEL_OPTIONS = [
             "zh": "手动",
             "ru": "Ручной",
             "da": "Manuel",
+            "ar": "يدوي",
         },
     },
     {
@@ -907,6 +964,7 @@ AUTOMATION_LEVEL_OPTIONS = [
             "zh": "部分自动化",
             "ru": "Частично автоматизированный",
             "da": "Delvist automatiseret",
+            "ar": "مؤتمت جزئيًا",
         },
     },
     {
@@ -922,6 +980,7 @@ AUTOMATION_LEVEL_OPTIONS = [
             "zh": "完全自动化",
             "ru": "Полностью автоматизированный",
             "da": "Fuldt automatiseret",
+            "ar": "مؤتمت بالكامل",
         },
     },
 ]
@@ -940,6 +999,7 @@ PROCESS_RISK_OPTIONS = [
             "zh": "低",
             "ru": "Низкий",
             "da": "Lav",
+            "ar": "منخفض",
         },
     },
     {
@@ -955,6 +1015,7 @@ PROCESS_RISK_OPTIONS = [
             "zh": "中",
             "ru": "Средний",
             "da": "Mellem",
+            "ar": "متوسط",
         },
     },
     {
@@ -970,6 +1031,7 @@ PROCESS_RISK_OPTIONS = [
             "zh": "高",
             "ru": "Высокий",
             "da": "Høj",
+            "ar": "مرتفع",
         },
     },
     {
@@ -985,6 +1047,7 @@ PROCESS_RISK_OPTIONS = [
             "zh": "严重",
             "ru": "Критический",
             "da": "Kritisk",
+            "ar": "حَرِج",
         },
     },
 ]
@@ -1002,6 +1065,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "临时",
             "ru": "По ситуации",
             "da": "Ad hoc",
+            "ar": "حسب الحاجة",
         },
     },
     {
@@ -1016,6 +1080,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "每日",
             "ru": "Ежедневно",
             "da": "Dagligt",
+            "ar": "يومي",
         },
     },
     {
@@ -1030,6 +1095,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "每周",
             "ru": "Еженедельно",
             "da": "Ugentligt",
+            "ar": "أسبوعي",
         },
     },
     {
@@ -1044,6 +1110,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "每月",
             "ru": "Ежемесячно",
             "da": "Månedligt",
+            "ar": "شهري",
         },
     },
     {
@@ -1058,6 +1125,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "每季度",
             "ru": "Ежеквартально",
             "da": "Kvartalsvist",
+            "ar": "ربع سنوي",
         },
     },
     {
@@ -1072,6 +1140,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "每年",
             "ru": "Ежегодно",
             "da": "Årligt",
+            "ar": "سنوي",
         },
     },
     {
@@ -1086,6 +1155,7 @@ PROCESS_FREQUENCY_OPTIONS = [
             "zh": "持续",
             "ru": "Непрерывно",
             "da": "Kontinuerlig",
+            "ar": "مستمر",
         },
     },
 ]
@@ -1117,6 +1187,7 @@ TYPES = [
                     "zh": "目标信息",
                     "ru": "Информация о цели",
                     "da": "Mål",
+                    "ar": "معلومات الهدف",
                 },
                 "fields": [
                     {
@@ -1136,6 +1207,7 @@ TYPES = [
                                     "zh": "战略性",
                                     "ru": "Стратегический",
                                     "da": "Strategisk",
+                                    "ar": "استراتيجي",
                                 },
                             },
                             {
@@ -1150,6 +1222,7 @@ TYPES = [
                                     "zh": "战术性",
                                     "ru": "Тактический",
                                     "da": "Taktisk",
+                                    "ar": "تكتيكي",
                                 },
                             },
                             {
@@ -1164,6 +1237,7 @@ TYPES = [
                                     "zh": "运营性",
                                     "ru": "Операционный",
                                     "da": "Operationel",
+                                    "ar": "تشغيلي",
                                 },
                             },
                         ],
@@ -1177,6 +1251,7 @@ TYPES = [
                             "zh": "目标类型",
                             "ru": "Тип цели",
                             "da": "Operationel",
+                            "ar": "نوع الهدف",
                         },
                     },
                     {
@@ -1193,6 +1268,7 @@ TYPES = [
                             "zh": "目标日期",
                             "ru": "Целевая дата",
                             "da": "Måldato",
+                            "ar": "التاريخ المستهدف",
                         },
                     },
                     {
@@ -1209,6 +1285,7 @@ TYPES = [
                             "zh": "进度 (%)",
                             "ru": "Прогресс (%)",
                             "da": "Fremskridt (%)",
+                            "ar": "التقدّم (%)",
                         },
                     },
                 ],
@@ -1224,6 +1301,7 @@ TYPES = [
                 "zh": "目标",
                 "ru": "Цель",
                 "da": "Fremskridt (%)",
+                "ar": "هدف",
             },
             "description": {
                 "de": "Strategische Ziele und Vorgaben, die die Unternehmensarchitektur vorantreiben.",
@@ -1234,6 +1312,7 @@ TYPES = [
                 "zh": "驱动企业架构的战略目标。",
                 "ru": "Стратегические цели, определяющие направление корпоративной архитектуры.",
                 "da": "Strategiske mål og målsætninger, der driver virksomhedsarkitekturen.",
+                "ar": "الأهداف والغايات الاستراتيجية التي تقود هندسة المؤسسة.",
             },
         },
     },
@@ -1259,6 +1338,7 @@ TYPES = [
                     "zh": "数字",
                     "ru": "Цифровой",
                     "da": "Digital",
+                    "ar": "رقمي",
                 },
                 "hidden_fields": [],
             },
@@ -1274,6 +1354,7 @@ TYPES = [
                     "zh": "技术",
                     "ru": "Технический",
                     "da": "Teknisk",
+                    "ar": "تقني",
                 },
                 "hidden_fields": [],
             },
@@ -1291,6 +1372,7 @@ TYPES = [
                     "zh": "平台信息",
                     "ru": "Информация о платформе",
                     "da": "Teknisk",
+                    "ar": "معلومات المنصّة",
                 },
                 "fields": [
                     {
@@ -1311,6 +1393,7 @@ TYPES = [
                                     "zh": "数字化",
                                     "ru": "Цифровой",
                                     "da": "Digital",
+                                    "ar": "رقمي",
                                 },
                             },
                             {
@@ -1326,6 +1409,7 @@ TYPES = [
                                     "zh": "技术",
                                     "ru": "Технический",
                                     "da": "Teknisk",
+                                    "ar": "تقني",
                                 },
                             },
                         ],
@@ -1339,6 +1423,7 @@ TYPES = [
                             "zh": "平台类型",
                             "ru": "Тип платформы",
                             "da": "Teknisk",
+                            "ar": "نوع المنصّة",
                         },
                     },
                 ],
@@ -1354,6 +1439,7 @@ TYPES = [
                 "zh": "平台",
                 "ru": "Платформа",
                 "da": "Teknisk",
+                "ar": "منصّة",
             },
             "description": {
                 "de": "Technologie- oder Geschäftsplattformen, die Anwendungen und Komponenten bündeln.",
@@ -1364,6 +1450,7 @@ TYPES = [
                 "zh": "将应用和组件进行分组的技术或业务平台。",
                 "ru": "Технологические или бизнес-платформы, объединяющие приложения и компоненты.",
                 "da": "En forretnings- eller teknisk platform, der hoster flere applikationer eller tjenester.",
+                "ar": "منصّات تقنية أو تجارية تجمع التطبيقات والمكوّنات.",
             },
         },
     },
@@ -1389,6 +1476,7 @@ TYPES = [
                     "zh": "创意",
                     "ru": "Идея",
                     "da": "Idé",
+                    "ar": "فكرة",
                 },
                 "hidden_fields": [],
             },
@@ -1404,6 +1492,7 @@ TYPES = [
                     "zh": "计划",
                     "ru": "Программа",
                     "da": "Program",
+                    "ar": "برنامج",
                 },
                 "hidden_fields": [],
             },
@@ -1419,6 +1508,7 @@ TYPES = [
                     "zh": "项目",
                     "ru": "Проект",
                     "da": "Projekt",
+                    "ar": "مشروع",
                 },
                 "hidden_fields": [],
             },
@@ -1434,6 +1524,7 @@ TYPES = [
                     "zh": "史诗",
                     "ru": "Эпик",
                     "da": "Epic",
+                    "ar": "ملحمة",
                 },
                 "hidden_fields": [],
             },
@@ -1451,6 +1542,7 @@ TYPES = [
                     "zh": "举措信息",
                     "ru": "Информация об инициативе",
                     "da": "Epic",
+                    "ar": "معلومات المبادرة",
                 },
                 "fields": [
                     {
@@ -1468,6 +1560,7 @@ TYPES = [
                             "zh": "状态",
                             "ru": "Статус",
                             "da": "Status",
+                            "ar": "الحالة",
                         },
                     },
                     {
@@ -1488,6 +1581,7 @@ TYPES = [
                                     "zh": "高",
                                     "ru": "Высокий",
                                     "da": "Høj",
+                                    "ar": "مرتفع",
                                 },
                             },
                             {
@@ -1503,6 +1597,7 @@ TYPES = [
                                     "zh": "中",
                                     "ru": "Средний",
                                     "da": "Mellem",
+                                    "ar": "متوسط",
                                 },
                             },
                             {
@@ -1518,6 +1613,7 @@ TYPES = [
                                     "zh": "低",
                                     "ru": "Низкий",
                                     "da": "Lav",
+                                    "ar": "منخفض",
                                 },
                             },
                         ],
@@ -1531,6 +1627,7 @@ TYPES = [
                             "zh": "业务价值",
                             "ru": "Бизнес-ценность",
                             "da": "Lav",
+                            "ar": "القيمة التجارية",
                         },
                     },
                     {
@@ -1551,6 +1648,7 @@ TYPES = [
                                     "zh": "高",
                                     "ru": "Высокий",
                                     "da": "Høj",
+                                    "ar": "مرتفع",
                                 },
                             },
                             {
@@ -1566,6 +1664,7 @@ TYPES = [
                                     "zh": "中",
                                     "ru": "Средний",
                                     "da": "Mellem",
+                                    "ar": "متوسط",
                                 },
                             },
                             {
@@ -1581,6 +1680,7 @@ TYPES = [
                                     "zh": "低",
                                     "ru": "Низкий",
                                     "da": "Lav",
+                                    "ar": "منخفض",
                                 },
                             },
                         ],
@@ -1594,6 +1694,7 @@ TYPES = [
                             "zh": "工作量",
                             "ru": "Трудозатраты",
                             "da": "Lav",
+                            "ar": "الجهد",
                         },
                     },
                 ],
@@ -1609,6 +1710,7 @@ TYPES = [
                     "zh": "成本与时间表",
                     "ru": "Стоимость и сроки",
                     "da": "Lav",
+                    "ar": "التكلفة والجدول الزمني",
                 },
                 "fields": [
                     {
@@ -1625,6 +1727,7 @@ TYPES = [
                             "zh": "预算",
                             "ru": "Бюджет",
                             "da": "Budget",
+                            "ar": "الميزانية",
                         },
                     },
                     {
@@ -1641,6 +1744,7 @@ TYPES = [
                             "zh": "实际成本",
                             "ru": "Фактическая стоимость",
                             "da": "Realiseret omkostning",
+                            "ar": "التكلفة الفعلية",
                         },
                     },
                     {
@@ -1657,6 +1761,7 @@ TYPES = [
                             "zh": "开始日期",
                             "ru": "Дата начала",
                             "da": "Startdato",
+                            "ar": "تاريخ البدء",
                         },
                     },
                     {
@@ -1673,6 +1778,7 @@ TYPES = [
                             "zh": "结束日期",
                             "ru": "Дата окончания",
                             "da": "Slutdato",
+                            "ar": "تاريخ الانتهاء",
                         },
                     },
                 ],
@@ -1692,6 +1798,7 @@ TYPES = [
                         "zh": "负责人",
                         "ru": "Ответственный",
                         "da": "Ansvarlig",
+                        "ar": "المسؤول",
                     },
                 },
             },
@@ -1708,6 +1815,7 @@ TYPES = [
                         "zh": "IT项目经理",
                         "ru": "IT-руководитель проекта",
                         "da": "IT-projektleder",
+                        "ar": "مدير مشروع تقني",
                     },
                 },
             },
@@ -1724,6 +1832,7 @@ TYPES = [
                         "zh": "观察者",
                         "ru": "Наблюдатель",
                         "da": "Observatør",
+                        "ar": "مراقب",
                     },
                 },
             },
@@ -1738,6 +1847,7 @@ TYPES = [
                 "zh": "举措",
                 "ru": "Инициатива",
                 "da": "Observatør",
+                "ar": "مبادرة",
             },
             "description": {
                 "de": "Projekte, Programme und Epics, die die Unternehmensarchitektur transformieren.",
@@ -1748,6 +1858,7 @@ TYPES = [
                 "zh": "转变企业架构的项目、计划和史诗。",
                 "ru": "Проекты, программы и эпики, трансформирующие корпоративную архитектуру.",
                 "da": "Projekter, programmer og epics, der transformerer virksomhedsarkitekturen.",
+                "ar": "المشاريع والبرامج والملاحم التي تحوّل هندسة المؤسسة.",
             },
         },
     },
@@ -1773,6 +1884,7 @@ TYPES = [
                     "zh": "业务单元",
                     "ru": "Бизнес-подразделение",
                     "da": "Forretningsenhed",
+                    "ar": "وحدة أعمال",
                 },
                 "hidden_fields": [],
             },
@@ -1788,6 +1900,7 @@ TYPES = [
                     "zh": "区域",
                     "ru": "Регион",
                     "da": "Region",
+                    "ar": "منطقة",
                 },
                 "hidden_fields": [],
             },
@@ -1803,6 +1916,7 @@ TYPES = [
                     "zh": "法律实体",
                     "ru": "Юридическое лицо",
                     "da": "Juridisk enhed",
+                    "ar": "كيان قانوني",
                 },
                 "hidden_fields": [],
             },
@@ -1818,6 +1932,7 @@ TYPES = [
                     "zh": "团队",
                     "ru": "Команда",
                     "da": "Team",
+                    "ar": "فريق",
                 },
                 "hidden_fields": [],
             },
@@ -1833,6 +1948,7 @@ TYPES = [
                     "zh": "客户",
                     "ru": "Клиент",
                     "da": "Kunde",
+                    "ar": "عميل",
                 },
                 "hidden_fields": [],
             },
@@ -1850,6 +1966,7 @@ TYPES = [
                     "zh": "组织信息",
                     "ru": "Информация об организации",
                     "da": "Kunde",
+                    "ar": "معلومات المؤسسة",
                 },
                 "fields": [
                     {
@@ -1866,6 +1983,7 @@ TYPES = [
                             "zh": "员工人数",
                             "ru": "Численность персонала",
                             "da": "Antal medarbejdere",
+                            "ar": "عدد الموظفين",
                         },
                     },
                     {
@@ -1882,6 +2000,7 @@ TYPES = [
                             "zh": "位置",
                             "ru": "Расположение",
                             "da": "Lokation",
+                            "ar": "الموقع",
                         },
                     },
                 ],
@@ -1897,6 +2016,7 @@ TYPES = [
                 "zh": "组织",
                 "ru": "Организация",
                 "da": "Lokation",
+                "ar": "مؤسسة",
             },
             "description": {
                 "de": "Organisationseinheiten, Regionen, Rechtseinheiten, Teams und Kunden.",
@@ -1907,6 +2027,7 @@ TYPES = [
                 "zh": "组织单元、区域、法律实体、团队和客户。",
                 "ru": "Организационные единицы, регионы, юридические лица, команды и клиенты.",
                 "da": "Organisatoriske enheder, regioner, juridiske enheder, teams og kunder.",
+                "ar": "الوحدات التنظيمية والمناطق والكيانات القانونية والفرق والعملاء.",
             },
         },
     },
@@ -1932,6 +2053,7 @@ TYPES = [
                     "zh": "能力信息",
                     "ru": "Информация о возможности",
                     "da": "Forretningskompetence",
+                    "ar": "معلومات القدرة",
                 },
                 "fields": [
                     {
@@ -1953,6 +2075,7 @@ TYPES = [
                                     "zh": "宏能力",
                                     "ru": "Макро",
                                     "da": "Makro",
+                                    "ar": "كلّي",
                                 },
                             },
                             {
@@ -1968,6 +2091,7 @@ TYPES = [
                                     "zh": "级别 1",
                                     "ru": "Уровень 1",
                                     "da": "Niveau 1",
+                                    "ar": "المستوى 1",
                                 },
                             },
                             {
@@ -1983,6 +2107,7 @@ TYPES = [
                                     "zh": "级别 2",
                                     "ru": "Уровень 2",
                                     "da": "Niveau 2",
+                                    "ar": "المستوى 2",
                                 },
                             },
                             {
@@ -1998,6 +2123,7 @@ TYPES = [
                                     "zh": "级别 3",
                                     "ru": "Уровень 3",
                                     "da": "Niveau 3",
+                                    "ar": "المستوى 3",
                                 },
                             },
                             {
@@ -2013,6 +2139,7 @@ TYPES = [
                                     "zh": "级别 4",
                                     "ru": "Уровень 4",
                                     "da": "Niveau 4",
+                                    "ar": "المستوى 4",
                                 },
                             },
                             {
@@ -2028,6 +2155,7 @@ TYPES = [
                                     "zh": "级别 5",
                                     "ru": "Уровень 5",
                                     "da": "Niveau 5",
+                                    "ar": "المستوى 5",
                                 },
                             },
                         ],
@@ -2041,6 +2169,7 @@ TYPES = [
                             "zh": "能力级别",
                             "ru": "Уровень возможности",
                             "da": "Niveau 5",
+                            "ar": "مستوى القدرة",
                         },
                     },
                     {
@@ -2057,6 +2186,7 @@ TYPES = [
                             "zh": "核心能力",
                             "ru": "Ключевая возможность",
                             "da": "Kernekompetence",
+                            "ar": "قدرة أساسية",
                         },
                     },
                 ],
@@ -2072,6 +2202,7 @@ TYPES = [
                     "zh": "BPM评估",
                     "ru": "Оценка BPM",
                     "da": "Kernekompetence",
+                    "ar": "تقييم BPM",
                 },
                 "fields": [
                     {
@@ -2092,6 +2223,7 @@ TYPES = [
                                     "zh": "低",
                                     "ru": "Низкий",
                                     "da": "Lav",
+                                    "ar": "منخفض",
                                 },
                             },
                             {
@@ -2107,6 +2239,7 @@ TYPES = [
                                     "zh": "中",
                                     "ru": "Средний",
                                     "da": "Mellem",
+                                    "ar": "متوسط",
                                 },
                             },
                             {
@@ -2122,6 +2255,7 @@ TYPES = [
                                     "zh": "高",
                                     "ru": "Высокий",
                                     "da": "Høj",
+                                    "ar": "مرتفع",
                                 },
                             },
                             {
@@ -2137,6 +2271,7 @@ TYPES = [
                                     "zh": "关键",
                                     "ru": "Критический",
                                     "da": "Kritisk",
+                                    "ar": "حَرِج",
                                 },
                             },
                         ],
@@ -2150,6 +2285,7 @@ TYPES = [
                             "zh": "战略重要性",
                             "ru": "Стратегическая значимость",
                             "da": "Kritisk",
+                            "ar": "الأهمية الاستراتيجية",
                         },
                     },
                     {
@@ -2167,6 +2303,7 @@ TYPES = [
                             "zh": "能力成熟度",
                             "ru": "Зрелость возможности",
                             "da": "Kompetencemodenhed",
+                            "ar": "نضج القدرة",
                         },
                     },
                 ],
@@ -2182,6 +2319,7 @@ TYPES = [
                 "zh": "业务能力",
                 "ru": "Бизнес-возможность",
                 "da": "Kompetencemodenhed",
+                "ar": "قدرة تجارية",
             },
             "description": {
                 "de": "Stabile Zerlegung dessen, was das Unternehmen tut, unabhängig davon, wie es umgesetzt wird.",
@@ -2192,6 +2330,7 @@ TYPES = [
                 "zh": "企业职能的稳定分解，与具体实现方式无关。",
                 "ru": "Устойчивая декомпозиция функций предприятия, независимая от способа их реализации.",
                 "da": "Hvad en virksomhed gør, uafhængigt af, hvordan det udføres.",
+                "ar": "ما تفعله المؤسسة، بصرف النظر عن كيفية تنفيذه.",
             },
         },
     },
@@ -2216,6 +2355,7 @@ TYPES = [
                     "zh": "流程",
                     "ru": "Процесс",
                     "da": "Proces",
+                    "ar": "عملية",
                 },
                 "hidden_fields": [],
             },
@@ -2231,6 +2371,7 @@ TYPES = [
                     "zh": "价值流",
                     "ru": "Поток создания ценности",
                     "da": "Værdistrøm",
+                    "ar": "تدفق القيمة",
                 },
                 "hidden_fields": [],
             },
@@ -2246,6 +2387,7 @@ TYPES = [
                     "zh": "客户旅程",
                     "ru": "Путь клиента",
                     "da": "Kunderejse",
+                    "ar": "رحلة العميل",
                 },
                 "hidden_fields": [],
             },
@@ -2261,6 +2403,7 @@ TYPES = [
                     "zh": "业务产品",
                     "ru": "Бизнес-продукт",
                     "da": "Forretningsprodukt",
+                    "ar": "منتج تجاري",
                 },
                 "hidden_fields": [],
             },
@@ -2276,6 +2419,7 @@ TYPES = [
                     "zh": "ESG能力",
                     "ru": "ESG-возможность",
                     "da": "ESG-kompetence",
+                    "ar": "قدرة ESG",
                 },
                 "hidden_fields": [],
             },
@@ -2293,6 +2437,7 @@ TYPES = [
                     "zh": "业务上下文信息",
                     "ru": "Информация о бизнес-контексте",
                     "da": "ESG-kompetence",
+                    "ar": "معلومات السياق التجاري",
                 },
                 "fields": [
                     {
@@ -2313,6 +2458,7 @@ TYPES = [
                                     "zh": "初始",
                                     "ru": "Начальный",
                                     "da": "Indledende",
+                                    "ar": "أولي",
                                 },
                             },
                             {
@@ -2328,6 +2474,7 @@ TYPES = [
                                     "zh": "已定义",
                                     "ru": "Определённый",
                                     "da": "Defineret",
+                                    "ar": "مُعرَّف",
                                 },
                             },
                             {
@@ -2343,6 +2490,7 @@ TYPES = [
                                     "zh": "已管理",
                                     "ru": "Управляемый",
                                     "da": "Styret",
+                                    "ar": "مُدار",
                                 },
                             },
                             {
@@ -2358,6 +2506,7 @@ TYPES = [
                                     "zh": "已优化",
                                     "ru": "Оптимизированный",
                                     "da": "Optimeret",
+                                    "ar": "مُحسَّن",
                                 },
                             },
                         ],
@@ -2371,6 +2520,7 @@ TYPES = [
                             "zh": "成熟度",
                             "ru": "Зрелость",
                             "da": "Optimeret",
+                            "ar": "مستوى النضج",
                         },
                     },
                 ],
@@ -2386,6 +2536,7 @@ TYPES = [
                 "zh": "业务上下文",
                 "ru": "Бизнес-контекст",
                 "da": "Optimeret",
+                "ar": "سياق تجاري",
             },
             "description": {
                 "de": "Geschäftsprozesse, Wertströme, Customer Journeys und Produkte.",
@@ -2396,6 +2547,7 @@ TYPES = [
                 "zh": "业务流程、价值流、客户旅程和产品。",
                 "ru": "Бизнес-процессы, потоки создания ценности, пути клиентов и продукты.",
                 "da": "En virksomheds processer, værdistrømme, kunderejser eller produkter.",
+                "ar": "العمليات التجارية وتدفقات القيمة ورحلات العملاء والمنتجات.",
             },
         },
     },
@@ -2422,6 +2574,7 @@ TYPES = [
                     "zh": "流程类别",
                     "ru": "Категория процесса",
                     "da": "Proceskategori",
+                    "ar": "فئة العملية",
                 },
                 "hidden_fields": [],
             },
@@ -2437,6 +2590,7 @@ TYPES = [
                     "zh": "流程组",
                     "ru": "Группа процессов",
                     "da": "Procesgruppe",
+                    "ar": "مجموعة العمليات",
                 },
                 "hidden_fields": [],
             },
@@ -2452,6 +2606,7 @@ TYPES = [
                     "zh": "流程",
                     "ru": "Процесс",
                     "da": "Proces",
+                    "ar": "عملية",
                 },
                 "hidden_fields": [],
             },
@@ -2467,6 +2622,7 @@ TYPES = [
                     "zh": "流程变体",
                     "ru": "Вариант процесса",
                     "da": "Procesvariant",
+                    "ar": "متغيّر العملية",
                 },
                 "hidden_fields": [],
             },
@@ -2484,6 +2640,7 @@ TYPES = [
                     "zh": "流程分类",
                     "ru": "Классификация процесса",
                     "da": "Procesvariant",
+                    "ar": "تصنيف العملية",
                 },
                 "fields": [
                     {
@@ -2502,6 +2659,7 @@ TYPES = [
                             "zh": "流程类型",
                             "ru": "Тип процесса",
                             "da": "Procestype",
+                            "ar": "نوع العملية",
                         },
                     },
                     {
@@ -2519,6 +2677,7 @@ TYPES = [
                             "zh": "成熟度 (CMMI)",
                             "ru": "Зрелость (CMMI)",
                             "da": "Modenhed (CMMI)",
+                            "ar": "النضج (CMMI)",
                         },
                     },
                     {
@@ -2536,6 +2695,7 @@ TYPES = [
                             "zh": "自动化级别",
                             "ru": "Уровень автоматизации",
                             "da": "Automatiseringsniveau",
+                            "ar": "مستوى الأتمتة",
                         },
                     },
                     {
@@ -2553,6 +2713,7 @@ TYPES = [
                             "zh": "风险级别",
                             "ru": "Уровень риска",
                             "da": "Risikoniveau",
+                            "ar": "مستوى المخاطر",
                         },
                     },
                 ],
@@ -2568,6 +2729,7 @@ TYPES = [
                     "zh": "运营详情",
                     "ru": "Операционные детали",
                     "da": "Risikoniveau",
+                    "ar": "التفاصيل التشغيلية",
                 },
                 "fields": [
                     {
@@ -2585,6 +2747,7 @@ TYPES = [
                             "zh": "执行频率",
                             "ru": "Частота выполнения",
                             "da": "Udførelsesfrekvens",
+                            "ar": "تكرار التنفيذ",
                         },
                     },
                     {
@@ -2601,6 +2764,7 @@ TYPES = [
                             "zh": "流程文档 URL",
                             "ru": "URL документации процесса",
                             "da": "URL til procesdokumentation",
+                            "ar": "رابط توثيق العملية",
                         },
                     },
                     {
@@ -2617,6 +2781,7 @@ TYPES = [
                             "zh": "合规相关性",
                             "ru": "Регуляторная значимость",
                             "da": "Regulatorisk relevans",
+                            "ar": "الصلة التنظيمية",
                         },
                     },
                 ],
@@ -2636,6 +2801,7 @@ TYPES = [
                         "zh": "负责人",
                         "ru": "Ответственный",
                         "da": "Ansvarlig",
+                        "ar": "المسؤول",
                     },
                 },
             },
@@ -2652,6 +2818,7 @@ TYPES = [
                         "zh": "流程负责人",
                         "ru": "Владелец процесса",
                         "da": "Procesejer",
+                        "ar": "مالك العملية",
                     },
                 },
             },
@@ -2668,6 +2835,7 @@ TYPES = [
                         "zh": "观察者",
                         "ru": "Наблюдатель",
                         "da": "Observatør",
+                        "ar": "مراقب",
                     },
                 },
             },
@@ -2682,6 +2850,7 @@ TYPES = [
                 "zh": "业务流程",
                 "ru": "Бизнес-процесс",
                 "da": "Observatør",
+                "ar": "عملية تجارية",
             },
             "description": {
                 "de": "Geschäftsprozesse mit BPMN-2.0-Modellierung, Lebenszyklus- und Reifegradüberwachung.",
@@ -2692,6 +2861,7 @@ TYPES = [
                 "zh": "具有BPMN 2.0流程建模、生命周期和成熟度跟踪的业务流程。",
                 "ru": "Бизнес-процессы с моделированием BPMN 2.0, отслеживанием жизненного цикла и уровня зрелости.",
                 "da": "Forretningsprocesser med BPMN 2.0-modellering, livscyklus og modenhedsovervågning.",
+                "ar": "العمليات التجارية مع نمذجة BPMN 2.0 ومراقبة دورة الحياة والنضج.",
             },
         },
     },
@@ -2718,6 +2888,7 @@ TYPES = [
                     "zh": "业务应用",
                     "ru": "Бизнес-приложение",
                     "da": "Forretningsapplikation",
+                    "ar": "تطبيق أعمال",
                 },
                 "hidden_fields": [],
             },
@@ -2733,6 +2904,7 @@ TYPES = [
                     "zh": "微服务",
                     "ru": "Микросервис",
                     "da": "Mikroservice",
+                    "ar": "خدمة مصغّرة",
                 },
                 "hidden_fields": [],
             },
@@ -2748,6 +2920,7 @@ TYPES = [
                     "zh": "AI代理",
                     "ru": "ИИ-агент",
                     "da": "AI-agent",
+                    "ar": "وكيل ذكاء اصطناعي",
                 },
                 "hidden_fields": [],
             },
@@ -2763,6 +2936,7 @@ TYPES = [
                     "zh": "部署",
                     "ru": "Развёртывание",
                     "da": "Udrulning",
+                    "ar": "نشر",
                 },
                 "hidden_fields": [],
             },
@@ -2780,6 +2954,7 @@ TYPES = [
                     "zh": "应用信息",
                     "ru": "Информация о приложении",
                     "da": "Applikationsinformation",
+                    "ar": "معلومات التطبيق",
                 },
                 "fields": [
                     {
@@ -2797,6 +2972,7 @@ TYPES = [
                             "zh": "托管类型",
                             "ru": "Тип размещения",
                             "da": "Hosting-type",
+                            "ar": "نوع الاستضافة",
                         },
                     },
                     {
@@ -2813,6 +2989,7 @@ TYPES = [
                             "zh": "商业应用",
                             "ru": "Коммерческое приложение",
                             "da": "Kommerciel applikation",
+                            "ar": "تطبيق تجاري",
                         },
                     },
                     {
@@ -2829,6 +3006,7 @@ TYPES = [
                             "zh": "具备AI功能",
                             "ru": "Содержит функции ИИ",
                             "da": "Har AI-funktioner",
+                            "ar": "يحتوي على ميزات ذكاء اصطناعي",
                         },
                     },
                 ],
@@ -2844,6 +3022,7 @@ TYPES = [
                     "zh": "评估",
                     "ru": "Оценка",
                     "da": "Vurdering",
+                    "ar": "تقييم",
                 },
                 "fields": [
                     {
@@ -2862,6 +3041,7 @@ TYPES = [
                             "zh": "业务关键性",
                             "ru": "Критичность для бизнеса",
                             "da": "Forretningskritikalitet",
+                            "ar": "الأهمية الحرجة للأعمال",
                         },
                     },
                     {
@@ -2879,6 +3059,7 @@ TYPES = [
                             "zh": "功能适用性",
                             "ru": "Функциональная пригодность",
                             "da": "Funktionel egnethed",
+                            "ar": "الملاءمة الوظيفية",
                         },
                     },
                     {
@@ -2896,6 +3077,7 @@ TYPES = [
                             "zh": "技术适用性",
                             "ru": "Техническая пригодность",
                             "da": "Teknisk egnethed",
+                            "ar": "الملاءمة التقنية",
                         },
                     },
                     {
@@ -2914,6 +3096,7 @@ TYPES = [
                             "zh": "TIME 模型",
                             "ru": "Модель TIME",
                             "da": "TIME-model",
+                            "ar": "نموذج TIME",
                         },
                     },
                 ],
@@ -2929,6 +3112,7 @@ TYPES = [
                     "zh": "成本与所有权",
                     "ru": "Стоимость и владение",
                     "da": "Omkostninger & ejerskab",
+                    "ar": "التكلفة والملكية",
                 },
                 "fields": [
                     {
@@ -2945,6 +3129,7 @@ TYPES = [
                             "zh": "年度总成本",
                             "ru": "Общая годовая стоимость",
                             "da": "Samlet årlig omkostning",
+                            "ar": "إجمالي التكلفة السنوية",
                         },
                     },
                     {
@@ -2961,6 +3146,7 @@ TYPES = [
                             "zh": "用户数量",
                             "ru": "Количество пользователей",
                             "da": "Antal brugere",
+                            "ar": "عدد المستخدمين",
                         },
                     },
                     {
@@ -2977,6 +3163,7 @@ TYPES = [
                             "zh": "产品名称",
                             "ru": "Название продукта",
                             "da": "Produktnavn",
+                            "ar": "اسم المنتج",
                         },
                     },
                 ],
@@ -2992,6 +3179,7 @@ TYPES = [
                 "zh": "应用程序",
                 "ru": "Приложение",
                 "da": "Produktnavn",
+                "ar": "تطبيق",
             },
             "description": {
                 "de": "Softwareanwendungen, Microservices und Deployments in der IT-Landschaft.",
@@ -3002,6 +3190,7 @@ TYPES = [
                 "zh": "IT环境中的软件应用、微服务和部署。",
                 "ru": "Программные приложения, микросервисы и развёртывания в ИТ-среде.",
                 "da": "Softwareapplikationer, mikroservices og udrulninger i IT-landskabet.",
+                "ar": "تطبيقات البرمجيات والخدمات المصغّرة وعمليات النشر في المشهد التقني.",
             },
         },
     },
@@ -3027,6 +3216,7 @@ TYPES = [
                     "zh": "逻辑接口",
                     "ru": "Логический интерфейс",
                     "da": "Logisk grænseflade",
+                    "ar": "واجهة منطقية",
                 },
                 "hidden_fields": [],
             },
@@ -3042,6 +3232,7 @@ TYPES = [
                     "zh": "API",
                     "ru": "API",
                     "da": "API",
+                    "ar": "API",
                 },
                 "hidden_fields": [],
             },
@@ -3057,6 +3248,7 @@ TYPES = [
                     "zh": "MCP服务器",
                     "ru": "MCP-сервер",
                     "da": "MCP-server",
+                    "ar": "خادم MCP",
                 },
                 "hidden_fields": [],
             },
@@ -3074,6 +3266,7 @@ TYPES = [
                     "zh": "接口信息",
                     "ru": "Информация об интерфейсе",
                     "da": "MCP-server",
+                    "ar": "معلومات الواجهة",
                 },
                 "fields": [
                     {
@@ -3091,6 +3284,7 @@ TYPES = [
                             "zh": "频率",
                             "ru": "Частота",
                             "da": "Frekvens",
+                            "ar": "التكرار",
                         },
                     },
                     {
@@ -3107,6 +3301,7 @@ TYPES = [
                             "zh": "数据格式",
                             "ru": "Формат данных",
                             "da": "Dataformat",
+                            "ar": "تنسيق البيانات",
                         },
                     },
                     {
@@ -3123,6 +3318,7 @@ TYPES = [
                             "zh": "协议",
                             "ru": "Протокол",
                             "da": "Protokol",
+                            "ar": "البروتوكول",
                         },
                     },
                 ],
@@ -3138,6 +3334,7 @@ TYPES = [
                 "zh": "接口",
                 "ru": "Интерфейс",
                 "da": "Protokol",
+                "ar": "واجهة",
             },
             "description": {
                 "de": "Datenflüsse und Integrationen zwischen Anwendungen.",
@@ -3148,6 +3345,7 @@ TYPES = [
                 "zh": "应用之间的数据流和集成。",
                 "ru": "Потоки данных и интеграции между приложениями.",
                 "da": "Dataflows og integrationer mellem applikationer.",
+                "ar": "تدفقات البيانات والتكاملات بين التطبيقات.",
             },
         },
     },
@@ -3174,6 +3372,7 @@ TYPES = [
                     "zh": "数据信息",
                     "ru": "Информация о данных",
                     "da": "Dataobjekt",
+                    "ar": "معلومات البيانات",
                 },
                 "fields": [
                     {
@@ -3191,6 +3390,7 @@ TYPES = [
                             "zh": "数据敏感性",
                             "ru": "Конфиденциальность данных",
                             "da": "Datafølsomhed",
+                            "ar": "حساسية البيانات",
                         },
                     },
                     {
@@ -3207,6 +3407,7 @@ TYPES = [
                             "zh": "数据所有者",
                             "ru": "Владелец данных",
                             "da": "Dataejer",
+                            "ar": "مالك البيانات",
                         },
                     },
                     {
@@ -3223,6 +3424,7 @@ TYPES = [
                             "zh": "包含个人数据",
                             "ru": "Содержит персональные данные",
                             "da": "Indeholder personoplysninger",
+                            "ar": "يحتوي على بيانات شخصية",
                         },
                     },
                 ],
@@ -3238,6 +3440,7 @@ TYPES = [
                 "zh": "数据对象",
                 "ru": "Объект данных",
                 "da": "Indeholder personoplysninger",
+                "ar": "كائن بيانات",
             },
             "description": {
                 "de": "Geschäftsdatenobjekte und deren Klassifikationen.",
@@ -3248,6 +3451,7 @@ TYPES = [
                 "zh": "业务数据对象及其分类。",
                 "ru": "Бизнес-объекты данных и их классификация.",
                 "da": "Et stykke information, der bruges af forretningen eller systemerne.",
+                "ar": "قطعة من المعلومات تستخدمها الأعمال أو الأنظمة.",
             },
         },
     },
@@ -3274,6 +3478,7 @@ TYPES = [
                     "zh": "软件",
                     "ru": "Программное обеспечение",
                     "da": "Software",
+                    "ar": "برمجيات",
                 },
                 "hidden_fields": [],
             },
@@ -3289,6 +3494,7 @@ TYPES = [
                     "zh": "硬件",
                     "ru": "Аппаратное обеспечение",
                     "da": "Hardware",
+                    "ar": "أجهزة",
                 },
                 "hidden_fields": [],
             },
@@ -3304,6 +3510,7 @@ TYPES = [
                     "zh": "SaaS",
                     "ru": "SaaS",
                     "da": "SaaS",
+                    "ar": "SaaS",
                 },
                 "hidden_fields": [],
             },
@@ -3319,6 +3526,7 @@ TYPES = [
                     "zh": "PaaS",
                     "ru": "PaaS",
                     "da": "PaaS",
+                    "ar": "PaaS",
                 },
                 "hidden_fields": [],
             },
@@ -3334,6 +3542,7 @@ TYPES = [
                     "zh": "IaaS",
                     "ru": "IaaS",
                     "da": "IaaS",
+                    "ar": "IaaS",
                 },
                 "hidden_fields": [],
             },
@@ -3349,6 +3558,7 @@ TYPES = [
                     "zh": "服务",
                     "ru": "Сервис",
                     "da": "Service",
+                    "ar": "خدمة",
                 },
                 "hidden_fields": [],
             },
@@ -3364,6 +3574,7 @@ TYPES = [
                     "zh": "AI模型",
                     "ru": "Модель ИИ",
                     "da": "AI-model",
+                    "ar": "نموذج ذكاء اصطناعي",
                 },
                 "hidden_fields": [],
             },
@@ -3381,6 +3592,7 @@ TYPES = [
                     "zh": "组件信息",
                     "ru": "Информация о компоненте",
                     "da": "AI-model",
+                    "ar": "معلومات المكوّن",
                 },
                 "fields": [
                     {
@@ -3398,6 +3610,7 @@ TYPES = [
                             "zh": "技术适用性",
                             "ru": "Техническая пригодность",
                             "da": "Teknisk egnethed",
+                            "ar": "الملاءمة التقنية",
                         },
                     },
                     {
@@ -3415,6 +3628,7 @@ TYPES = [
                             "zh": "资源分类",
                             "ru": "Классификация ресурсов",
                             "da": "Ressourceklassifikation",
+                            "ar": "تصنيف الموارد",
                         },
                     },
                     {
@@ -3431,6 +3645,7 @@ TYPES = [
                             "zh": "版本",
                             "ru": "Версия",
                             "da": "Version",
+                            "ar": "الإصدار",
                         },
                     },
                     {
@@ -3447,6 +3662,7 @@ TYPES = [
                             "zh": "具备AI功能",
                             "ru": "Содержит функции ИИ",
                             "da": "Har AI-funktioner",
+                            "ar": "يحتوي على ميزات ذكاء اصطناعي",
                         },
                     },
                 ],
@@ -3462,6 +3678,7 @@ TYPES = [
                     "zh": "成本",
                     "ru": "Стоимость",
                     "da": "Har AI-funktioner",
+                    "ar": "التكلفة",
                 },
                 "fields": [
                     {
@@ -3478,6 +3695,7 @@ TYPES = [
                             "zh": "年度总成本",
                             "ru": "Общая годовая стоимость",
                             "da": "Samlet årlig omkostning",
+                            "ar": "إجمالي التكلفة السنوية",
                         },
                     },
                     {
@@ -3494,6 +3712,7 @@ TYPES = [
                             "zh": "许可类型",
                             "ru": "Тип лицензии",
                             "da": "Licenstype",
+                            "ar": "نوع الترخيص",
                         },
                     },
                 ],
@@ -3509,6 +3728,7 @@ TYPES = [
                 "zh": "IT组件",
                 "ru": "ИТ-компонент",
                 "da": "Licenstype",
+                "ar": "مكوّن تقني",
             },
             "description": {
                 "de": "Technologiekomponenten: Software, Hardware, SaaS, PaaS, IaaS, Services.",
@@ -3519,6 +3739,7 @@ TYPES = [
                 "zh": "技术组件：软件、硬件、SaaS、PaaS、IaaS、服务。",
                 "ru": "Технические компоненты: программное обеспечение, оборудование, SaaS, PaaS, IaaS, сервисы.",
                 "da": "Teknologi-komponenter: software, hardware, SaaS, PaaS, IaaS, services.",
+                "ar": "مكوّنات تقنية: برمجيات، أجهزة، SaaS، PaaS، IaaS، خدمات.",
             },
         },
     },
@@ -3543,6 +3764,7 @@ TYPES = [
                 "zh": "技术类别",
                 "ru": "Техническая категория",
                 "da": "Teknologikategori",
+                "ar": "فئة تقنية",
             },
             "description": {
                 "de": "Technologiekategorien zur Klassifizierung von IT-Komponenten (z. B. Datenbanken, Middleware).",
@@ -3553,6 +3775,7 @@ TYPES = [
                 "zh": "用于分类IT组件的技术类别（如数据库、中间件）。",
                 "ru": "Технические категории для классификации ИТ-компонентов (например, базы данных, промежуточное ПО).",
                 "da": "Teknologikategorier til klassificering af IT-komponenter (f.eks. databaser, middleware).",
+                "ar": "فئات تقنية لتصنيف المكوّنات التقنية (مثل قواعد البيانات، الوسيطة).",
             },
         },
     },
@@ -3578,6 +3801,7 @@ TYPES = [
                     "zh": "供应商信息",
                     "ru": "Информация о поставщике",
                     "da": "Udbyder",
+                    "ar": "معلومات المزوّد",
                 },
                 "fields": [
                     {
@@ -3597,6 +3821,7 @@ TYPES = [
                                     "zh": "供应商",
                                     "ru": "Поставщик",
                                     "da": "Leverandør",
+                                    "ar": "بائع",
                                 },
                             },
                             {
@@ -3611,6 +3836,7 @@ TYPES = [
                                     "zh": "合作伙伴",
                                     "ru": "Партнёр",
                                     "da": "Partner",
+                                    "ar": "شريك",
                                 },
                             },
                             {
@@ -3625,6 +3851,7 @@ TYPES = [
                                     "zh": "内部供应商",
                                     "ru": "Внутренний поставщик",
                                     "da": "Intern udbyder",
+                                    "ar": "مزوّد داخلي",
                                 },
                             },
                         ],
@@ -3638,6 +3865,7 @@ TYPES = [
                             "zh": "供应商类型",
                             "ru": "Тип поставщика",
                             "da": "Intern udbyder",
+                            "ar": "نوع المزوّد",
                         },
                     },
                     {
@@ -3654,6 +3882,7 @@ TYPES = [
                             "zh": "网站",
                             "ru": "Веб-сайт",
                             "da": "Website",
+                            "ar": "الموقع الإلكتروني",
                         },
                     },
                     {
@@ -3670,6 +3899,7 @@ TYPES = [
                             "zh": "合同结束日期",
                             "ru": "Дата окончания контракта",
                             "da": "Kontraktslutdato",
+                            "ar": "تاريخ انتهاء العقد",
                         },
                     },
                 ],
@@ -3685,6 +3915,7 @@ TYPES = [
                 "zh": "供应商",
                 "ru": "Поставщик",
                 "da": "Kontraktslutdato",
+                "ar": "مزوّد",
             },
             "description": {
                 "de": "Externe Technologieanbieter und Lieferanten.",
@@ -3695,6 +3926,7 @@ TYPES = [
                 "zh": "外部技术供应商和厂商。",
                 "ru": "Внешние технологические поставщики и вендоры.",
                 "da": "Eksterne teknologi-udbydere og leverandører.",
+                "ar": "مزوّدو التقنية والموردون الخارجيون.",
             },
         },
     },
@@ -3722,6 +3954,7 @@ FLOW_DIRECTION_OPTIONS = [
             "zh": "双向",
             "ru": "Двунаправленный",
             "da": "Bidirektional",
+            "ar": "ثنائي الاتجاه",
         },
     },
     {
@@ -3737,6 +3970,7 @@ FLOW_DIRECTION_OPTIONS = [
             "zh": "源 → 目标",
             "ru": "Источник → Цель",
             "da": "Kilde → mål",
+            "ar": "المصدر ← الهدف",
         },
     },
     {
@@ -3752,6 +3986,7 @@ FLOW_DIRECTION_OPTIONS = [
             "zh": "目标 → 源",
             "ru": "Цель → Источник",
             "da": "Mål → kilde",
+            "ar": "الهدف ← المصدر",
         },
     },
 ]
@@ -3770,6 +4005,7 @@ FLOW_DIRECTION_FIELD = {
         "zh": "流向",
         "ru": "Направление потока",
         "da": "Flowretning",
+        "ar": "اتجاه التدفق",
     },
 }
 
@@ -3814,6 +4050,7 @@ RELATIONS = [
                 "zh": "改进",
                 "ru": "улучшает",
                 "da": "forbedrer",
+                "ar": "يُحسِّن",
             },
             "reverse_label": {
                 "de": "wird verbessert durch",
@@ -3824,6 +4061,7 @@ RELATIONS = [
                 "zh": "被改进",
                 "ru": "улучшается",
                 "da": "forbedres af",
+                "ar": "يُحسَّن بواسطة",
             },
         },
     },
@@ -3845,6 +4083,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -3855,6 +4094,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -3876,6 +4116,7 @@ RELATIONS = [
                 "zh": "运行",
                 "ru": "запускает",
                 "da": "kører",
+                "ar": "يُشغِّل",
             },
             "reverse_label": {
                 "de": "läuft auf",
@@ -3886,6 +4127,7 @@ RELATIONS = [
                 "zh": "运行于",
                 "ru": "запускается на",
                 "da": "kører på",
+                "ar": "يعمل على",
             },
         },
     },
@@ -3907,6 +4149,7 @@ RELATIONS = [
                 "zh": "实现",
                 "ru": "реализует",
                 "da": "implementerer",
+                "ar": "يُنفِّذ",
             },
             "reverse_label": {
                 "de": "wird implementiert von",
@@ -3917,6 +4160,7 @@ RELATIONS = [
                 "zh": "被实现",
                 "ru": "реализуется",
                 "da": "implementeres af",
+                "ar": "يُنفَّذ بواسطة",
             },
         },
     },
@@ -3938,6 +4182,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -3948,6 +4193,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -3969,6 +4215,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
             "reverse_label": {
                 "de": "wird beeinflusst von",
@@ -3979,6 +4226,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
         },
     },
@@ -4000,6 +4248,7 @@ RELATIONS = [
                 "zh": "改进",
                 "ru": "улучшает",
                 "da": "forbedrer",
+                "ar": "يُحسِّن",
             },
             "reverse_label": {
                 "de": "wird verbessert durch",
@@ -4010,6 +4259,7 @@ RELATIONS = [
                 "zh": "被改进",
                 "ru": "улучшается",
                 "da": "forbedres af",
+                "ar": "يُحسَّن بواسطة",
             },
         },
     },
@@ -4031,6 +4281,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
             "reverse_label": {
                 "de": "wird beeinflusst von",
@@ -4041,6 +4292,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
         },
     },
@@ -4062,6 +4314,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
             "reverse_label": {
                 "de": "wird beeinflusst von",
@@ -4072,6 +4325,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
         },
     },
@@ -4093,6 +4347,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
             "reverse_label": {
                 "de": "wird beeinflusst von",
@@ -4103,6 +4358,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
         },
     },
@@ -4124,6 +4380,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
             "reverse_label": {
                 "de": "wird beeinflusst von",
@@ -4134,6 +4391,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
         },
     },
@@ -4156,6 +4414,7 @@ RELATIONS = [
                 "zh": "拥有",
                 "ru": "владеет",
                 "da": "ejer",
+                "ar": "يمتلك",
             },
             "reverse_label": {
                 "de": "gehört zu",
@@ -4166,6 +4425,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "ejes af",
+                "ar": "مملوك بواسطة",
             },
         },
     },
@@ -4187,6 +4447,7 @@ RELATIONS = [
                 "zh": "拥有",
                 "ru": "владеет",
                 "da": "ejer",
+                "ar": "يمتلك",
             },
             "reverse_label": {
                 "de": "gehört zu",
@@ -4197,6 +4458,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "ejes af",
+                "ar": "مملوك بواسطة",
             },
         },
     },
@@ -4218,6 +4480,7 @@ RELATIONS = [
                 "zh": "拥有",
                 "ru": "владеет",
                 "da": "ejer",
+                "ar": "يمتلك",
             },
             "reverse_label": {
                 "de": "gehört zu",
@@ -4228,6 +4491,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "ejes af",
+                "ar": "مملوك بواسطة",
             },
         },
     },
@@ -4257,6 +4521,7 @@ RELATIONS = [
                 "zh": "使用",
                 "ru": "использует",
                 "da": "Brugstype",
+                "ar": "نوع الاستخدام",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4267,6 +4532,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4288,6 +4554,7 @@ RELATIONS = [
                 "zh": "拥有",
                 "ru": "владеет",
                 "da": "ejer",
+                "ar": "يمتلك",
             },
             "reverse_label": {
                 "de": "gehört zu",
@@ -4298,6 +4565,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "ejes af",
+                "ar": "مملوك بواسطة",
             },
         },
     },
@@ -4328,6 +4596,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "Supporttype",
+                "ar": "نوع الدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -4338,6 +4607,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -4359,6 +4629,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -4369,6 +4640,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -4391,6 +4663,7 @@ RELATIONS = [
                 "zh": "提供 / 消费",
                 "ru": "предоставляет / потребляет",
                 "da": "leverer / forbruger",
+                "ar": "يوفّر / يستهلك",
             },
             "reverse_label": {
                 "de": "wird bereitgestellt / konsumiert von",
@@ -4401,6 +4674,7 @@ RELATIONS = [
                 "zh": "被提供 / 被消费",
                 "ru": "предоставляется / потребляется",
                 "da": "leveres / forbruges af",
+                "ar": "يُوفَّر / يُستهلَك بواسطة",
             },
         },
     },
@@ -4428,6 +4702,7 @@ RELATIONS = [
                 "zh": "CRUD",
                 "ru": "CRUD",
                 "da": "Slet",
+                "ar": "CRUD",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4438,6 +4713,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4462,6 +4738,7 @@ RELATIONS = [
                 "zh": "使用",
                 "ru": "использует",
                 "da": "Årlig omkostning",
+                "ar": "يستخدم",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4472,6 +4749,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4494,6 +4772,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "Ressourceklassifikation",
+                "ar": "ينتمي إلى",
             },
             "reverse_label": {
                 "de": "umfasst",
@@ -4504,6 +4783,7 @@ RELATIONS = [
                 "zh": "包含",
                 "ru": "содержит",
                 "da": "inkluderer",
+                "ar": "يتضمّن",
             },
         },
     },
@@ -4525,6 +4805,7 @@ RELATIONS = [
                 "zh": "实现",
                 "ru": "реализует",
                 "da": "implementerer",
+                "ar": "يُنفِّذ",
             },
             "reverse_label": {
                 "de": "wird implementiert von",
@@ -4535,6 +4816,7 @@ RELATIONS = [
                 "zh": "被实现",
                 "ru": "реализуется",
                 "da": "implementeres af",
+                "ar": "يُنفَّذ بواسطة",
             },
         },
     },
@@ -4557,6 +4839,7 @@ RELATIONS = [
                 "zh": "传输",
                 "ru": "передаёт",
                 "da": "overfører",
+                "ar": "ينقل",
             },
             "reverse_label": {
                 "de": "wird übertragen von",
@@ -4567,6 +4850,7 @@ RELATIONS = [
                 "zh": "被传输",
                 "ru": "передаётся",
                 "da": "overføres af",
+                "ar": "يُنقَل بواسطة",
             },
         },
     },
@@ -4588,6 +4872,7 @@ RELATIONS = [
                 "zh": "使用",
                 "ru": "использует",
                 "da": "bruger",
+                "ar": "يستخدم",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4598,6 +4883,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4620,6 +4906,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -4630,6 +4917,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -4651,6 +4939,7 @@ RELATIONS = [
                 "zh": "提供",
                 "ru": "предлагает",
                 "da": "tilbyder",
+                "ar": "يقدّم",
             },
             "reverse_label": {
                 "de": "wird angeboten von",
@@ -4661,6 +4950,7 @@ RELATIONS = [
                 "zh": "由...提供",
                 "ru": "предлагается",
                 "da": "tilbydes af",
+                "ar": "يُقدَّم بواسطة",
             },
         },
     },
@@ -4682,6 +4972,7 @@ RELATIONS = [
                 "zh": "提供",
                 "ru": "предлагает",
                 "da": "tilbyder",
+                "ar": "يقدّم",
             },
             "reverse_label": {
                 "de": "wird angeboten von",
@@ -4692,6 +4983,7 @@ RELATIONS = [
                 "zh": "由...提供",
                 "ru": "предлагается",
                 "da": "tilbydes af",
+                "ar": "يُقدَّم بواسطة",
             },
         },
     },
@@ -4714,6 +5006,7 @@ RELATIONS = [
                 "zh": "关联于",
                 "ru": "связан с",
                 "da": "er forbundet med",
+                "ar": "مرتبط بـ",
             },
             "reverse_label": {
                 "de": "ist verknüpft mit",
@@ -4724,6 +5017,7 @@ RELATIONS = [
                 "zh": "关联于",
                 "ru": "связан с",
                 "da": "er forbundet med",
+                "ar": "مرتبط بـ",
             },
         },
     },
@@ -4754,6 +5048,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "Supporttype",
+                "ar": "نوع الدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -4764,6 +5059,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -4799,6 +5095,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "الاستخدام",
             },
             "reverse_label": {
                 "de": "unterstützt",
@@ -4809,6 +5106,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
         },
     },
@@ -4836,6 +5134,7 @@ RELATIONS = [
                 "zh": "使用",
                 "ru": "использует",
                 "da": "Slet",
+                "ar": "يستخدم",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4846,6 +5145,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4867,6 +5167,7 @@ RELATIONS = [
                 "zh": "使用",
                 "ru": "использует",
                 "da": "bruger",
+                "ar": "يستخدم",
             },
             "reverse_label": {
                 "de": "wird genutzt von",
@@ -4877,6 +5178,7 @@ RELATIONS = [
                 "zh": "被使用",
                 "ru": "используется",
                 "da": "bruges af",
+                "ar": "يُستخدَم بواسطة",
             },
         },
     },
@@ -4898,6 +5200,7 @@ RELATIONS = [
                 "zh": "依赖于",
                 "ru": "зависит от",
                 "da": "afhænger af",
+                "ar": "يعتمد على",
             },
             "reverse_label": {
                 "de": "wird benötigt von",
@@ -4908,6 +5211,7 @@ RELATIONS = [
                 "zh": "被依赖",
                 "ru": "от него зависит",
                 "da": "der afhænges af",
+                "ar": "يُعتمَد عليه بواسطة",
             },
         },
     },
@@ -4929,6 +5233,7 @@ RELATIONS = [
                 "zh": "属于",
                 "ru": "принадлежит",
                 "da": "ejes af",
+                "ar": "مملوك بواسطة",
             },
             "reverse_label": {
                 "de": "besitzt",
@@ -4939,6 +5244,7 @@ RELATIONS = [
                 "zh": "拥有",
                 "ru": "владеет",
                 "da": "ejer",
+                "ar": "يمتلك",
             },
         },
     },
@@ -4960,6 +5266,7 @@ RELATIONS = [
                 "zh": "被影响",
                 "ru": "подвержен влиянию",
                 "da": "er påvirket af",
+                "ar": "يتأثّر بـ",
             },
             "reverse_label": {
                 "de": "beeinflusst",
@@ -4970,6 +5277,7 @@ RELATIONS = [
                 "zh": "影响",
                 "ru": "влияет на",
                 "da": "påvirker",
+                "ar": "يؤثّر على",
             },
         },
     },
@@ -4991,6 +5299,7 @@ RELATIONS = [
                 "zh": "支持",
                 "ru": "поддерживает",
                 "da": "understøtter",
+                "ar": "يدعم",
             },
             "reverse_label": {
                 "de": "wird unterstützt von",
@@ -5001,6 +5310,7 @@ RELATIONS = [
                 "zh": "被支持",
                 "ru": "поддерживается",
                 "da": "understøttes af",
+                "ar": "مدعوم بواسطة",
             },
         },
     },
@@ -5022,6 +5332,7 @@ RELATIONS = [
                 "zh": "实现",
                 "ru": "реализует",
                 "da": "realiserer",
+                "ar": "يُحقِّق",
             },
             "reverse_label": {
                 "de": "wird realisiert durch",
@@ -5032,6 +5343,7 @@ RELATIONS = [
                 "zh": "被实现",
                 "ru": "реализуется",
                 "da": "realiseres af",
+                "ar": "يُحقَّق بواسطة",
             },
         },
     },
@@ -5054,6 +5366,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5064,6 +5377,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5085,6 +5399,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5095,6 +5410,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5116,6 +5432,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5126,6 +5443,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5147,6 +5465,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5157,6 +5476,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5178,6 +5498,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5188,6 +5509,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5209,6 +5531,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5219,6 +5542,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5240,6 +5564,7 @@ RELATIONS = [
                 "zh": "继承",
                 "ru": "предшествует",
                 "da": "efterfølger",
+                "ar": "يخلف",
             },
             "reverse_label": {
                 "de": "wird abgelöst durch",
@@ -5250,6 +5575,7 @@ RELATIONS = [
                 "zh": "被继承",
                 "ru": "следует за",
                 "da": "efterfølges af",
+                "ar": "مسبوق بـ",
             },
         },
     },
@@ -5321,6 +5647,7 @@ async def seed_metamodel(db: AsyncSession) -> None:
                     "zh": "负责人",
                     "ru": "Ответственный",
                     "da": "Ansvarlig",
+                    "ar": "المسؤول",
                 },
             },
         },
@@ -5337,6 +5664,7 @@ async def seed_metamodel(db: AsyncSession) -> None:
                     "zh": "观察者",
                     "ru": "Наблюдатель",
                     "da": "Observatør",
+                    "ar": "مراقب",
                 },
             },
         },
@@ -5355,6 +5683,7 @@ async def seed_metamodel(db: AsyncSession) -> None:
                     "zh": "技术应用负责人",
                     "ru": "Технический владелец приложения",
                     "da": "Teknisk applikationsejer",
+                    "ar": "المالك التقني للتطبيق",
                 },
             },
         },
@@ -5371,6 +5700,7 @@ async def seed_metamodel(db: AsyncSession) -> None:
                     "zh": "业务应用负责人",
                     "ru": "Бизнес-владелец приложения",
                     "da": "Forretningsapplikationsejer",
+                    "ar": "مالك تطبيق الأعمال",
                 },
             },
         },
@@ -5725,6 +6055,301 @@ async def seed_metamodel(db: AsyncSession) -> None:
                 built_in=True,
                 sort_order=reg["sort_order"],
                 translations={},
+            )
+        )
+
+    # ── Built-in resource types (Resources tab: link types & file categories) ──
+    _builtin_resource_types = [
+        # Link types — `icon` is a Material Symbol name.
+        {
+            "kind": "link_type",
+            "key": "documentation",
+            "label": "Documentation",
+            "icon": "menu_book",
+            "sort_order": 10,
+            "translations": {
+                "de": "Dokumentation",
+                "fr": "Documentation",
+                "es": "Documentación",
+                "it": "Documentazione",
+                "pt": "Documentação",
+                "zh": "文档",
+                "ru": "Документация",
+                "da": "Dokumentation",
+                "ar": "التوثيق",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "contract",
+            "label": "Contract",
+            "icon": "contract",
+            "sort_order": 20,
+            "translations": {
+                "de": "Vertrag",
+                "fr": "Contrat",
+                "es": "Contrato",
+                "it": "Contratto",
+                "pt": "Contrato",
+                "zh": "合同",
+                "ru": "Договор",
+                "da": "Kontrakt",
+                "ar": "عقد",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "security",
+            "label": "Security",
+            "icon": "shield",
+            "sort_order": 30,
+            "translations": {
+                "de": "Sicherheit",
+                "fr": "Sécurité",
+                "es": "Seguridad",
+                "it": "Sicurezza",
+                "pt": "Segurança",
+                "zh": "安全",
+                "ru": "Безопасность",
+                "da": "Sikkerhed",
+                "ar": "الأمان",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "compliance",
+            "label": "Compliance",
+            "icon": "verified",
+            "sort_order": 40,
+            "translations": {
+                "de": "Compliance",
+                "fr": "Conformité",
+                "es": "Cumplimiento",
+                "it": "Conformità",
+                "pt": "Conformidade",
+                "zh": "合规",
+                "ru": "Соответствие",
+                "da": "Compliance",
+                "ar": "الامتثال",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "architecture",
+            "label": "Architecture",
+            "icon": "architecture",
+            "sort_order": 50,
+            "translations": {
+                "de": "Architektur",
+                "fr": "Architecture",
+                "es": "Arquitectura",
+                "it": "Architettura",
+                "pt": "Arquitetura",
+                "zh": "架构",
+                "ru": "Архитектура",
+                "da": "Arkitektur",
+                "ar": "المعمارية",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "operations",
+            "label": "Operations",
+            "icon": "settings",
+            "sort_order": 60,
+            "translations": {
+                "de": "Betrieb",
+                "fr": "Opérations",
+                "es": "Operaciones",
+                "it": "Operazioni",
+                "pt": "Operações",
+                "zh": "运维",
+                "ru": "Эксплуатация",
+                "da": "Drift",
+                "ar": "العمليات",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "support",
+            "label": "Support",
+            "icon": "support_agent",
+            "sort_order": 70,
+            "translations": {
+                "de": "Support",
+                "fr": "Support",
+                "es": "Soporte",
+                "it": "Supporto",
+                "pt": "Suporte",
+                "zh": "支持",
+                "ru": "Поддержка",
+                "da": "Support",
+                "ar": "الدعم",
+            },
+        },
+        {
+            "kind": "link_type",
+            "key": "other",
+            "label": "Other",
+            "icon": "link",
+            "sort_order": 80,
+            "translations": {
+                "de": "Sonstiges",
+                "fr": "Autre",
+                "es": "Otro",
+                "it": "Altro",
+                "pt": "Outro",
+                "zh": "其他",
+                "ru": "Прочее",
+                "da": "Andet",
+                "ar": "أخرى",
+            },
+        },
+        # File categories — no icon (rendered as plain chips).
+        {
+            "kind": "file_category",
+            "key": "architecture",
+            "label": "Architecture",
+            "icon": None,
+            "sort_order": 10,
+            "translations": {
+                "de": "Architektur",
+                "fr": "Architecture",
+                "es": "Arquitectura",
+                "it": "Architettura",
+                "pt": "Arquitetura",
+                "zh": "架构",
+                "ru": "Архитектура",
+                "da": "Arkitektur",
+                "ar": "المعمارية",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "security",
+            "label": "Security",
+            "icon": None,
+            "sort_order": 20,
+            "translations": {
+                "de": "Sicherheit",
+                "fr": "Sécurité",
+                "es": "Seguridad",
+                "it": "Sicurezza",
+                "pt": "Segurança",
+                "zh": "安全",
+                "ru": "Безопасность",
+                "da": "Sikkerhed",
+                "ar": "الأمان",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "compliance",
+            "label": "Compliance",
+            "icon": None,
+            "sort_order": 30,
+            "translations": {
+                "de": "Compliance",
+                "fr": "Conformité",
+                "es": "Cumplimiento",
+                "it": "Conformità",
+                "pt": "Conformidade",
+                "zh": "合规",
+                "ru": "Соответствие",
+                "da": "Compliance",
+                "ar": "الامتثال",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "operations",
+            "label": "Operations",
+            "icon": None,
+            "sort_order": 40,
+            "translations": {
+                "de": "Betrieb",
+                "fr": "Opérations",
+                "es": "Operaciones",
+                "it": "Operazioni",
+                "pt": "Operações",
+                "zh": "运维",
+                "ru": "Эксплуатация",
+                "da": "Drift",
+                "ar": "العمليات",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "meeting_notes",
+            "label": "Meeting Notes",
+            "icon": None,
+            "sort_order": 50,
+            "translations": {
+                "de": "Besprechungsnotizen",
+                "fr": "Notes de réunion",
+                "es": "Notas de reunión",
+                "it": "Note riunione",
+                "pt": "Notas de reunião",
+                "zh": "会议记录",
+                "ru": "Протоколы совещаний",
+                "da": "Mødenoter",
+                "ar": "ملاحظات الاجتماع",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "design",
+            "label": "Design",
+            "icon": None,
+            "sort_order": 60,
+            "translations": {
+                "de": "Design",
+                "fr": "Conception",
+                "es": "Diseño",
+                "it": "Design",
+                "pt": "Design",
+                "zh": "设计",
+                "ru": "Дизайн",
+                "da": "Design",
+                "ar": "التصميم",
+            },
+        },
+        {
+            "kind": "file_category",
+            "key": "other",
+            "label": "Other",
+            "icon": None,
+            "sort_order": 70,
+            "translations": {
+                "de": "Sonstiges",
+                "fr": "Autre",
+                "es": "Otro",
+                "it": "Altro",
+                "pt": "Outro",
+                "zh": "其他",
+                "ru": "Прочее",
+                "da": "Andet",
+                "ar": "أخرى",
+            },
+        },
+    ]
+
+    existing_rt_result = await db.execute(select(ResourceType))
+    existing_rt_keys = {(r.kind, r.key) for r in existing_rt_result.scalars().all()}
+    for rt in _builtin_resource_types:
+        if (rt["kind"], rt["key"]) in existing_rt_keys:
+            continue
+        db.add(
+            ResourceType(
+                id=uuid.uuid4(),
+                kind=rt["kind"],
+                key=rt["key"],
+                label=rt["label"],
+                icon=rt["icon"],
+                is_enabled=True,
+                built_in=True,
+                sort_order=rt["sort_order"],
+                translations=rt["translations"],
             )
         )
 

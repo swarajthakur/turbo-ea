@@ -11,7 +11,7 @@ Bundle layout (a ``.zip``)::
     workspace_export_<ts>.zip
     ├── manifest.json     # format_version, app_version, exported_at, source_url, sections
     ├── workspace.xlsx    # all structured data, one sheet per domain
-    └── assets/           # unstructured assets (branding, diagrams, attachments) — Phase B+
+    └── assets/           # unstructured assets (branding, diagrams, attachments)
 
 The workbook is the source of truth for references; asset-owning sheets carry an
 ``asset_path`` column pointing into ``assets/``.
@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from app.models.calculation import Calculation
 from app.models.compliance_regulation import ComplianceRegulation
 from app.models.ea_principle import EAPrinciple
+from app.models.resource_type import ResourceType
 from app.models.role import Role
 from app.models.stakeholder_role_definition import StakeholderRoleDefinition
 
@@ -45,6 +46,7 @@ SHEET_TAGS = "Tags"
 SHEET_CALCULATIONS = "Calculations"
 SHEET_PRINCIPLES = "Principles"
 SHEET_COMPLIANCE_REGS = "ComplianceRegs"
+SHEET_RESOURCE_TYPES = "ResourceTypes"
 SHEET_SETTINGS = "Settings"
 SHEET_USERS = "Users"
 SHEET_CARDS = "Cards"
@@ -221,6 +223,23 @@ CONFIG_SECTIONS: tuple[ConfigSection, ...] = (
             "key",
             "label",
             "description",
+            "is_enabled",
+            "built_in",
+            "sort_order",
+            "translations",
+        ),
+        json_columns=frozenset({"translations"}),
+    ),
+    ConfigSection(
+        sheet=SHEET_RESOURCE_TYPES,
+        model=ResourceType,
+        natural_key=("kind", "key"),
+        columns=(
+            "kind",
+            "key",
+            "label",
+            "description",
+            "icon",
             "is_enabled",
             "built_in",
             "sort_order",

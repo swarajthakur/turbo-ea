@@ -63,7 +63,7 @@ O nome de seção especial `__description` adiciona campos à seção de Descri�
 
 #### Pontuação de qualidade dos dados
 
-A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada fator que contribui — cada campo e quatro fatores integrados — é gerido em um único lugar: a aba **Qualidade dos dados** do editor de tipo de card. (O editor é organizado em abas — Geral, Relações, Papéis das partes interessadas e Qualidade dos dados — as traduções estão disponíveis no ícone do cabeçalho.)
+A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada fator que contribui — cada campo e cinco fatores integrados — é gerido em um único lugar: a aba **Qualidade dos dados** do editor de tipo de card. (O editor é organizado em abas — Geral, Relações, Papéis das partes interessadas e Qualidade dos dados — as traduções estão disponíveis no ícone do cabeçalho.)
 
 A importância de cada fator é definida com um controle deslizante simples de quatro níveis, que também mostra o número subjacente:
 
@@ -72,7 +72,7 @@ A importância de cada fator é definida com um controle deslizante simples de q
 - **Importante (2)** — conta o dobro.
 - **Crítico (3)** — conta o triplo.
 
-O painel lista os quatro **fatores integrados** — **Descrição**, **Ciclo de vida** (se alguma data de ciclo de vida estiver definida), **Relações obrigatórias** e **Etiquetas obrigatórias** — seguidos de cada campo agrupado pela sua seção, cada um com o mesmo controle deslizante. Por exemplo, defina o **Ciclo de vida** como *Ignorar* para um tipo cujos cards legitimamente nunca têm datas, para que não sejam penalizados.
+O painel lista os cinco **fatores integrados** — **Descrição**, **Ciclo de vida** (se alguma data de ciclo de vida estiver definida), **Relações obrigatórias**, **Etiquetas obrigatórias** e **Papéis das partes interessadas** (cada papel definido para o tipo é satisfeito quando uma parte interessada lhe é atribuída) — seguidos de cada campo agrupado pela sua seção, cada um com o mesmo controle deslizante. Por exemplo, defina o **Ciclo de vida** como *Ignorar* para um tipo cujos cards legitimamente nunca têm datas, para que não sejam penalizados.
 
 Uma barra de **composição da pontuação** no topo do painel mostra a parcela de cada fator na pontuação máxima possível, para ver rapidamente quais fatores dominam. No layout do card da aba **Principal**, cada campo — e as seções integradas Descrição, Ciclo de vida e Relações — mostra um pequeno selo com o seu nível atual, para ver a ponderação sem sair dessa aba.
 
@@ -224,3 +224,19 @@ Para cada tipo de card, a seção **Layout** no painel do tipo controla como a p
 - **Expansão padrão** — Escolha se cada seção começa expandida ou recolhida
 - **Layout de colunas** — Defina 1 ou 2 colunas por seção personalizada
 - **Mover campos entre seções** — Usar a ação **mover** de um campo (ao lado dos botões de editar e excluir) para realocá-lo em outra seção, mantendo a sua configuração
+
+## Recursos
+
+O separador **Recursos** faz a gestão das duas listas oferecidas no separador **Recursos** de cada cartão:
+
+- **Tipos de ligação** — a categoria de uma ligação de documento (p. ex. *Documentação*, *Contrato*, *Segurança*). Cada tipo de ligação inclui também um **ícone** apresentado ao lado da ligação.
+- **Categorias de ficheiro** — a categoria atribuída a um ficheiro anexado carregado.
+
+Para cada lista pode:
+
+- **Adicionar uma entrada** — com uma chave (um identificador em minúsculas armazenado nos cartões, fixo após a criação), uma etiqueta apresentada e — para os tipos de ligação — um ícone.
+- **Editar** a etiqueta, o ícone, a ordem e as traduções por idioma de qualquer entrada, incluindo as integradas.
+- **Ativar / desativar** uma entrada com o interruptor — as entradas desativadas desaparecem do seletor, mas os valores existentes nos cartões são preservados.
+- **Eliminar** uma entrada personalizada — as entradas integradas não podem ser eliminadas, apenas desativadas.
+
+Um tipo de ligação **Contrato** integrado vem ativado por predefinição. Ambas as listas são incluídas na **Transferência de área de trabalho**, pelo que as suas personalizações se clonam entre instâncias.

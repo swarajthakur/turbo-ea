@@ -16,8 +16,17 @@ from app.models.app_settings import AppSettings
 from app.models.card_type import CardType
 from app.models.compliance_regulation import ComplianceRegulation
 from app.models.relation_type import RelationType
+from app.models.resource_type import ResourceType
 from app.models.user import User
 from app.services.ai_service import DEFAULT_AZURE_API_VERSION
+from app.services.email_backends.base import (
+    ALLOWED_METHODS as ALLOWED_EMAIL_METHODS,
+)
+from app.services.email_backends.base import (
+    EmailConfig,
+    get_backend,
+)
+from app.services.email_backends.runtime import apply_email_settings_to_runtime
 from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -32,6 +41,9 @@ MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2 MB
 
 
 class EmailSettingsPayload(BaseModel):
+    # Transport method: smtp_basic (default) | smtp_oauth | graph_api
+    method: str = "smtp_basic"
+    # SMTP basic (also reused for the SMTP XOAUTH2 connection)
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
@@ -39,6 +51,15 @@ class EmailSettingsPayload(BaseModel):
     smtp_from: str = "noreply@turboea.local"
     smtp_tls: bool = True
     app_base_url: str = ""
+    # OAuth (dedicated email app registration) — used by graph_api & smtp_oauth
+    oauth_provider: str = "microsoft"
+    oauth_tenant_id: str = ""
+    oauth_client_id: str = ""
+    oauth_client_secret: str = ""
+    graph_sender: str = ""
+    oauth_scope: str = ""
+    oauth_token_endpoint: str = ""
+    service_account_json: str = ""
 
 
 class CurrencyPayload(BaseModel):
@@ -102,22 +123,19 @@ async def _get_or_create_row(db: AsyncSession) -> AppSettings:
     return row
 
 
-def _apply_to_runtime(email: dict) -> None:
-    """Push DB email settings into the runtime config singleton."""
-    if email.get("smtp_host"):
-        app_config.SMTP_HOST = email["smtp_host"]
-    if email.get("smtp_port"):
-        app_config.SMTP_PORT = int(email["smtp_port"])
-    if email.get("smtp_user"):
-        app_config.SMTP_USER = email["smtp_user"]
-    if email.get("smtp_password"):
-        app_config.SMTP_PASSWORD = decrypt_value(email["smtp_password"])
-    if email.get("smtp_from"):
-        app_config.SMTP_FROM = email["smtp_from"]
-    if "smtp_tls" in email:
-        app_config.SMTP_TLS = bool(email["smtp_tls"])
-    if email.get("app_base_url"):
-        app_config._app_base_url = email["app_base_url"]
+EMAIL_SECRET_FIELDS = ("smtp_password", "oauth_client_secret", "service_account_json")
+MASK = "••••••••"
+
+
+def _email_configured(stored: dict) -> bool:
+    """Whether the currently-selected email backend has enough config to send.
+
+    Delegates to the backend's own ``is_configured`` over a stored-over-runtime
+    config snapshot, so this stays in lockstep with what ``send_email()``
+    actually requires.
+    """
+    cfg = EmailConfig.from_stored(stored)
+    return get_backend(cfg.method).is_configured(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -165,8 +183,35 @@ async def get_bootstrap(db: AsyncSession = Depends(get_db)):
         for r in reg_rows
     ]
 
+    rt_rows = (
+        (
+            await db.execute(
+                select(ResourceType).order_by(
+                    ResourceType.kind, ResourceType.sort_order, ResourceType.label
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    resource_types = [
+        {
+            "id": str(r.id),
+            "kind": r.kind,
+            "key": r.key,
+            "label": r.label,
+            "description": r.description,
+            "icon": r.icon,
+            "is_enabled": r.is_enabled,
+            "built_in": r.built_in,
+            "sort_order": r.sort_order,
+            "translations": r.translations or {},
+        }
+        for r in rt_rows
+    ]
+
     email_settings = (row.email_settings if row else None) or {}
-    smtp_configured = bool(email_settings.get("smtp_host") or app_config.SMTP_HOST)
+    email_configured = _email_configured(email_settings)
 
     return {
         "currency": general.get("currency", DEFAULT_CURRENCY),
@@ -176,6 +221,7 @@ async def get_bootstrap(db: AsyncSession = Depends(get_db)):
         "ppm_enabled": general.get("ppmEnabled", False),
         "turbolens_enabled": general.get("turboLensEnabled", True),
         "grc_enabled": general.get("grcEnabled", True),
+        "sponsor_button_enabled": general.get("sponsorButtonEnabled", True),
         "file_uploads_enabled": general.get("fileUploadsEnabled", True),
         "enabled_locales": general.get("enabledLocales", SUPPORTED_LOCALES),
         "fiscal_year_start": general.get("fiscalYearStart", 1),
@@ -185,11 +231,48 @@ async def get_bootstrap(db: AsyncSession = Depends(get_db)):
         "bpm_row_order": general.get("bpmRowOrder", ["management", "core", "support"]),
         "show_principles_tab": general.get("showPrinciplesTab", True),
         "compliance_regulations": compliance_regulations,
+        "resource_types": resource_types,
         "login_tagline": (general.get("loginTagline") or "").strip(),
         "login_tagline_hidden": bool(general.get("loginTaglineHidden", False)),
         "login_help_text": (general.get("loginHelpText") or "").strip(),
         "login_help_link": (general.get("loginHelpLink") or "").strip(),
-        "smtp_configured": smtp_configured,
+        # email_configured is method-aware; smtp_configured kept as an alias for
+        # frontend backward compatibility.
+        "email_configured": email_configured,
+        "smtp_configured": email_configured,
+    }
+
+
+def _email_settings_response(stored: dict) -> dict:
+    """Masked email-settings body shared by GET and PATCH /settings/email."""
+
+    def _secret_mask(key: str, env_fallback: str = "") -> str:
+        return MASK if stored.get(key) or env_fallback else ""
+
+    return {
+        "method": stored.get("method", app_config.EMAIL_METHOD),
+        "smtp_host": stored.get("smtp_host", app_config.SMTP_HOST),
+        "smtp_port": stored.get("smtp_port", app_config.SMTP_PORT),
+        "smtp_user": stored.get("smtp_user", app_config.SMTP_USER),
+        "smtp_password": _secret_mask("smtp_password", app_config.SMTP_PASSWORD),
+        "smtp_from": stored.get("smtp_from", app_config.SMTP_FROM),
+        "smtp_tls": stored.get("smtp_tls", app_config.SMTP_TLS),
+        "app_base_url": stored.get("app_base_url", ""),
+        "oauth_provider": stored.get("oauth_provider", app_config.EMAIL_OAUTH_PROVIDER),
+        "oauth_tenant_id": stored.get("oauth_tenant_id", app_config.EMAIL_OAUTH_TENANT_ID),
+        "oauth_client_id": stored.get("oauth_client_id", app_config.EMAIL_OAUTH_CLIENT_ID),
+        "oauth_client_secret": _secret_mask(
+            "oauth_client_secret", app_config.EMAIL_OAUTH_CLIENT_SECRET
+        ),
+        "graph_sender": stored.get("graph_sender", app_config.EMAIL_GRAPH_SENDER),
+        "oauth_scope": stored.get("oauth_scope", app_config.EMAIL_OAUTH_SCOPE),
+        "oauth_token_endpoint": stored.get(
+            "oauth_token_endpoint", app_config.EMAIL_OAUTH_TOKEN_ENDPOINT
+        ),
+        "service_account_json": _secret_mask(
+            "service_account_json", app_config.EMAIL_SERVICE_ACCOUNT_JSON
+        ),
+        "configured": _email_configured(stored),
     }
 
 
@@ -201,19 +284,7 @@ async def get_email_settings(
     await PermissionService.require_permission(db, user, "admin.settings")
     row = await _get_or_create_row(db)
     await db.commit()
-    stored = row.email_settings or {}
-    return {
-        "smtp_host": stored.get("smtp_host", app_config.SMTP_HOST),
-        "smtp_port": stored.get("smtp_port", app_config.SMTP_PORT),
-        "smtp_user": stored.get("smtp_user", app_config.SMTP_USER),
-        "smtp_password": (
-            "••••••••" if stored.get("smtp_password") or app_config.SMTP_PASSWORD else ""
-        ),
-        "smtp_from": stored.get("smtp_from", app_config.SMTP_FROM),
-        "smtp_tls": stored.get("smtp_tls", app_config.SMTP_TLS),
-        "app_base_url": stored.get("app_base_url", ""),
-        "configured": bool(stored.get("smtp_host") or app_config.SMTP_HOST),
-    }
+    return _email_settings_response(row.email_settings or {})
 
 
 @router.patch("/email")
@@ -223,24 +294,34 @@ async def update_email_settings(
     user: User = Depends(get_current_user),
 ):
     await PermissionService.require_permission(db, user, "admin.settings")
+
+    if body.method not in ALLOWED_EMAIL_METHODS:
+        raise HTTPException(400, f"Unsupported email method: {body.method}")
+
     row = await _get_or_create_row(db)
 
     email = dict(row.email_settings or {})
-    payload = body.model_dump()
+    # Only fields the caller actually sent — a client built against an older
+    # payload shape must not reset method/oauth fields to Pydantic defaults.
+    payload = body.model_dump(exclude_unset=True)
 
-    # Only overwrite password if the caller sends a real value (not the masked placeholder)
-    if payload.get("smtp_password") in ("", "••••••••"):
-        payload.pop("smtp_password", None)
-    elif payload.get("smtp_password"):
-        payload["smtp_password"] = encrypt_value(payload["smtp_password"])
+    # Secret fields: drop when masked/empty (preserve stored value), otherwise encrypt.
+    for field in EMAIL_SECRET_FIELDS:
+        value = payload.get(field)
+        if value in ("", MASK):
+            payload.pop(field, None)
+        elif value:
+            payload[field] = encrypt_value(value)
 
     email.update(payload)
     row.email_settings = email
     await db.commit()
 
-    _apply_to_runtime(email)
+    apply_email_settings_to_runtime(email)
 
-    return {"ok": True}
+    # Return the same masked body as GET so the client can refresh its state
+    # (incl. the computed `configured` flag) without a second round-trip.
+    return {"ok": True, **_email_settings_response(email)}
 
 
 @router.post("/email/test")
@@ -269,7 +350,8 @@ async def test_email_settings(
     if not sent:
         raise HTTPException(
             400,
-            "SMTP is not configured. Set SMTP_HOST and related settings before testing.",
+            "Email is not configured for the selected sending method. "
+            "Complete the required fields under Admin → Settings → Email before testing.",
         )
 
     return {"ok": True, "sent_to": user.email}
@@ -598,6 +680,42 @@ async def update_grc_enabled(
     row = await _get_or_create_row(db)
     general = dict(row.general_settings or {})
     general["grcEnabled"] = body.enabled
+    row.general_settings = general
+
+    await db.commit()
+    return {"ok": True}
+
+
+class SponsorButtonEnabledPayload(BaseModel):
+    enabled: bool
+
+
+@router.get("/sponsor-button-enabled")
+async def get_sponsor_button_enabled(db: AsyncSession = Depends(get_db)):
+    """Public endpoint — returns whether the Sponsor button is shown in the user menu.
+
+    Defaults to True so existing installations keep showing it; administrators can
+    hide it from the avatar menu via the admin UI. It always remains reachable from
+    Admin → Settings regardless of this flag.
+    """
+    result = await db.execute(select(AppSettings).where(AppSettings.id == "default"))
+    row = result.scalar_one_or_none()
+    general = (row.general_settings if row else None) or {}
+    return {"enabled": general.get("sponsorButtonEnabled", True)}
+
+
+@router.patch("/sponsor-button-enabled")
+async def update_sponsor_button_enabled(
+    body: SponsorButtonEnabledPayload,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Admin endpoint — show or hide the Sponsor button in the user (avatar) menu."""
+    await PermissionService.require_permission(db, user, "admin.settings")
+
+    row = await _get_or_create_row(db)
+    general = dict(row.general_settings or {})
+    general["sponsorButtonEnabled"] = body.enabled
     row.general_settings = general
 
     await db.commit()
@@ -1218,7 +1336,7 @@ async def test_ai_connection(
     return result
 
 
-SUPPORTED_LOCALES = ["en", "de", "fr", "es", "it", "pt", "zh", "ru", "da"]
+SUPPORTED_LOCALES = ["en", "de", "fr", "es", "it", "pt", "zh", "ru", "da", "ar"]
 
 
 class EnabledLocalesPayload(BaseModel):

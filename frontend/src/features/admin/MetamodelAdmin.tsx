@@ -30,9 +30,10 @@ import KeyInput, { isValidKey } from "@/components/KeyInput";
 import CalculationsAdmin from "@/features/admin/CalculationsAdmin";
 import PrinciplesAdmin from "@/features/admin/PrinciplesAdmin";
 import RegulationsAdmin from "@/features/admin/RegulationsAdmin";
+import ResourceTypesAdmin from "@/features/admin/ResourceTypesAdmin";
 import TagsAdmin from "@/features/admin/TagsAdmin";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveLabel } from "@/hooks/useResolveLabel";
+import { useFieldLabel } from "@/hooks/useResolveLabel";
 import { api } from "@/api/client";
 import type {
   CardType as FSType,
@@ -73,7 +74,7 @@ function cleanTranslations(
 export default function MetamodelAdmin() {
   const { t } = useTranslation(["admin", "common"]);
   const { invalidateCache } = useMetamodel();
-  const rl = useResolveLabel();
+  const fieldLabel = useFieldLabel();
 
   const [tab, setTab] = useState(0);
   const [types, setTypes] = useState<FSType[]>([]);
@@ -323,6 +324,7 @@ export default function MetamodelAdmin() {
         <Tab label={t("metamodel.tabs.graph")} />
         <Tab label={t("metamodel.tabs.principles")} />
         <Tab label={t("metamodel.tabs.regulations")} />
+        <Tab label={t("metamodel.tabs.resources")} />
       </Tabs>
 
       {/* ============================================================ */}
@@ -679,7 +681,7 @@ export default function MetamodelAdmin() {
                     {typeDims.length > 0 && (
                       <Tooltip
                         title={typeDims
-                          .map((f) => rl(f.label, f.translations))
+                          .map((f) => fieldLabel(f))
                           .join(", ")}
                       >
                         <Chip
@@ -780,6 +782,11 @@ export default function MetamodelAdmin() {
       {tab === 6 && <RegulationsAdmin />}
 
       {/* ============================================================ */}
+      {/*  TAB 7 -- Resource Types (link types & file categories)      */}
+      {/* ============================================================ */}
+      {tab === 7 && <ResourceTypesAdmin />}
+
+      {/* ============================================================ */}
       {/*  Type Detail Dialog                                          */}
       {/* ============================================================ */}
       <TypeDetailDrawer
@@ -820,6 +827,7 @@ export default function MetamodelAdmin() {
             onChange={(v) => setNewType({ ...newType, key: v })}
             sx={{ mt: 1, mb: 2 }}
             size="small"
+            required={!!newType.label.trim()}
           />
           <TextField
             fullWidth
@@ -827,6 +835,7 @@ export default function MetamodelAdmin() {
             value={newType.label}
             onChange={(e) => setNewType({ ...newType, label: e.target.value })}
             sx={{ mb: 2 }}
+            error={!newType.label.trim()}
           />
           <TextField
             fullWidth
@@ -1008,6 +1017,7 @@ export default function MetamodelAdmin() {
             onChange={(v) => setNewRel({ ...newRel, key: v })}
             sx={{ mb: 2 }}
             size="small"
+            required={!!newRel.label.trim()}
           />
           <TextField
             fullWidth
@@ -1015,6 +1025,7 @@ export default function MetamodelAdmin() {
             value={newRel.label}
             onChange={(e) => setNewRel({ ...newRel, label: e.target.value })}
             sx={{ mb: 2 }}
+            error={!newRel.label.trim()}
           />
           <TextField
             fullWidth

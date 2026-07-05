@@ -63,7 +63,7 @@ Le nom de section special `__description` ajoute les champs à la section Descri
 
 #### Évaluation de la qualité des données
 
-Le score de **qualité des données** d'une fiche mesure de manière pondérée son niveau de complétude. Chaque facteur contributeur – chaque champ ainsi que quatre facteurs intégrés – est géré au même endroit : l'onglet **Qualité des données** de l'éditeur de type de fiche. (L'éditeur est organisé en onglets – Principal, Relations, Rôles des parties prenantes et Qualité des données – les traductions sont accessibles via l'icône de l'en-tête.)
+Le score de **qualité des données** d'une fiche mesure de manière pondérée son niveau de complétude. Chaque facteur contributeur – chaque champ ainsi que cinq facteurs intégrés – est géré au même endroit : l'onglet **Qualité des données** de l'éditeur de type de fiche. (L'éditeur est organisé en onglets – Principal, Relations, Rôles des parties prenantes et Qualité des données – les traductions sont accessibles via l'icône de l'en-tête.)
 
 L'importance de chaque facteur se règle avec un simple curseur à quatre niveaux, qui affiche aussi le nombre sous-jacent :
 
@@ -72,7 +72,7 @@ L'importance de chaque facteur se règle avec un simple curseur à quatre niveau
 - **Important (2)** – compte deux fois plus.
 - **Critique (3)** – compte trois fois plus.
 
-Le panneau liste les quatre **facteurs intégrés** – **Description**, **Cycle de vie** (selon qu'une date de cycle de vie est renseignée), **Relations obligatoires** et **Étiquettes obligatoires** – suivis de chaque champ regroupé par section, avec le même curseur. Par exemple, réglez le **Cycle de vie** sur *Ignorer* pour un type dont les fiches ne portent légitimement jamais de dates, afin qu'elles ne soient pas pénalisées.
+Le panneau liste les cinq **facteurs intégrés** – **Description**, **Cycle de vie** (selon qu'une date de cycle de vie est renseignée), **Relations obligatoires**, **Étiquettes obligatoires** et **Rôles des parties prenantes** (chaque rôle défini pour le type est satisfait dès qu'une partie prenante y est affectée) – suivis de chaque champ regroupé par section, avec le même curseur. Par exemple, réglez le **Cycle de vie** sur *Ignorer* pour un type dont les fiches ne portent légitimement jamais de dates, afin qu'elles ne soient pas pénalisées.
 
 Une barre de **composition du score** en haut du panneau montre la part de chaque facteur dans le score maximal possible, pour voir d'un coup d'œil quels facteurs dominent. Dans la mise en page de la fiche de l'onglet **Principal**, chaque champ – ainsi que les sections intégrées Description, Cycle de vie et Relations – affiche un petit badge avec son niveau actuel, pour voir la pondération sans quitter cet onglet.
 
@@ -224,3 +224,19 @@ Pour chaque type de fiche, la section **Mise en page** dans le tiroir du type co
 - **Développement par défaut** -- Choisissez si chaque section commence développée ou repliée
 - **Disposition en colonnes** -- Définissez 1 ou 2 colonnes par section personnalisée
 - **Déplacer des champs entre sections** — Utiliser l'action **déplacer** d'un champ (à côté de ses boutons modifier et supprimer) pour le replacer dans une autre section, en conservant sa configuration
+
+## Ressources
+
+L'onglet **Ressources** gère les deux listes proposées dans l'onglet **Ressources** de chaque carte :
+
+- **Types de liens** — la catégorie d'un lien de document (p. ex. *Documentation*, *Contrat*, *Sécurité*). Chaque type de lien porte aussi une **icône** affichée à côté du lien.
+- **Catégories de fichiers** — la catégorie attribuée à un fichier joint téléversé.
+
+Pour chaque liste, vous pouvez :
+
+- **Ajouter une entrée** — avec une clé (un identifiant en minuscules stocké sur les cartes, figé après création), un libellé d'affichage et — pour les types de liens — une icône.
+- **Modifier** le libellé, l'icône, l'ordre de tri et les traductions par langue de chaque entrée, y compris celles intégrées.
+- **Activer / désactiver** une entrée avec le commutateur — les entrées désactivées disparaissent du sélecteur, mais les valeurs existantes sur les cartes sont conservées.
+- **Supprimer** une entrée personnalisée — les entrées intégrées ne peuvent pas être supprimées, seulement désactivées.
+
+Un type de lien **Contrat** intégré est activé par défaut. Les deux listes sont incluses dans le **Transfert d'espace de travail** et se clonent ainsi entre instances.

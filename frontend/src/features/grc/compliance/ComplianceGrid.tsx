@@ -58,6 +58,7 @@ import Typography from "@mui/material/Typography";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { useDateFormat } from "@/hooks/useDateFormat";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import { useIsRtl } from "@/hooks/useIsRtl";
 import { useTheme } from "@mui/material/styles";
 import type {
   ComplianceDecision,
@@ -84,7 +85,7 @@ interface Props {
   onOpenCard: (cardId: string) => void;
   onPromoteToRisk?: (finding: TurboLensComplianceFinding) => void;
   onOpenRisk?: (riskId: string) => void;
-  onRequestAccept?: (finding: TurboLensComplianceFinding) => void;
+  onEdit?: (finding: TurboLensComplianceFinding) => void;
   onDelete?: (finding: TurboLensComplianceFinding) => Promise<void> | void;
   /** Bulk delete a selection of findings. Returns the partial-success
    *  result so the grid can surface skipped rows to the user. */
@@ -185,7 +186,7 @@ export default function ComplianceGrid({
   onOpenCard,
   onPromoteToRisk,
   onOpenRisk,
-  onRequestAccept,
+  onEdit,
   onDelete,
   onBulkDelete,
   onBulkDecisionUpdate,
@@ -199,6 +200,7 @@ export default function ComplianceGrid({
   const { t: tCommon } = useTranslation("common");
   const theme = useTheme();
   const { mode } = useThemeMode();
+  const isRtl = useIsRtl();
   const { formatDate } = useDateFormat();
 
   const [deleteConfirm, setDeleteConfirm] =
@@ -822,6 +824,8 @@ export default function ComplianceGrid({
           }}
         >
           <AgGridReact<TurboLensComplianceFinding>
+            key={isRtl ? "rtl" : "ltr"}
+            enableRtl={isRtl}
             rowData={sortedFindings}
             columnDefs={visibleColumnDefs}
             defaultColDef={defaultColDef}
@@ -857,11 +861,11 @@ export default function ComplianceGrid({
             : undefined
         }
         onOpenRisk={onOpenRisk}
-        onRequestAccept={
-          onRequestAccept
+        onEdit={
+          onEdit
             ? (f) => {
                 setFindingDrawer(null);
-                onRequestAccept(f);
+                onEdit(f);
               }
             : undefined
         }
@@ -974,7 +978,7 @@ export default function ComplianceGrid({
                 ] as ComplianceDecision[]
               ).map((d) => (
                 <MenuItem key={d} value={d}>
-                  {tCards(`compliance.lifecycle.${d}`)}
+                  {t(`compliance_decision_${d}`)}
                 </MenuItem>
               ))}
             </TextField>

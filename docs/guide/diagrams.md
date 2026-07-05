@@ -6,7 +6,23 @@ The **Diagrams** module lets you create **visual architecture diagrams** using a
 
 ## Diagram Gallery
 
-The gallery lists every diagram with a thumbnail, name, type, and the cards it references. From here you can **Create**, **Open**, **Edit details**, or **Delete** any diagram.
+The gallery lists every diagram as a compact card with a thumbnail, name, author, and the number of cards it references. **Create**, **Open**, **Edit details**, organise, or **Delete** any diagram.
+
+### Finding diagrams
+
+- **Filter sidebar** — the left rail narrows the gallery to **All diagrams**, **Created by me**, or your **Favorites**. Collapse it to a slim rail with the chevron; on small screens the **Filters** button opens it as a slide-in panel.
+- **Search** — the search box matches a diagram's name, its author, and the names of the cards drawn inside it, so you can find a diagram by what it contains.
+- **Sort** — order by recently updated, recently created, or name.
+- **Favorites** — click the star on any card to add it to your personal favorites; the **Favorites** filter then shows them all.
+
+### Groups
+
+Organize related diagrams into **groups** — shared, workspace-wide labels. A diagram can belong to several groups at once. In card view the gallery shows each group as a collapsible heading, with anything unassigned under **Ungrouped**.
+
+- Use **Manage groups** in the sidebar to create, rename, recolour, or delete groups.
+- Use **Add to groups…** from a diagram's menu to place it in one or more groups (you can create a new group inline).
+- Selecting a group in the sidebar filters the gallery to just that group.
+
 
 ## The Diagram Editor
 

@@ -96,7 +96,7 @@ import type { ColorEntry, ViewSource } from "./ViewSelector";
 import DiagramViewLegend from "./DiagramViewLegend";
 import CardDetailSidePanel from "@/components/CardDetailSidePanel";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { relationLabel, useTypeLabel } from "@/hooks/useResolveLabel";
 import { useAuthContext } from "@/hooks/AuthContext";
 import type { Card, CardType, Relation, RelationType } from "@/types";
 
@@ -109,16 +109,33 @@ const _meta = import.meta as any;
 const DRAWIO_BASE_URL: string =
   _meta.env?.VITE_DRAWIO_URL || "/drawio/index.html";
 
-const DRAWIO_URL_PARAMS = new URLSearchParams({
-  embed: "1",
-  proto: "json",
-  spin: "1",
-  modified: "unsavedChanges",
-  saveAndExit: "1",
-  noSaveBtn: "0",
-  noExitBtn: "0",
-  libs: "general;uml;c4;azure;sap",
-}).toString();
+// Default set of enabled Draw.io "More Shapes" libraries for a user who has
+// never customised them. Once a user enables "Remember this setting" in the
+// More Shapes dialog, their selection is persisted to
+// `user.ui_preferences.diagram_libraries` and restored here instead (see
+// buildDrawioUrlParams / the `librariesChanged` message handler). We drive the
+// `libs` param ourselves because the embed-mode editor re-seeds the sidebar
+// from this URL param on every load, overriding Draw.io's own persistence.
+export const DEFAULT_DIAGRAM_LIBS = "general;uml;c4;azure;sap";
+
+/** Resolve the Draw.io `libs` param value from a user's remembered library
+ *  list, falling back to the default set when nothing has been saved. */
+export function resolveDiagramLibs(saved?: string[] | null): string {
+  return saved && saved.length ? saved.join(";") : DEFAULT_DIAGRAM_LIBS;
+}
+
+function buildDrawioUrlParams(libs: string): string {
+  return new URLSearchParams({
+    embed: "1",
+    proto: "json",
+    spin: "1",
+    modified: "unsavedChanges",
+    saveAndExit: "1",
+    noSaveBtn: "0",
+    noExitBtn: "0",
+    libs,
+  }).toString();
+}
 
 const EMPTY_DIAGRAM =
   '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
@@ -142,6 +159,7 @@ interface DrawIOMessage {
     | "exit"
     | "export"
     | "configure"
+    | "librariesChanged"
     | "insertCard"
     | "createCard"
     | "edgeConnected"
@@ -153,7 +171,9 @@ interface DrawIOMessage {
     | "detachCell";
   xml?: string;
   data?: string;
+  libraries?: string;
   modified?: boolean;
+  exit?: boolean;
   x?: number;
   y?: number;
   cardId?: string;
@@ -185,6 +205,62 @@ function bootstrapDrawIO(iframe: HTMLIFrameElement) {
     if (manifestLink) manifestLink.remove();
 
     win.Draw.loadPlugin((ui: Record<string, unknown>) => {
+      /* ---------- Persist "Remember this setting" shape libraries ---------- */
+      // Draw.io keeps the enabled "More Shapes" libraries on window.mxSettings.
+      // In embed mode it does not reliably persist them itself, so we observe
+      // the enabled set and post it to the parent, which saves it to the user
+      // profile and restores it via the iframe `libs` param on the next open.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const settings = win.mxSettings as any;
+        const readLibs = (): string | null => {
+          try {
+            const libs = settings?.getLibraries?.();
+            return typeof libs === "string" ? libs : null;
+          } catch {
+            return null;
+          }
+        };
+        let lastLibs = readLibs();
+        const postLibs = (libs: string) => {
+          win.parent.postMessage(
+            JSON.stringify({ event: "librariesChanged", libraries: libs }),
+            "*",
+          );
+        };
+        // Primary: mxSettings.save() is Draw.io's "persist settings" call,
+        // fired when the user ticks "Remember this setting" and clicks Apply.
+        if (
+          settings &&
+          typeof settings.save === "function" &&
+          !settings.__turboLibsHooked
+        ) {
+          settings.__turboLibsHooked = true;
+          const origSave = settings.save;
+          settings.save = function (...args: unknown[]) {
+            const r = origSave.apply(this, args);
+            const libs = readLibs();
+            if (libs != null && libs !== lastLibs) {
+              lastLibs = libs;
+              postLibs(libs);
+            }
+            return r;
+          };
+        }
+        // Fallback: poll the enabled set for embed builds where save() is a
+        // no-op. Cheap string compare; auto-stops after 10 minutes.
+        const pollId = win.setInterval(() => {
+          const libs = readLibs();
+          if (libs != null && libs !== lastLibs) {
+            lastLibs = libs;
+            postLibs(libs);
+          }
+        }, 3000);
+        win.setTimeout(() => win.clearInterval(pollId), 600000);
+      } catch {
+        // mxSettings unavailable — non-fatal.
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const editor = ui.editor as any;
       const graph = editor?.graph;
@@ -437,10 +513,21 @@ function bootstrapDrawIO(iframe: HTMLIFrameElement) {
 /* ------------------------------------------------------------------ */
 
 export default function DiagramEditor() {
-  const { t } = useTranslation(["diagrams", "common"]);
+  const { t, i18n } = useTranslation(["diagrams", "common"]);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, refreshUser } = useAuthContext();
+  // Build the Draw.io `libs` param ONCE at mount from the user's remembered
+  // libraries. Deliberately a lazy initial state (not reactive): persisting a
+  // change calls refreshUser(), which mutates `user.ui_preferences` — if the
+  // iframe `src` tracked that, the editor would reload mid-session. The freshly
+  // saved value is picked up on the next editor open instead.
+  const [libsParam] = useState(() =>
+    resolveDiagramLibs(user?.ui_preferences?.diagram_libraries),
+  );
+  // Last value we persisted (or loaded), to skip redundant PATCHes when the
+  // `librariesChanged` watcher re-fires with an unchanged set.
+  const lastPersistedLibsRef = useRef<string>(libsParam);
   const canManage = useMemo(() => {
     const perms = user?.permissions;
     if (!perms) return false;
@@ -455,7 +542,7 @@ export default function DiagramEditor() {
 
   // Metamodel
   const { types: fsTypes, relationTypes } = useMetamodel();
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
   const fsTypesRef = useRef(fsTypes);
   fsTypesRef.current = fsTypes;
   const relTypesRef = useRef(relationTypes);
@@ -463,6 +550,10 @@ export default function DiagramEditor() {
 
   // Refs
   const pendingSaveXmlRef = useRef<string | null>(null);
+  // DrawIO's "Save & Exit" button fires a `save` event with `exit: true` (not an
+  // `exit` event). Remember the request across the async save → export chain so we
+  // can navigate away once the diagram is persisted.
+  const exitAfterSaveRef = useRef(false);
   const contextInsertPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Expand/collapse caches — survive collapse/expand cycles so locally
@@ -841,9 +932,9 @@ export default function DiagramEditor() {
     (relationTypeKey: string): string => {
       if (!relationTypeKey) return "";
       const rt = relTypesRef.current.find((x) => x.key === relationTypeKey);
-      return rt?.label || relationTypeKey;
+      return rt ? relationLabel(rt, i18n.language) : relationTypeKey;
     },
-    [],
+    [i18n.language],
   );
 
   /** Handle a commit from the ExpandMenu. Three branches:
@@ -1719,7 +1810,7 @@ export default function DiagramEditor() {
         return {
           cellId: p.cellId,
           type: p.type,
-          typeLabel: rml(typeInfo?.key ?? "", typeInfo?.translations, "label") || p.type,
+          typeLabel: typeLabel(typeInfo) || p.type,
           typeColor: typeInfo?.color || "#999",
           name: p.name,
         };
@@ -1744,7 +1835,7 @@ export default function DiagramEditor() {
         };
       }),
     );
-  }, []);
+  }, [typeLabel]);
 
   /* ---------- Create new (pending) card ---------- */
   const handleCreateCard = useCallback(
@@ -2215,6 +2306,8 @@ export default function DiagramEditor() {
         case "save":
           if (msg.xml) {
             pendingSaveXmlRef.current = msg.xml;
+            // "Save & Exit" arrives as a `save` event carrying `exit: true`.
+            exitAfterSaveRef.current = !!msg.exit;
             postToDrawIO({ action: "export", format: "svg", spinKey: "saving" });
             postToDrawIO({ action: "status", messageKey: "allChangesSaved", modified: false });
           }
@@ -2224,7 +2317,11 @@ export default function DiagramEditor() {
           if (pendingSaveXmlRef.current) {
             const xml = pendingSaveXmlRef.current;
             pendingSaveXmlRef.current = null;
-            saveDiagram(xml, msg.data);
+            const shouldExit = exitAfterSaveRef.current;
+            exitAfterSaveRef.current = false;
+            saveDiagram(xml, msg.data).then(() => {
+              if (shouldExit) navigate(`/diagrams/${id}`);
+            });
           }
           break;
 
@@ -2233,6 +2330,24 @@ export default function DiagramEditor() {
             saveDiagram(msg.xml).then(() => navigate(`/diagrams/${id}`));
           } else {
             navigate(`/diagrams/${id}`);
+          }
+          break;
+
+        case "librariesChanged":
+          if (typeof msg.libraries === "string") {
+            const libs = msg.libraries;
+            // Skip redundant writes when the watcher re-fires unchanged.
+            if (libs !== lastPersistedLibsRef.current) {
+              lastPersistedLibsRef.current = libs;
+              api
+                .patch("/users/me/ui-preferences", {
+                  diagram_libraries: libs.split(";").filter(Boolean),
+                })
+                .then(() => refreshUser())
+                .catch(() => {
+                  // Best-effort — don't disrupt editing if the save fails.
+                });
+            }
           }
           break;
 
@@ -2303,6 +2418,7 @@ export default function DiagramEditor() {
     handleConvertRequest,
     handleContainerizeRequest,
     handleDetachRequest,
+    refreshUser,
   ]);
 
   // Refresh sync panel counts whenever it opens
@@ -2582,7 +2698,7 @@ export default function DiagramEditor() {
   }
   if (!diagram) return <Typography color="error">{t("editor.notFound")}</Typography>;
 
-  const iframeSrc = `${DRAWIO_BASE_URL}?${DRAWIO_URL_PARAMS}`;
+  const iframeSrc = `${DRAWIO_BASE_URL}?${buildDrawioUrlParams(libsParam)}`;
 
   return (
     <Box

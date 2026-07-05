@@ -16,10 +16,11 @@ import Divider from "@mui/material/Divider";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import ColorPicker from "@/components/ColorPicker";
 import KeyInput, { isValidKey } from "@/components/KeyInput";
-import { useResolveLabel } from "@/hooks/useResolveLabel";
+import { useFieldLabel, useOptionLabel } from "@/hooks/useResolveLabel";
 import { LOCALE_LABELS } from "@/i18n";
 import { api, ApiError } from "@/api/client";
 import type { FieldDef, FieldOption, RelationType, TranslationMap } from "@/types";
+import { DEFAULT_OPTION_COLOR } from "./constants";
 
 /** Remove empty-string entries from a TranslationMap. Returns undefined if all empty. */
 function cleanTranslationMap(map: TranslationMap | undefined): TranslationMap | undefined {
@@ -48,7 +49,8 @@ interface Props {
 export default function RelationTypeValuesDialog({ open, relationType, onClose, onSaved }: Props) {
   const { t, i18n } = useTranslation(["admin", "common"]);
   const locale = i18n.language;
-  const rl = useResolveLabel();
+  const fieldLabel = useFieldLabel();
+  const optLabel = useOptionLabel();
 
   const [schema, setSchema] = useState<FieldDef[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +58,16 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
 
   useEffect(() => {
     if (open && relationType) {
-      // Deep clone so edits don't mutate the cached metamodel.
-      setSchema(JSON.parse(JSON.stringify(relationType.attributes_schema ?? [])));
+      // Deep clone so edits don't mutate the cached metamodel. Mark every
+      // existing dimension/option as original so its key stays locked — a row's
+      // original-ness travels with the row, so a new row never locks just
+      // because its typed key matches an existing one.
+      const cloned: FieldDef[] = JSON.parse(JSON.stringify(relationType.attributes_schema ?? []));
+      for (const f of cloned) {
+        f._original = true;
+        for (const o of f.options ?? []) o._original = true;
+      }
+      setSchema(cloned);
       setError(null);
     }
   }, [open, relationType]);
@@ -118,7 +128,7 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
     setSchema((prev) =>
       prev.map((f, i) =>
         i === fi
-          ? { ...f, options: [...(f.options ?? []), { key: "", label: "", color: "#1976d2" }] }
+          ? { ...f, options: [...(f.options ?? []), { key: "", label: "", color: DEFAULT_OPTION_COLOR }] }
           : f,
       ),
     );
@@ -137,11 +147,14 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
     setSaving(true);
     setError(null);
     // Clean translations before persisting.
-    const cleaned = schema.map((f) => ({
+    const cleaned = schema.map(({ _original, ...f }) => ({
       ...f,
       translations: cleanTranslationMap(f.translations),
-      options: (f.options ?? []).map((o) => ({
+      options: (f.options ?? []).map(({ _original: _o, ...o }) => ({
         ...o,
+        // Persist the picker's displayed default so an untouched swatch still
+        // saves a color and its badge renders (issue #718).
+        color: o.color || DEFAULT_OPTION_COLOR,
         translations: cleanTranslationMap(o.translations),
       })),
     }));
@@ -172,6 +185,22 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
         (f.options ?? []).some((o) => !o.built_in && (!isValidKey(o.key) || !o.label.trim()))),
   );
 
+  // Keys must be unique: dimension keys across the whole schema, and option keys
+  // within their dimension (counting built-in keys too — a custom key can't
+  // collide with a built-in one). Flagged red and block Save.
+  const dupKeys = (keys: string[]) => {
+    const counts = new Map<string, number>();
+    for (const k of keys) if (k) counts.set(k, (counts.get(k) || 0) + 1);
+    return new Set([...counts].filter(([, n]) => n > 1).map(([k]) => k));
+  };
+  const duplicateDimensionKeys = dupKeys(schema.map((f) => f.key));
+  const duplicateOptionKeysByField = new Map<number, Set<string>>(
+    schema.map((f, i) => [i, dupKeys((f.options ?? []).map((o) => o.key))]),
+  );
+  const hasDuplicates =
+    duplicateDimensionKeys.size > 0 ||
+    [...duplicateOptionKeysByField.values()].some((s) => s.size > 0);
+
   const managed = schema.map((f, i) => ({ f, i })).filter(({ f }) => isManaged(f));
 
   return (
@@ -200,7 +229,7 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
               {f.built_in ? (
                 <>
                   <MaterialSymbol icon="lock" size={16} color="#888" />
-                  <Typography variant="subtitle2">{rl(f.label, f.translations)}</Typography>
+                  <Typography variant="subtitle2">{fieldLabel(f)}</Typography>
                   <Chip size="small" label={t("metamodel.builtIn")} color="info" sx={{ height: 20 }} />
                 </>
               ) : (
@@ -211,6 +240,7 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
                     value={f.translations?.[locale] ?? f.label}
                     onChange={(e) => setFieldLabel(fi, e.target.value)}
                     sx={{ flex: 1 }}
+                    error={!(f.translations?.[locale] ?? f.label ?? "").trim()}
                   />
                   <Tooltip title={t("common:actions.delete")}>
                     <IconButton size="small" onClick={() => removeField(fi)}>
@@ -227,9 +257,13 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
                 label={t("metamodel.dimensionKey")}
                 value={f.key}
                 onChange={(v) => updateField(fi, { key: v })}
-                locked={!!relationType?.attributes_schema?.some((e) => e.key === f.key)}
+                locked={!!f._original}
                 lockedReason={t("metamodel.fieldEditor.keyLockedReason")}
                 sx={{ mb: 1.5 }}
+                required={!!(f.translations?.[locale] ?? f.label ?? "").trim()}
+                externalError={
+                  duplicateDimensionKeys.has(f.key) ? t("validation:key.duplicate") : undefined
+                }
               />
             )}
 
@@ -256,7 +290,7 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
                     }}
                   />
                   <Typography variant="body2" sx={{ flex: 1 }}>
-                    {rl(opt.label, opt.translations)}
+                    {optLabel(opt)}
                   </Typography>
                   {opt.hidden && (
                     <Chip size="small" label={t("metamodel.hidden")} color="warning" sx={{ height: 20 }} />
@@ -274,11 +308,15 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
                     label={t("metamodel.fieldEditor.optionKeyLabel")}
                     value={opt.key}
                     onChange={(v) => updateOption(fi, oi, { key: v })}
-                    locked={!!relationType?.attributes_schema
-                      ?.find((e) => e.key === f.key)
-                      ?.options?.some((e) => e.key === opt.key)}
+                    locked={!!opt._original}
                     lockedReason={t("metamodel.fieldEditor.optionKeyLocked")}
                     sx={{ flex: 1 }}
+                    required={!!(opt.translations?.[locale] ?? opt.label ?? "").trim()}
+                    externalError={
+                      duplicateOptionKeysByField.get(fi)?.has(opt.key)
+                        ? t("validation:key.duplicate")
+                        : undefined
+                    }
                   />
                   <TextField
                     size="small"
@@ -286,10 +324,11 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
                     value={opt.translations?.[locale] ?? opt.label}
                     onChange={(e) => setOptionLabel(fi, oi, e.target.value)}
                     sx={{ flex: 1 }}
+                    error={!(opt.translations?.[locale] ?? opt.label ?? "").trim()}
                   />
                   <ColorPicker
                     compact
-                    value={opt.color || "#1976d2"}
+                    value={opt.color || DEFAULT_OPTION_COLOR}
                     onChange={(c) => updateOption(fi, oi, { color: c })}
                   />
                   <IconButton size="small" onClick={() => removeValue(fi, oi)}>
@@ -318,7 +357,7 @@ export default function RelationTypeValuesDialog({ open, relationType, onClose, 
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t("common:actions.cancel")}</Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving || invalid}>
+        <Button variant="contained" onClick={handleSave} disabled={saving || invalid || hasDuplicates}>
           {t("common:actions.save")}
         </Button>
       </DialogActions>

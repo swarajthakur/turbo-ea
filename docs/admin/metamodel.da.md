@@ -63,7 +63,7 @@ Det særlige sektionsnavn `__description` tilføjer felter til Beskrivelsessekti
 
 #### Datakvalitetsscore
 
-Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fire indbyggede faktorer – håndteres ét sted: fanen **Datakvalitet** i korttypeeditoren. (Editoren er organiseret i faner – Generelt, Relationer, Interessentroller og Datakvalitet – oversættelser er tilgængelige via ikonet i headeren.)
+Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fem indbyggede faktorer – håndteres ét sted: fanen **Datakvalitet** i korttypeeditoren. (Editoren er organiseret i faner – Generelt, Relationer, Interessentroller og Datakvalitet – oversættelser er tilgængelige via ikonet i headeren.)
 
 Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også viser det underliggende tal:
 
@@ -72,7 +72,7 @@ Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også
 - **Vigtig (2)** – tæller dobbelt.
 - **Kritisk (3)** – tæller tredobbelt.
 
-Panelet viser de fire **indbyggede faktorer** – **Beskrivelse**, **Livscyklus** (om der er angivet en livscyklusdato), **obligatoriske relationer** og **obligatoriske tags** – efterfulgt af hvert felt grupperet efter sin sektion, hver med den samme skyder. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
+Panelet viser de fem **indbyggede faktorer** – **Beskrivelse**, **Livscyklus** (om der er angivet en livscyklusdato), **obligatoriske relationer**, **obligatoriske tags** og **Interessentroller** (hver rolle, der er defineret for typen, er opfyldt, når en interessent tildeles) – efterfulgt af hvert felt grupperet efter sin sektion, hver med den samme skyder. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
 
 En **scorens sammensætning**-bjælke øverst i panelet viser hver faktors andel af den maksimalt mulige score, så du med et blik kan se, hvilke faktorer der dominerer. I kortlayoutet på fanen **Generelt** viser hvert felt – og de indbyggede sektioner Beskrivelse, Livscyklus og Relationer – et lille mærke med sit aktuelle niveaunummer, så du kan se vægtningen uden at forlade fanen.
 
@@ -224,3 +224,19 @@ For hver korttype styrer afsnittet **Layout** i typepanelet, hvordan kortdetalje
 - **Standardudvidelse** — Vælg, om hver sektion starter udvidet eller sammenklappet
 - **Kolonnelayout** — Indstil 1 eller 2 kolonner pr. brugerdefineret sektion
 - **Flyt felter mellem afsnit** — Brug et felts **flyt**-handling (ved siden af knapperne rediger og slet) til at flytte det til et andet afsnit, mens dets konfiguration bevares
+
+## Ressourcer
+
+Fanen **Ressourcer** administrerer de to lister, der tilbydes på hver karts **Ressourcer**-fane:
+
+- **Linktyper** — kategorien for et dokumentlink (f.eks. *Dokumentation*, *Kontrakt*, *Sikkerhed*). Hver linktype har også et **ikon**, der vises ved siden af linket.
+- **Filkategorier** — kategorien, der tildeles en uploadet filvedhæftning.
+
+For hver liste kan du:
+
+- **Tilføje en post** — med en nøgle (en identifikator med små bogstaver, der gemmes på kort og er låst efter oprettelse), en visningsetiket og — for linktyper — et ikon.
+- **Redigere** etiket, ikon, sorteringsrækkefølge og oversættelser pr. sprog for enhver post, inklusive de indbyggede.
+- **Aktivere / deaktivere** en post med kontakten — deaktiverede poster forsvinder fra vælgeren, men eksisterende værdier på kort bevares.
+- **Slette** en brugerdefineret post — indbyggede poster kan ikke slettes, kun deaktiveres.
+
+En indbygget **Kontrakt**-linktype er aktiveret som standard. Begge lister indgår i **Workspace-overførsel**, så dine tilpasninger klones mellem instanser.

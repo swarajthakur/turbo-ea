@@ -281,6 +281,23 @@ Layer order is invariant. Layer color = `LAYER_COLORS[layer]` from `theme/tokens
 - Within each layer: Dagre graph layout for connected nodes; grid layout (max 3 columns) for disconnected nodes.
 - Between layers: vertical stacking with a 72 px gap, in the fixed order above.
 
+**Interaction & toolbar** (`LayeredDependencyView.tsx`)
+
+The view ships with a top-bar toolbar and is directly manipulable:
+
+- **Drag** any card to rearrange it; **Reset layout** restores the automatic Dagre arrangement and re-fits. Manual positions are session-only and reset when the underlying graph changes (navigation / new data).
+- **Fullscreen** uses the browser Fullscreen API on the view container. MUI overlays (settings popover, export menu) are portalled into the container while fullscreen so they remain visible.
+- **Export** renders the whole graph (not just the visible viewport) to **PNG** or **SVG** via `html-to-image` + `getViewportForBounds`.
+- **Background** cycles dots → grid → none. Default is **dots**.
+- **Card display** menu: toggle the type label, toggle a lifecycle-status dot (`getCurrentPhase`), toggle **hierarchy markers** (a small chevron on a card that has a parent / children not currently on the diagram — purely informational, computed from `parent_id` + a consumer-supplied `hasChildren` flag, and disappears once the parent/child is revealed), and pick extra attribute fields. The first two chosen fields render on the card body; the full set (plus type and lifecycle) appears in the card's hover tooltip. Settings persist to `localStorage` (`tea.ldv.display.*`). Note the split of concerns: the **top-bar Card display menu controls what's drawn on cards**; the **bottom-left toolbar controls exploration** (Highlight / Expand / Reveal parent / Reveal children).
+- **Bottom-left `Controls` are split into two groups** by a divider rule: a **view group** (**Fullscreen**, then zoom +/-, **Re-center**, **Reset view**) and an **exploration group** (Highlight / Expand / Reveal parent / Reveal children). Reset and Fullscreen live here, not in the top bar. The whole panel is hand-ordered: default zoom + fitView are disabled (`showZoom={false} showFitView={false}`) and every button is a custom `ControlButton`, so Fullscreen can sit first and the fitView frame icon (too like Fullscreen) is swapped for a map-pin. The divider is a full-width inline-styled `<div>` — a filled light-grey band with thin top/bottom rules (an earlier bare 1px line with margins let the canvas show through and read as a glitch).
+  - **Fullscreen** (`fullscreen` / `fullscreen_exit`, first button): toggles fullscreen on the view container.
+  - **Re-center** (`location_on` map-pin): custom `fitView()` button — the stock frame icon read too much like the Fullscreen button.
+  - **Reset view** (`restart_alt`): a *full* reset, not just a layout reset — it undoes manual drags **and** calls the consumer's `onReset` to clear all exploration (expand + reveals) and navigation history, returning to the base centre.
+- **Interaction / exploration modes** (mutually exclusive, click again to turn off): **Highlight** (`highlight`) sticky-highlights a card's connections on click; **Expand** (`alt_route`) reveals *all* of a clicked card's neighbours; **Reveal parent** (`move_up`) and **Reveal children** (`move_down`) reveal only the clicked card's hierarchy parent / direct children (targeted, `parent_id`-based). All three delegate to the consumer (which holds the full graph) via `onNodeExpand` / `onNodeReveal`. Turning a Reveal tool off only stops click-to-reveal — the surfaced cards **persist so parent and child reveals can be layered in one view**, and clear only on re-center or Reset view (the consumer clears its reveal sets on `center` change / `onReset`). The Reveal tools appear only when the consumer passes `onNodeReveal` — the static TurboLens consumers omit them.
+
+These are presentation/interaction concerns layered in the component — they do **not** change the layout-geometry engine (`layeredDependencyLayout.ts`), so every consumer of the view gets them for free.
+
 **What the view is — and isn't**
 
 - It **is** an opinionated, layered EA dependency view, inspired by ArchiMate's layering principle and the C4 Model's "good defaults, fewer choices" philosophy.

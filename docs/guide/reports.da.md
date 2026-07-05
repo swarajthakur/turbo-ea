@@ -72,18 +72,34 @@ Komponenter vises som vandrette bjælker, der spænder over deres livscyklus-fas
 
 ![Lagdelt afhængighedsvisning](../assets/img/en/13b_dependencies_c4.png)
 
-Skift til **lagdelt afhængighedsvisning** ved hjælp af view-mode-knapperne i værktøjslinjen. Dette er Turbo EA's husnotation til at vise afhængigheder mellem kort på tværs af de fire EA-lag — inspireret af ArchiMate's lagdeling og C4-modellens "good defaults"-filosofi, men adskilt fra begge:
+Skift til **lagdelt afhængighedsvisning** ved hjælp af view-mode-knapperne i værktøjslinjen. Dette er Turbo EA's husnotation til at vise afhængigheder mellem kort på tværs af de fire EA-lag — inspireret af ArchiMate's lagdeling og C4-modellens »good defaults«-filosofi, men adskilt fra begge. Den samme visning genbruges på Kortdetalje-siden (viser kortets umiddelbare afhængigheds­nabolag) og i [TurboLens Architect](turbolens.md#architecture-ai)-guiden, så afhængigheder ser ens ud overalt.
 
-- **Lagdelte svømmebaner** — Kort er grupperet efter arkitekturlag (Strategy & Transformation, Business Architecture, Application & Data, Technical Architecture) inden i stiplede grænse-rektangler, i fast rækkefølge
-- **Type-farvede noder** — Hver node er farvet efter sin korttype og mærket med kortets navn og type
-- **Retningsbestemte mærkede kanter** — Kanter følger metamodel-relations-retningen (source → target) og bærer relationens forward label (f.eks. *uses*, *supports*, *runs on*)
-- **Foreslåede kort** — I TurboLens Architect-guiden har endnu-ikke-committede kort en stiplet kant og et grønt **NEW**-badge
-- **Interaktivt lærred** — Panorer, zoom og brug minimappet til at navigere store diagrammer
-- **Klik for at inspicere** — Klik på en node for at åbne sidepanelet med kortdetaljer
-- **Ingen centerkort påkrævet** — Den lagdelte afhængighedsvisning viser alle kort, der matcher det aktuelle type-filter
-- **Fremhævning af forbindelser** — Hold musen over et kort for at fremhæve dets forbindelser; på touch-enheder bruges fremhævnings-til/fra-knappen i kontrolpanelet til tap-fremhævning i stedet
+**Læsning af diagrammet**
 
-Den samme visning genbruges på Kortdetalje-siden (viser kortets umiddelbare afhængigheds­nabolag) og i [TurboLens Architect](turbolens.md#architecture-ai)-guiden, så afhængigheder ser ens ud overalt.
+- **Lagdelte svømmebaner** — Kort er grupperet efter arkitekturlag (Strategy & Transformation, Business Architecture, Application & Data, Technical Architecture) inden i stiplede grænse-rektangler, i fast rækkefølge.
+- **Type-farvede noder med ikoner** — Hver node er farvet efter sin korttype og viser korttype-ikonet i sit øverste venstre hjørne, så typer er genkendelige med et øjekast, selv uden farve.
+- **Retningsbestemte mærkede kanter** — Kanter følger metamodel-relations-retningen (source → target) og bærer relationens forward label (f.eks. *uses*, *supports*, *runs on*). Når en relation er kvalificeret med en værdi (såsom en Supporttype *Førende*), vises den i kantede parenteser efter etiketten — for eksempel *supports [Førende]*.
+- **Foreslåede kort** — I TurboLens Architect-guiden har endnu-ikke-committede kort en stiplet kant og et grønt **NY**-badge.
+
+**Udforskning og navigation**
+
+- **Panorering, zoom, minimap** — Træk i lærredet for at panorere, scroll for at zoome, og brug minimappet til at navigere store diagrammer.
+- **Klik for at inspicere** — Klik på en node for at åbne sidepanelet med kortdetaljer.
+- **Re-centrér** — Shift-klik eller hold på et kort for at centrere diagrammet om det; værktøjslinjens knapper **Tilbage til kortvælger**, **Forrige kort** og **Næste kort** trinner gennem din navigationshistorik.
+- **Fremhævningstilstand** — Hold musen over et kort for at fremhæve dets forbindelser; på touch-enheder slås **Fremhævningstilstand: klik på et kort for at fremhæve dets forbindelser** til i kontrolpanelet for at tap-fremhæve i stedet.
+- **Udvidelsestilstand** — Slå **Udvidelsestilstand: klik på et kort for at afsløre alle dets relationer** til i kontrolpanelet, og klik derefter på et kort for at afsløre alle dets relationer efter behov.
+- **Vis forælder / Vis underordnede** — To målrettede alternativer til udvidelsestilstand. Slå **Vis forælder** (pil op) eller **Vis underordnede** (pil ned) til i kontrolpanelet, og klik derefter på et kort for kun at tilføje dets overordnede hierarkielement eller dets direkte underordnede til diagrammet. Viste kort bliver på diagrammet — så du kan kombinere forældre og underordnede — og fjernes, når du centrerer visningen igen eller nulstiller den.
+- **Ingen centerkort påkrævet** — På Afhængighedsrapporten viser den lagdelte afhængighedsvisning alle kort, der matcher det aktuelle type-filter, så du behøver ikke at vælge et startkort først.
+
+**Tilpasning af visningen** (fra værktøjslinjen)
+
+- **Kortvisningsmenu** — Slå **type**-etiketten og et **livscyklus-statuspunkt** til, slå **hierarki-markører** til (en lille vinkel på hvert kort, der har en forælder ovenover eller underordnede nedenunder, som ikke vises på diagrammet — et hint om at bruge Vis-værktøjerne), og vælg **ekstra attributfelter** til hvert kort — de to første vises på kortet, og hele sættet vises i værktøjstippet ved at holde musen over. Valgene huskes mellem besøg.
+- **Vis kort ved slutningen af deres levetid** — Relaterede kort, hvis livscyklus har nået slutningen af levetiden, skjules som standard for at holde grafen fokuseret; slå denne til/fra (i menuen **Kortvisning**) for at vise dem igen. Det kort, du er centreret om, vises altid, også hvis det selv er ved slutningen af sin levetid.
+- **Vis relationsværdier** — Mange relationer kan kvalificeres med en værdi (f.eks. understøtter en applikation en kapabilitet som *Førende*, *Understøttende* eller *Ingen understøttelse*). Når den er slået til (standard), vises disse værdier i kantede parenteser ved siden af relationsetiketten (*supports [Førende]*) og inkluderes i billedeksporter. Slå den fra i menuen **Kortvisning** for en renere visning; relationer uden værdi er uændrede uanset hvad.
+- **Omarrangér** — Træk et kort for at flytte det inden for dets lag, eller træk en hel **lag-boks** for at flytte den med alle dens kort. **Nulstil visning** (i venstre værktøjslinje) gendanner den automatiske placering og rydder al udforskning.
+- **Baggrund** — Skift lærredsbaggrunden mellem gitter, prikker og ingen.
+- **Eksport og fuldskærm** — Eksportér diagrammet til **PNG** eller **SVG**, eller åbn det i **fuldskærm**.
+- **Opret diagram** — Forvandl den aktuelle visning til et nyt, redigerbart diagram i [diagrammodulet](diagrams.md). Kort, relationer og de fire arkitekturlag genskabes, og hver figur forbliver knyttet til sit inventarkort. Du bliver bedt om et navn og føres derefter direkte til det nye diagram. Tilgængelig for brugere, der kan oprette diagrammer.
 
 ## Omkostningsrapport
 

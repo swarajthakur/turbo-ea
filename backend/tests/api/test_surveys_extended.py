@@ -19,11 +19,14 @@ from sqlalchemy import select
 
 from app.core.permissions import MEMBER_PERMISSIONS, VIEWER_PERMISSIONS
 from app.models.event import Event
+from app.models.relation import Relation
 from app.models.stakeholder import Stakeholder
 from tests.conftest import (
     auth_headers,
     create_card,
     create_card_type,
+    create_relation,
+    create_relation_type,
     create_role,
     create_stakeholder_role_def,
     create_user,
@@ -278,6 +281,47 @@ class TestMySurveys:
         item = found[0]["items"][0]
         assert item["card_id"] == str(survey_env["card"].id)
         assert item["card_name"] == "Survey Test App"
+
+    async def test_closed_survey_not_shown_as_pending(self, client, db, survey_env):
+        """A closed survey drops off /surveys/my and the badge count (issue #746)."""
+        admin = survey_env["admin"]
+        member = survey_env["member"]
+
+        survey = await _create_draft_survey(client, admin)
+        survey_id = survey["id"]
+
+        # Send the survey so the member has a pending response.
+        send_resp = await client.post(
+            f"/api/v1/surveys/{survey_id}/send",
+            headers=auth_headers(admin),
+        )
+        assert send_resp.status_code == 200
+
+        # Sanity: the member sees it while the survey is active.
+        resp = await client.get("/api/v1/surveys/my", headers=auth_headers(member))
+        assert resp.status_code == 200
+        assert any(s["survey_id"] == survey_id for s in resp.json())
+
+        badge = await client.get("/api/v1/notifications/badge-counts", headers=auth_headers(member))
+        assert badge.status_code == 200
+        assert badge.json()["pending_surveys"] >= 1
+
+        # Admin closes the survey without the member ever responding.
+        close_resp = await client.post(
+            f"/api/v1/surveys/{survey_id}/close",
+            headers=auth_headers(admin),
+        )
+        assert close_resp.status_code == 200
+
+        # The closed survey must no longer appear in the member's Todos.
+        resp = await client.get("/api/v1/surveys/my", headers=auth_headers(member))
+        assert resp.status_code == 200
+        assert not any(s["survey_id"] == survey_id for s in resp.json())
+
+        # ...and the badge count drops back to zero.
+        badge = await client.get("/api/v1/notifications/badge-counts", headers=auth_headers(member))
+        assert badge.status_code == 200
+        assert badge.json()["pending_surveys"] == 0
 
     async def test_non_targeted_user_sees_no_surveys(self, client, db, survey_env):
         """A user who is not a stakeholder on any matching card sees nothing."""
@@ -1098,3 +1142,164 @@ class TestCardIdsFilter:
         # Each field carries at least its key + current_value so the response form
         # can render it; translation maps are added when the live metamodel has any
         assert all("key" in f and "current_value" in f for f in data["fields"])
+
+
+# ---------------------------------------------------------------------------
+# Relation survey fields — maintain/confirm relationships, not just attributes
+# ---------------------------------------------------------------------------
+
+
+REL_FIELD = {
+    "key": "rel:relAppToITC:outgoing",
+    "section": "",
+    "label": "Uses",
+    "type": "relation",
+    "kind": "relation",
+    "relation_type_key": "relAppToITC",
+    "direction": "outgoing",
+    "related_type_key": "ITComponent",
+    "action": "maintain",
+}
+
+
+@pytest.fixture
+async def relation_survey_env(db, survey_env):
+    """Augment survey_env with an ITComponent type, an Application→ITComponent
+    relation type, two peer components, and an existing link from the card."""
+    await create_card_type(db, key="ITComponent", label="IT Component")
+    await create_relation_type(
+        db,
+        key="relAppToITC",
+        label="Uses",
+        reverse_label="Used by",
+        source_type_key="Application",
+        target_type_key="ITComponent",
+    )
+    card = survey_env["card"]
+    itc_current = await create_card(db, card_type="ITComponent", name="Current Component")
+    itc_new = await create_card(db, card_type="ITComponent", name="New Component")
+    # Card already links to the current component.
+    await create_relation(db, type_key="relAppToITC", source_id=card.id, target_id=itc_current.id)
+    return {**survey_env, "itc_current": itc_current, "itc_new": itc_new}
+
+
+class TestRelationSurveyFields:
+    async def test_response_form_lists_current_related_cards(self, client, db, relation_survey_env):
+        """The response form returns the card's currently-linked peers as the
+        relation field's current_value."""
+        admin = relation_survey_env["admin"]
+        member = relation_survey_env["member"]
+        card = relation_survey_env["card"]
+        itc_current = relation_survey_env["itc_current"]
+
+        survey = await _create_draft_survey(
+            client, admin, fields=[REL_FIELD], target_filters={"card_ids": [str(card.id)]}
+        )
+        await client.post(f"/api/v1/surveys/{survey['id']}/send", headers=auth_headers(admin))
+
+        form = await client.get(
+            f"/api/v1/surveys/{survey['id']}/respond/{card.id}",
+            headers=auth_headers(member),
+        )
+        assert form.status_code == 200
+        rel_field = form.json()["fields"][0]
+        assert rel_field["kind"] == "relation"
+        assert rel_field["current_value"] == [
+            {"id": str(itc_current.id), "name": "Current Component"}
+        ]
+
+    async def test_apply_syncs_relations(self, client, db, relation_survey_env):
+        """Applying a relation response adds the proposed links and removes the
+        ones the respondent dropped."""
+        admin = relation_survey_env["admin"]
+        member = relation_survey_env["member"]
+        card = relation_survey_env["card"]
+        itc_current = relation_survey_env["itc_current"]
+        itc_new = relation_survey_env["itc_new"]
+
+        survey = await _create_draft_survey(
+            client, admin, fields=[REL_FIELD], target_filters={"card_ids": [str(card.id)]}
+        )
+        await client.post(f"/api/v1/surveys/{survey['id']}/send", headers=auth_headers(admin))
+
+        # Respondent replaces the current component with the new one.
+        submit = await client.post(
+            f"/api/v1/surveys/{survey['id']}/respond/{card.id}",
+            json={
+                "responses": {
+                    REL_FIELD["key"]: {
+                        "new_value": [{"id": str(itc_new.id), "name": "New Component"}],
+                        "confirmed": False,
+                    }
+                }
+            },
+            headers=auth_headers(member),
+        )
+        assert submit.status_code == 200
+        response_id = submit.json()["response_id"]
+
+        apply = await client.post(
+            f"/api/v1/surveys/{survey['id']}/apply",
+            json={"response_ids": [response_id]},
+            headers=auth_headers(admin),
+        )
+        assert apply.status_code == 200, apply.json()
+        assert apply.json()["applied"] == 1
+
+        rels = (
+            (
+                await db.execute(
+                    select(Relation).where(
+                        Relation.type == "relAppToITC", Relation.source_id == card.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        targets = {r.target_id for r in rels}
+        assert itc_new.id in targets
+        assert itc_current.id not in targets
+
+    async def test_apply_confirmed_relation_leaves_links_untouched(
+        self, client, db, relation_survey_env
+    ):
+        """A confirmed relation field (no change proposed) must not alter links."""
+        admin = relation_survey_env["admin"]
+        member = relation_survey_env["member"]
+        card = relation_survey_env["card"]
+        itc_current = relation_survey_env["itc_current"]
+
+        survey = await _create_draft_survey(
+            client, admin, fields=[REL_FIELD], target_filters={"card_ids": [str(card.id)]}
+        )
+        await client.post(f"/api/v1/surveys/{survey['id']}/send", headers=auth_headers(admin))
+
+        submit = await client.post(
+            f"/api/v1/surveys/{survey['id']}/respond/{card.id}",
+            json={"responses": {REL_FIELD["key"]: {"new_value": None, "confirmed": True}}},
+            headers=auth_headers(member),
+        )
+        assert submit.status_code == 200
+        response_id = submit.json()["response_id"]
+
+        apply = await client.post(
+            f"/api/v1/surveys/{survey['id']}/apply",
+            json={"response_ids": [response_id]},
+            headers=auth_headers(admin),
+        )
+        assert apply.status_code == 200
+        assert apply.json()["applied"] == 1
+
+        rels = (
+            (
+                await db.execute(
+                    select(Relation).where(
+                        Relation.type == "relAppToITC", Relation.source_id == card.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert {r.target_id for r in rels} == {itc_current.id}

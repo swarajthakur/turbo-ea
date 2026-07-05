@@ -63,7 +63,7 @@ El nombre de sección especial `__description` agrega campos a la sección Descr
 
 #### Puntuación de calidad de datos
 
-La puntuación de **calidad de datos** de una tarjeta mide de forma ponderada cuán completa está. Cada factor que contribuye —cada campo y cuatro factores integrados— se gestiona en un solo lugar: la pestaña **Calidad de datos** del editor del tipo de tarjeta. (El editor se organiza en pestañas: General, Relaciones, Roles de partes interesadas y Calidad de datos; las traducciones están disponibles desde el icono del encabezado.)
+La puntuación de **calidad de datos** de una tarjeta mide de forma ponderada cuán completa está. Cada factor que contribuye —cada campo y cinco factores integrados— se gestiona en un solo lugar: la pestaña **Calidad de datos** del editor del tipo de tarjeta. (El editor se organiza en pestañas: General, Relaciones, Roles de partes interesadas y Calidad de datos; las traducciones están disponibles desde el icono del encabezado.)
 
 La importancia de cada factor se establece con un control deslizante simple de cuatro niveles, que también muestra el número subyacente:
 
@@ -72,7 +72,7 @@ La importancia de cada factor se establece con un control deslizante simple de c
 - **Importante (2)**: cuenta el doble.
 - **Crítico (3)**: cuenta el triple.
 
-El panel enumera los cuatro **factores integrados** —**Descripción**, **Ciclo de vida** (si hay alguna fecha de ciclo de vida establecida), **Relaciones obligatorias** y **Etiquetas obligatorias**— seguidos de cada campo agrupado por su sección, todos con el mismo control deslizante. Por ejemplo, establezca el **Ciclo de vida** en *Ignorar* para un tipo cuyas tarjetas legítimamente nunca llevan fechas, para que no se penalicen.
+El panel enumera los cinco **factores integrados** —**Descripción**, **Ciclo de vida** (si hay alguna fecha de ciclo de vida establecida), **Relaciones obligatorias** , **Etiquetas obligatorias** y **Roles de partes interesadas** (cada rol definido para el tipo se cumple cuando se le asigna una parte interesada)— seguidos de cada campo agrupado por su sección, todos con el mismo control deslizante. Por ejemplo, establezca el **Ciclo de vida** en *Ignorar* para un tipo cuyas tarjetas legítimamente nunca llevan fechas, para que no se penalicen.
 
 Una barra de **composición de la puntuación** en la parte superior del panel muestra la proporción de cada factor en la puntuación máxima posible, para ver de un vistazo qué factores dominan. En el diseño de la tarjeta de la pestaña **Main**, cada campo —y las secciones integradas Descripción, Ciclo de vida y Relaciones— muestra una pequeña insignia con su nivel actual, para ver la ponderación sin salir de esa pestaña.
 
@@ -224,3 +224,19 @@ Para cada tipo de ficha, la sección **Diseño** en el panel del tipo controla c
 - **Expansión predeterminada** — Elija si cada sección comienza expandida o colapsada
 - **Diseño de columnas** — Configure 1 o 2 columnas por sección personalizada
 - **Mover campos entre secciones** — Usar la acción **mover** de un campo (junto a sus botones de editar y eliminar) para reubicarlo en otra sección, conservando su configuración
+
+## Recursos
+
+La pestaña **Recursos** gestiona las dos listas que se ofrecen en la pestaña **Recursos** de cada tarjeta:
+
+- **Tipos de enlace** — la categoría de un enlace de documento (p. ej. *Documentación*, *Contrato*, *Seguridad*). Cada tipo de enlace lleva además un **icono** que se muestra junto al enlace.
+- **Categorías de archivo** — la categoría asignada a un archivo adjunto subido.
+
+Para cada lista puede:
+
+- **Añadir una entrada** — con una clave (un identificador en minúsculas almacenado en las tarjetas, fijo tras crearse), una etiqueta visible y — para los tipos de enlace — un icono.
+- **Editar** la etiqueta, el icono, el orden y las traducciones por idioma de cualquier entrada, incluidas las integradas.
+- **Activar / desactivar** una entrada con el interruptor — las entradas desactivadas desaparecen del selector, pero se conservan los valores existentes en las tarjetas.
+- **Eliminar** una entrada personalizada — las entradas integradas no se pueden eliminar, solo desactivar.
+
+Un tipo de enlace **Contrato** integrado viene activado por defecto. Ambas listas se incluyen en la **Transferencia de espacio de trabajo**, por lo que sus personalizaciones se clonan entre instancias.

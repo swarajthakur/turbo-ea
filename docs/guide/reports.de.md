@@ -72,18 +72,34 @@ Der **Abhängigkeitsbericht** visualisiert **Verbindungen zwischen Komponenten**
 
 ![Layered Dependency View](../assets/img/en/13b_dependencies_c4.png)
 
-Wechseln Sie über die Ansichtsmodus-Schaltflächen in der Symbolleiste zur **Layered Dependency View**. Dies ist die hauseigene Notation von Turbo EA, um Abhängigkeiten zwischen Karten über die vier EA-Ebenen hinweg darzustellen — inspiriert vom Schichtenprinzip von ArchiMate und der „Good Defaults"-Philosophie des C4-Modells, aber von beiden zu unterscheiden:
+Wechseln Sie über die Ansichtsmodus-Schaltflächen in der Symbolleiste zur **Layered Dependency View**. Dies ist die hauseigene Notation von Turbo EA, um Abhängigkeiten zwischen Karten über die vier EA-Ebenen hinweg darzustellen — inspiriert vom Schichtenprinzip von ArchiMate und der „Good Defaults"-Philosophie des C4-Modells, aber von beiden zu unterscheiden. Dieselbe Ansicht wird auf der Kartendetailseite (zeigt die unmittelbare Abhängigkeits-Nachbarschaft der Karte) und im [TurboLens-Architect](turbolens.md#architecture-ai)-Wizard wiederverwendet, sodass Abhängigkeiten überall gleich aussehen.
 
-- **Geschichtete Swimlanes** — Karten werden nach Architekturebene (Strategie & Transformation, Geschäftsarchitektur, Anwendung & Daten, Technische Architektur) in gestrichelten Grenzrechtecken in fester Reihenfolge gruppiert
-- **Typ-farbige Knoten** — Jeder Knoten ist nach seinem Kartentyp eingefärbt und mit Kartenname und Typ beschriftet
-- **Gerichtete, beschriftete Kanten** — Kanten folgen der Beziehungsrichtung des Metamodells (Quelle → Ziel) und tragen die Vorwärtsbeschriftung der Beziehung (z. B. *verwendet*, *unterstützt*, *läuft auf*)
-- **Vorgeschlagene Karten** — Im TurboLens-Architect-Wizard haben noch nicht festgeschriebene Karten einen gestrichelten Rand und ein grünes **NEW**-Abzeichen
-- **Interaktive Leinwand** — Schwenken, Zoomen und die Minimap nutzen, um große Diagramme zu navigieren
-- **Klicken zum Inspizieren** — Klicken Sie auf einen beliebigen Knoten, um das Kartendetail-Seitenpanel zu öffnen
-- **Kein Zentralknoten erforderlich** — Die Layered Dependency View zeigt alle Karten an, die dem aktuellen Typfilter entsprechen
-- **Verbindungshervorhebung** — Fahren Sie mit der Maus über eine Karte, um ihre Verbindungen hervorzuheben; auf Touch-Geräten verwenden Sie die Hervorhebungs-Schaltfläche im Bedienfeld zum Tippen-Hervorheben
+**Das Diagramm lesen**
 
-Dieselbe Ansicht wird auf der Kartendetailseite (zeigt die unmittelbare Abhängigkeits-Nachbarschaft der Karte) und im [TurboLens-Architect](turbolens.md#architecture-ai)-Wizard wiederverwendet, sodass Abhängigkeiten überall gleich aussehen.
+- **Geschichtete Swimlanes** — Karten werden nach Architekturebene (Strategie & Transformation, Geschäftsarchitektur, Anwendung & Daten, Technische Architektur) in gestrichelten Grenzrechtecken in fester Reihenfolge gruppiert.
+- **Typ-farbige Knoten mit Symbolen** — Jeder Knoten ist nach seinem Kartentyp eingefärbt und zeigt das Symbol des Kartentyps in seiner oberen linken Ecke, sodass Typen auch ohne Farbe auf einen Blick erkennbar sind.
+- **Gerichtete, beschriftete Kanten** — Kanten folgen der Beziehungsrichtung des Metamodells (Quelle → Ziel) und tragen die Vorwärtsbeschriftung der Beziehung (z. B. *verwendet*, *unterstützt*, *läuft auf*). Wenn eine Beziehung mit einem Wert qualifiziert ist (etwa einem Unterstützungstyp *Führend*), erscheint dieser in Klammern hinter der Beschriftung — zum Beispiel *unterstützt [Führend]*.
+- **Vorgeschlagene Karten** — Im TurboLens-Architect-Wizard haben noch nicht festgeschriebene Karten einen gestrichelten Rand und ein grünes **NEU**-Abzeichen.
+
+**Erkunden und navigieren**
+
+- **Schwenken, Zoomen, Minimap** — Ziehen Sie die Leinwand zum Schwenken, scrollen Sie zum Zoomen und nutzen Sie die Minimap, um große Diagramme zu navigieren.
+- **Klicken zum Inspizieren** — Klicken Sie auf einen beliebigen Knoten, um das Kartendetail-Seitenpanel zu öffnen.
+- **Neu zentrieren** — Mit Umschalt+Klick oder langem Drücken auf eine Karte zentrieren Sie das Diagramm auf sie; die Symbolleisten-Schaltflächen **Zurück zur Kartenauswahl**, **Vorherige Karte** und **Nächste Karte** durchlaufen Ihren Navigationsverlauf.
+- **Hervorhebungsmodus** — Fahren Sie mit der Maus über eine Karte, um ihre Verbindungen hervorzuheben; aktivieren Sie auf Touch-Geräten den **Hervorhebungsmodus** im Bedienfeld, um stattdessen per Tippen hervorzuheben.
+- **Erweiterungsmodus** — Aktivieren Sie den **Erweiterungsmodus** im Bedienfeld und klicken Sie dann auf eine Karte, um bei Bedarf alle ihre Beziehungen anzuzeigen.
+- **Übergeordnetes anzeigen / Untergeordnete anzeigen** — Zwei gezielte Alternativen zum Erweiterungsmodus. Aktivieren Sie **Übergeordnetes anzeigen** (Pfeil nach oben) oder **Untergeordnete anzeigen** (Pfeil nach unten) im Bedienfeld und klicken Sie dann auf eine Karte, um nur ihr übergeordnetes Hierarchieelement oder ihre direkten untergeordneten Elemente zum Diagramm hinzuzufügen. Angezeigte Karten bleiben im Diagramm — so können Sie übergeordnete und untergeordnete Elemente kombinieren — und werden beim erneuten Zentrieren oder Zurücksetzen der Ansicht entfernt.
+- **Kein Zentralknoten erforderlich** — Im Abhängigkeitsbericht zeigt die Layered Dependency View alle Karten an, die dem aktuellen Typfilter entsprechen, sodass Sie nicht zuerst eine Startkarte auswählen müssen.
+
+**Die Ansicht anpassen** (über die Symbolleiste)
+
+- **Menü Kartenanzeige** — Aktivieren Sie das **Typ**-Label und einen **Lebenszyklus-Statuspunkt**, schalten Sie **Hierarchie-Markierungen** ein (ein kleiner Pfeil auf jeder Karte, die ein nicht angezeigtes übergeordnetes Element darüber oder untergeordnete Elemente darunter hat — ein Hinweis, die Anzeige-Werkzeuge zu verwenden) und wählen Sie **zusätzliche Attributfelder** für jede Karte — die ersten beiden erscheinen auf der Karte, der vollständige Satz im Tooltip beim Überfahren. Die Auswahl wird zwischen Besuchen gespeichert.
+- **End-of-Life-Karten anzeigen** — Verbundene Karten, deren Lebenszyklus das Ende der Lebensdauer erreicht hat, werden standardmäßig ausgeblendet, damit das Diagramm fokussiert bleibt; aktivieren Sie diese Umschaltung (im Menü **Kartenanzeige**), um sie wieder einzublenden. Die zentrierte Karte wird immer angezeigt, auch wenn sie selbst End of Life ist.
+- **Beziehungswerte anzeigen** — Viele Beziehungen lassen sich mit einem Wert qualifizieren (z. B. *unterstützt* eine Anwendung eine Fähigkeit als *Führend*, *Unterstützend* oder *Keine Unterstützung*). Ist die Option aktiv (Standard), erscheinen diese Werte in Klammern neben der Beziehungsbeschriftung (*unterstützt [Führend]*) und werden in Bildexporten mit ausgegeben. Schalten Sie sie im Menü **Kartenanzeige** aus, um die Ansicht aufzuräumen; Beziehungen ohne Wert bleiben so oder so unverändert.
+- **Neu anordnen** — Ziehen Sie eine Karte, um sie innerhalb ihrer Ebene zu verschieben, oder ziehen Sie ein ganzes **Ebenen-Rechteck**, um es mit all seinen Karten zu verschieben. **Ansicht zurücksetzen** (in der linken Symbolleiste) stellt die automatische Anordnung wieder her und verwirft alle Erkundungen.
+- **Hintergrund** — Wechseln Sie den Leinwandhintergrund zwischen Raster, Punkten und ohne.
+- **Exportieren und Vollbild** — Exportieren Sie das Diagramm als **PNG** oder **SVG** oder öffnen Sie es im **Vollbild**.
+- **Diagramm erstellen** — Wandeln Sie die aktuelle Ansicht in ein neues, bearbeitbares Diagramm im [Diagramm-Modul](diagrams.md) um. Karten, Beziehungen und die vier Architektur-Ebenen werden nachgebildet, und jede Form bleibt mit ihrer Inventarkarte verknüpft. Sie werden nach einem Namen gefragt und gelangen anschließend direkt zum neuen Diagramm. Verfügbar für Benutzer, die Diagramme erstellen dürfen.
 
 ## Kostenbericht
 

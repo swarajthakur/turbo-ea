@@ -22,12 +22,14 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import ReportShell from "./ReportShell";
 import SaveReportDialog from "./SaveReportDialog";
 import LayeredDependencyView, { readableTypeColor } from "./LayeredDependencyView";
+import { resolveRevealIds } from "./layeredDependencyLayout";
 import { useTheme } from "@mui/material/styles";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { useMetamodel } from "@/hooks/useMetamodel";
+import { useAuthContext } from "@/hooks/AuthContext";
 import { useSavedReport } from "@/hooks/useSavedReport";
 import { useThumbnailCapture } from "@/hooks/useThumbnailCapture";
-import { useResolveMetaLabel, resolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useTypeLabel, typeLabel as resolveTypeLabel } from "@/hooks/useResolveLabel";
 import CardDetailSidePanel from "@/components/CardDetailSidePanel";
 import { api } from "@/api/client";
 import type { CardType } from "@/types";
@@ -141,7 +143,7 @@ function tc(key: string, types: CardType[]): string {
 }
 function tl(key: string, types: CardType[], locale?: string): string {
   const t = types.find((t) => t.key === key);
-  return resolveMetaLabel(t?.key ?? "", t?.translations, "label", locale) || key;
+  return resolveTypeLabel(t, locale) || key;
 }
 function ti(key: string, types: CardType[]): string {
   return types.find((t) => t.key === key)?.icon || "description";
@@ -351,7 +353,10 @@ function computeTreeLayout(
 export default function DependencyReport() {
   const { t } = useTranslation(["reports", "common"]);
   const { types } = useMetamodel();
-  const rml = useResolveMetaLabel();
+  const { user } = useAuthContext();
+  const canCreateDiagram =
+    !!user?.permissions?.["*"] || !!user?.permissions?.["diagrams.manage"];
+  const typeLabel = useTypeLabel();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const saved = useSavedReport("dependencies");
@@ -381,6 +386,11 @@ export default function DependencyReport() {
 
   /* -- LDV expanded nodes (expand mode digs into a card's relations) -- */
   const [ldvExpandedNodes, setLdvExpandedNodes] = useState<Set<string>>(new Set());
+
+  /* -- LDV targeted reveals (hierarchy parent / children tools); tracked
+        separately so toggling one tool off clears only its own reveals -- */
+  const [revealedParentIds, setRevealedParentIds] = useState<Set<string>>(new Set());
+  const [revealedChildIds, setRevealedChildIds] = useState<Set<string>>(new Set());
 
   /* -- LDV navigation history (browser-style back/forward) -- */
   const [navHistory, setNavHistory] = useState<string[]>([]);
@@ -499,10 +509,42 @@ export default function DependencyReport() {
         if (nodeMap.has(neighbor.nodeId)) visited.add(neighbor.nodeId);
       }
     }
-    const filteredNodes = nodes.filter((n) => visited.has(n.id));
+    // Targeted reveals: hierarchical parents / children surfaced by the toolbar.
+    for (const id of revealedParentIds) if (nodeMap.has(id)) visited.add(id);
+    for (const id of revealedChildIds) if (nodeMap.has(id)) visited.add(id);
+    // Annotate each visible card with whether it has any child in the full
+    // dataset, so the view can draw the "hidden children" hierarchy marker.
+    const parentIds = new Set(nodes.map((n) => n.parent_id).filter(Boolean) as string[]);
+    const filteredNodes = nodes
+      .filter((n) => visited.has(n.id))
+      .map((n) => ({ ...n, hasChildren: parentIds.has(n.id) }));
     const filteredEdges = edges.filter((e) => visited.has(e.source) && visited.has(e.target));
+    // Draw the containment line for parent/child pairs surfaced by the Reveal
+    // tools (the view no longer auto-synthesises hierarchy edges).
+    if (revealedParentIds.size > 0 || revealedChildIds.size > 0) {
+      for (const n of filteredNodes) {
+        if (!n.parent_id || !visited.has(n.parent_id)) continue;
+        filteredEdges.push({
+          source: n.parent_id,
+          target: n.id,
+          type: "hierarchy",
+          label: t("dependency.hierarchyContains"),
+          reverse_label: t("dependency.hierarchyPartOf"),
+        });
+      }
+    }
     return { nodes: filteredNodes, edges: filteredEdges };
-  }, [center, nodes, edges, adjMap, nodeMap, ldvExpandedNodes]);
+  }, [
+    center,
+    nodes,
+    edges,
+    adjMap,
+    nodeMap,
+    ldvExpandedNodes,
+    revealedParentIds,
+    revealedChildIds,
+    t,
+  ]);
 
   // Reset expansion when center changes
   useEffect(() => {
@@ -512,6 +554,8 @@ export default function DependencyReport() {
       setExpanded(new Set());
     }
     setLdvExpandedNodes(new Set());
+    setRevealedParentIds(new Set());
+    setRevealedChildIds(new Set());
   }, [center]);
 
   // LDV expand mode: toggle a node's neighbors into the visible set
@@ -527,6 +571,33 @@ export default function DependencyReport() {
   const handleLdvExpandReset = useCallback(() => {
     setLdvExpandedNodes(new Set());
   }, []);
+
+  // LDV reveal modes: surface a clicked card's hierarchical parent / children.
+  const handleLdvReveal = useCallback(
+    (nodeId: string, kind: "parents" | "children") => {
+      const ids = resolveRevealIds(nodes, nodeMap, nodeId, kind);
+      if (ids.length === 0) return;
+      const setter = kind === "parents" ? setRevealedParentIds : setRevealedChildIds;
+      setter((prev) => {
+        const next = new Set(prev);
+        for (const rid of ids) next.add(rid);
+        return next;
+      });
+    },
+    [nodes, nodeMap],
+  );
+
+  // Full reset (toolbar Reset button): clear all exploration and history but
+  // stay on the current centre so the user keeps the card they were exploring.
+  const handleLdvReset = useCallback(() => {
+    setLdvExpandedNodes(new Set());
+    setRevealedParentIds(new Set());
+    setRevealedChildIds(new Set());
+    if (center) {
+      setNavHistory([center]);
+      setNavIndex(0);
+    }
+  }, [center]);
 
   const toggleExpand = useCallback((instanceId: string) => {
     setExpanded((prev) => {
@@ -615,14 +686,14 @@ export default function DependencyReport() {
     const params: { label: string; value: string }[] = [];
     if (cardTypeKey) {
       const tp = types.find((tp) => tp.key === cardTypeKey);
-      const typeLabel = rml(tp?.key ?? "", tp?.translations, "label") || cardTypeKey;
-      params.push({ label: t("common:labels.type"), value: typeLabel });
+      const tpLabel = typeLabel(tp) || cardTypeKey;
+      params.push({ label: t("common:labels.type"), value: tpLabel });
     }
     if (centerNode) params.push({ label: t("dependency.center"), value: centerNode.name });
     if (view === "table") params.push({ label: t("common.view"), value: t("common.table") });
     if (chartMode === "c4") params.push({ label: t("common.view"), value: t("dependency.ldvView") });
     return params;
-  }, [cardTypeKey, types, centerNode, view, chartMode]);
+  }, [cardTypeKey, types, centerNode, view, chartMode, typeLabel, t]);
 
   if (loading)
     return (
@@ -665,7 +736,7 @@ export default function DependencyReport() {
             <MenuItem value="">{t("dependency.allTypes")}</MenuItem>
             {types.filter((tp) => !tp.is_hidden).map((tp) => (
               <MenuItem key={tp.key} value={tp.key}>
-                {rml(tp.key, tp.translations, "label")}
+                {typeLabel(tp)}
               </MenuItem>
             ))}
           </TextField>
@@ -773,12 +844,16 @@ export default function DependencyReport() {
               onNodeShiftClick={navigateToLdv}
               onNodeExpand={handleLdvExpand}
               onExpandReset={handleLdvExpandReset}
+              onNodeReveal={handleLdvReveal}
+              onReset={handleLdvReset}
               onHome={handleNavHome}
               onPrev={handleNavPrev}
               onNext={handleNavNext}
               hasPrev={hasPrev}
               hasNext={hasNext}
               centerName={centerNode?.name}
+              centerId={center || undefined}
+              canCreateDiagram={canCreateDiagram}
             />
           </Box>
         ) : chartMode === "tree" && center && layout && layout.cards.length > 0 ? (

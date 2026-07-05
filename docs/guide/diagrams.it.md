@@ -6,7 +6,23 @@ Il modulo **Diagrammi** consente di creare **diagrammi di architettura visivi** 
 
 ## Galleria diagrammi
 
-La galleria elenca ogni diagramma con una miniatura, nome, tipo e le schede che referenzia. Da qui potete **Creare**, **Aprire**, **Modificare i dettagli** o **Eliminare** qualsiasi diagramma.
+La galleria elenca ogni diagramma come una scheda compatta con miniatura, nome, autore e il numero di schede a cui fa riferimento. **Crea**, **Apri**, **Modifica dettagli**, organizza o **Elimina** qualsiasi diagramma.
+
+### Trovare i diagrammi
+
+- **Barra laterale dei filtri** — il pannello a sinistra restringe la galleria a **Tutti i diagrammi**, **Creati da me** o i tuoi **Preferiti**. Comprimila in una barra sottile con il chevron; su schermi piccoli il pulsante **Filtri** la apre come pannello a scomparsa.
+- **Ricerca** — la casella di ricerca corrisponde al nome di un diagramma, al suo autore e ai nomi delle schede disegnate al suo interno, così puoi trovare un diagramma in base al suo contenuto.
+- **Ordinamento** — per aggiornati di recente, creati di recente o nome.
+- **Preferiti** — fai clic sulla stella di una scheda per aggiungerla ai tuoi preferiti personali; il filtro **Preferiti** li mostra tutti.
+
+### Gruppi
+
+Raggruppa i diagrammi correlati in **gruppi** — etichette condivise a livello di area di lavoro. Un diagramma può appartenere a più gruppi contemporaneamente. Nella vista a schede la galleria mostra ogni gruppo come intestazione comprimibile; gli elementi non assegnati compaiono in **Non raggruppati**.
+
+- Usa **Gestisci gruppi** nella barra laterale per creare, rinominare, ricolorare o eliminare i gruppi.
+- Usa **Aggiungi a gruppi…** dal menu di un diagramma per inserirlo in uno o più gruppi (puoi creare un nuovo gruppo al volo).
+- La selezione di un gruppo nella barra laterale filtra la galleria solo su quel gruppo.
+
 
 ## L'editor di diagrammi
 

@@ -29,9 +29,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import APP_VERSION
 from app.models.app_settings import AppSettings
+from app.models.bookmark import bookmark_shares
 from app.models.card import Card
 from app.models.card_type import CardType
 from app.models.diagram import diagram_cards
+from app.models.diagram_group import diagram_group_members
 from app.models.relation import Relation
 from app.models.relation_type import RelationType
 from app.models.tag import CardTag, Tag, TagGroup
@@ -39,7 +41,12 @@ from app.models.user import User
 from app.services.workspace_io import bundle as bundle_io
 from app.services.workspace_io import entities, schema
 from app.services.workspace_io.secrets import strip_secrets
-from app.services.workspace_io.sections import ENTITY_SECTIONS, SHEET_DIAGRAM_CARDS
+from app.services.workspace_io.sections import (
+    ENTITY_SECTIONS,
+    SHEET_BOOKMARK_SHARES,
+    SHEET_DIAGRAM_CARDS,
+    SHEET_DIAGRAM_GROUP_MEMBERS,
+)
 
 # Column orders for the bespoke sheets.
 CARD_TYPE_COLUMNS = (
@@ -88,7 +95,7 @@ USER_COLUMNS = ("email", "display_name", "role", "is_active", "auth_provider", "
 
 TAG_GROUP_COLUMNS = ("name", "description", "mode", "restrict_to_types", "mandatory")
 TAG_GROUP_JSON = frozenset({"restrict_to_types"})
-TAG_COLUMNS = ("group_name", "name", "color", "sort_order")
+TAG_COLUMNS = ("group_name", "name", "description", "color", "sort_order")
 
 CARD_COLUMNS = (
     "type",
@@ -217,6 +224,7 @@ async def build_bundle(db: AsyncSession, *, include_archived: bool = False) -> b
                 if t.tag_group_id in group_by_id
                 else "",
                 "name": t.name,
+                "description": t.description,
                 "color": t.color,
                 "sort_order": t.sort_order,
             }
@@ -320,7 +328,7 @@ async def build_bundle(db: AsyncSession, *, include_archived: bool = False) -> b
         )
     _emit(schema.SHEET_RELATIONS, RELATION_COLUMNS, RELATION_JSON, relation_records)
 
-    # --- Phase B + C: module entities (generic engine) ------------------
+    # --- Generic entity sections (module + card-context tables) ---------
     full_card_map = {c.id: c for c in (await db.execute(select(Card))).scalars().all()}
     user_email = {u.id: u.email for u in users}
     for ent_sec in ENTITY_SECTIONS:
@@ -347,6 +355,32 @@ async def build_bundle(db: AsyncSession, *, include_archived: bool = False) -> b
         wb, SHEET_DIAGRAM_CARDS, ["diagram_id", "card_type", "card_ref"], dc_rows, assets
     )
     section_counts[SHEET_DIAGRAM_CARDS] = len(dc_rows)
+
+    # Diagram↔group membership (bespoke association; both PKs preserved on import).
+    gm_rows = [
+        {"diagram_id": str(row.diagram_id), "group_id": str(row.group_id)}
+        for row in (await db.execute(select(diagram_group_members))).all()
+    ]
+    bundle_io.write_sheet(
+        wb, SHEET_DIAGRAM_GROUP_MEMBERS, ["diagram_id", "group_id"], gm_rows, assets
+    )
+    section_counts[SHEET_DIAGRAM_GROUP_MEMBERS] = len(gm_rows)
+
+    # Bookmark↔user shares (bespoke association; bookmark PK preserved, user
+    # matched by email on import — instance-local user UUIDs never travel).
+    bs_rows = [
+        {
+            "bookmark_id": str(row.bookmark_id),
+            "user_email": user_email.get(row.user_id),
+            "can_edit": bool(row.can_edit),
+        }
+        for row in (await db.execute(select(bookmark_shares))).all()
+        if user_email.get(row.user_id)
+    ]
+    bundle_io.write_sheet(
+        wb, SHEET_BOOKMARK_SHARES, ["bookmark_id", "user_email", "can_edit"], bs_rows, assets
+    )
+    section_counts[SHEET_BOOKMARK_SHARES] = len(bs_rows)
 
     # Branding binaries → assets/branding/ with a real extension from the MIME.
     if settings_row and settings_row.custom_logo:

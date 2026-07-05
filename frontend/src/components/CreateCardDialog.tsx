@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Dialog from "@mui/material/Dialog";
@@ -17,7 +17,6 @@ import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
-import Autocomplete from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -26,14 +25,19 @@ import MaterialSymbol from "@/components/MaterialSymbol";
 import AiSuggestPanel, { type AiApplyPayload } from "@/components/AiSuggestPanel";
 import { EolLinkDialog } from "@/components/EolLinkSection";
 import VendorField from "@/components/VendorField";
+import CardPicker, { type CardOption } from "@/components/CardPicker";
 import TagPicker from "@/components/TagPicker";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveLabel, useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import {
+  useTypeLabel,
+  useFieldLabel,
+  useOptionLabel,
+  useSubtypeLabel,
+} from "@/hooks/useResolveLabel";
 import { useAiStatus } from "@/hooks/useAiStatus";
 import { api, ApiError } from "@/api/client";
 import type {
   FieldDef,
-  Card,
   EolCycle,
   EolProductMatch,
   AiSuggestResponse,
@@ -58,10 +62,6 @@ interface Props {
   initialType?: string;
 }
 
-interface ParentOption {
-  id: string;
-  name: string;
-}
 
 export default function CreateCardDialog({
   open,
@@ -72,15 +72,14 @@ export default function CreateCardDialog({
   const navigate = useNavigate();
   const { t } = useTranslation(["cards", "common"]);
   const { types, relationTypes } = useMetamodel();
-  const rl = useResolveLabel();
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
+  const fieldLabel = useFieldLabel();
+  const optLabel = useOptionLabel();
+  const stLabel = useSubtypeLabel();
 
   const [selectedType, setSelectedType] = useState(initialType || "");
   const [subtype, setSubtype] = useState("");
-  const [parentId, setParentId] = useState<string | null>(null);
-  const [parentInputValue, setParentInputValue] = useState("");
-  const [parentOptions, setParentOptions] = useState<ParentOption[]>([]);
-  const [parentLoading, setParentLoading] = useState(false);
+  const [parentCard, setParentCard] = useState<CardOption | null>(null);
   const [name, setName] = useState("");
   // Field-level error for the Name input — populated when the backend
   // returns 409 on a sibling-name collision. Cleared when the user types.
@@ -157,9 +156,7 @@ export default function CreateCardDialog({
   // Reset dependent fields when type changes
   useEffect(() => {
     setSubtype("");
-    setParentId(null);
-    setParentInputValue("");
-    setParentOptions([]);
+    setParentCard(null);
     setAttributes({});
     setError("");
     setEolProduct("");
@@ -184,9 +181,7 @@ export default function CreateCardDialog({
     if (!open) {
       setSelectedType(initialType || "");
       setSubtype("");
-      setParentId(null);
-      setParentInputValue("");
-      setParentOptions([]);
+      setParentCard(null);
       setName("");
       setNameError("");
       setDescription("");
@@ -233,41 +228,6 @@ export default function CreateCardDialog({
     }, 600);
     return () => clearTimeout(timer);
   }, [name, isEolEligible, eolProduct, eolCycle]);
-
-  // Fetch parent options when search query changes
-  const fetchParentOptions = useCallback(
-    async (query: string) => {
-      if (!selectedType || !hasHierarchy) return;
-      setParentLoading(true);
-      try {
-        const params = new URLSearchParams({
-          type: selectedType,
-          search: query,
-          page_size: "20",
-        });
-        const res = await api.get<{ items: Card[] }>(
-          `/cards?${params.toString()}`,
-        );
-        setParentOptions(
-          res.items.map((card) => ({ id: card.id, name: card.name })),
-        );
-      } catch {
-        setParentOptions([]);
-      } finally {
-        setParentLoading(false);
-      }
-    },
-    [selectedType, hasHierarchy],
-  );
-
-  // Debounced parent search
-  useEffect(() => {
-    if (!hasHierarchy) return;
-    const timer = setTimeout(() => {
-      fetchParentOptions(parentInputValue);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [parentInputValue, hasHierarchy, fetchParentOptions]);
 
   const setAttr = (key: string, value: unknown) => {
     setAttributes((prev) => ({ ...prev, [key]: value }));
@@ -359,7 +319,7 @@ export default function CreateCardDialog({
         subtype: subtype || undefined,
         name: name.trim(),
         description: description.trim() || undefined,
-        parent_id: parentId || undefined,
+        parent_id: parentCard?.id || undefined,
         attributes:
           Object.keys(finalAttrs).length > 0 ? finalAttrs : undefined,
         lifecycle,
@@ -421,10 +381,10 @@ export default function CreateCardDialog({
       case "single_select":
         return (
           <FormControl fullWidth key={field.key} sx={{ mb: 2 }}>
-            <InputLabel>{rl(field.key, field.translations)}</InputLabel>
+            <InputLabel>{fieldLabel(field)}</InputLabel>
             <Select
               value={(attributes[field.key] as string) ?? ""}
-              label={rl(field.key, field.translations)}
+              label={fieldLabel(field)}
               onChange={(e) => setAttr(field.key, e.target.value || undefined)}
             >
               <MenuItem value="">
@@ -444,7 +404,7 @@ export default function CreateCardDialog({
                         }}
                       />
                     )}
-                    {rl(opt.label || opt.key, opt.translations)}
+                    {optLabel(opt)}
                   </Box>
                 </MenuItem>
               ))}
@@ -458,7 +418,7 @@ export default function CreateCardDialog({
           <TextField
             key={field.key}
             fullWidth
-            label={rl(field.key, field.translations)}
+            label={fieldLabel(field)}
             type="number"
             value={attributes[field.key] ?? ""}
             onChange={(e) =>
@@ -481,7 +441,7 @@ export default function CreateCardDialog({
                 onChange={(e) => setAttr(field.key, e.target.checked)}
               />
             }
-            label={rl(field.key, field.translations)}
+            label={fieldLabel(field)}
             sx={{ mb: 1, display: "block" }}
           />
         );
@@ -491,7 +451,7 @@ export default function CreateCardDialog({
           <TextField
             key={field.key}
             fullWidth
-            label={rl(field.key, field.translations)}
+            label={fieldLabel(field)}
             type="date"
             value={(attributes[field.key] as string) ?? ""}
             onChange={(e) => setAttr(field.key, e.target.value || undefined)}
@@ -506,7 +466,7 @@ export default function CreateCardDialog({
           <TextField
             key={field.key}
             fullWidth
-            label={rl(field.key, field.translations)}
+            label={fieldLabel(field)}
             value={(attributes[field.key] as string) ?? ""}
             onChange={(e) => setAttr(field.key, e.target.value || undefined)}
             sx={{ mb: 2 }}
@@ -568,7 +528,7 @@ export default function CreateCardDialog({
                     }}
                   />
                   <MaterialSymbol icon={t.icon} size={20} color={t.color} />
-                  {rml(t.key, t.translations, "label")}
+                  {typeLabel(t)}
                 </Box>
               </MenuItem>
             ))}
@@ -589,7 +549,7 @@ export default function CreateCardDialog({
               </MenuItem>
               {typeConfig!.subtypes!.map((st) => (
                 <MenuItem key={st.key} value={st.key}>
-                  {rl(st.label, st.translations)}
+                  {stLabel(st)}
                 </MenuItem>
               ))}
             </Select>
@@ -598,41 +558,15 @@ export default function CreateCardDialog({
 
         {/* Parent selector */}
         {hasHierarchy && (
-          <Autocomplete
+          <CardPicker
             sx={{ mb: 2 }}
-            options={parentOptions}
-            getOptionLabel={(opt) => opt.name}
-            isOptionEqualToValue={(opt, val) => opt.id === val.id}
-            loading={parentLoading}
-            value={
-              parentId
-                ? parentOptions.find((o) => o.id === parentId) || null
-                : null
-            }
-            onChange={(_e, newValue) => {
-              setParentId(newValue ? newValue.id : null);
-            }}
-            inputValue={parentInputValue}
-            onInputChange={(_e, newInputValue) => {
-              setParentInputValue(newInputValue);
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={t("common:labels.parent")}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {parentLoading ? (
-                        <CircularProgress color="inherit" size={18} />
-                      ) : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
+            size="medium"
+            fullWidth
+            types={selectedType}
+            value={parentCard}
+            onChange={setParentCard}
+            enabled={hasHierarchy && !!selectedType}
+            label={t("common:labels.parent")}
           />
         )}
 

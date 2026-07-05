@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense, lazy } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -7,6 +7,7 @@ import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
+import Link from "@mui/material/Link";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Alert from "@mui/material/Alert";
@@ -20,6 +21,7 @@ import Checkbox from "@mui/material/Checkbox";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { api } from "@/api/client";
 import { useCurrency } from "@/hooks/useCurrency";
+import { currencySymbolOverride } from "@/lib/currency";
 import {
   DATE_FORMAT_OPTIONS,
   DEFAULT_DATE_FORMAT,
@@ -29,6 +31,9 @@ import {
 } from "@/hooks/useDateFormat";
 import { invalidateAppTitle, DEFAULT_APP_TITLE } from "@/hooks/useAppTitle";
 import { invalidateGrcEnabled } from "@/hooks/useGrcEnabled";
+import { invalidateSponsorButtonEnabled } from "@/hooks/useSponsorButtonEnabled";
+import SponsorshipDialog from "@/components/SponsorshipDialog";
+import { brand } from "@/theme";
 import { invalidateFileUploadsEnabled } from "@/hooks/useFileUploadsEnabled";
 import {
   invalidateArchiveRetentionDays,
@@ -72,53 +77,45 @@ function TabLoader() {
 // General Tab
 // ---------------------------------------------------------------------------
 
-const CURRENCIES = [
-  { code: "USD", label: "US Dollar ($)" },
-  { code: "EUR", label: "Euro (\u20ac)" },
-  { code: "GBP", label: "British Pound (\u00a3)" },
-  { code: "CHF", label: "Swiss Franc (CHF)" },
-  { code: "JPY", label: "Japanese Yen (\u00a5)" },
-  { code: "CNY", label: "Chinese Yuan (\u00a5)" },
-  { code: "CAD", label: "Canadian Dollar (CA$)" },
-  { code: "AUD", label: "Australian Dollar (A$)" },
-  { code: "SEK", label: "Swedish Krona (kr)" },
-  { code: "NOK", label: "Norwegian Krone (kr)" },
-  { code: "DKK", label: "Danish Krone (kr)" },
-  { code: "PLN", label: "Polish Z\u0142oty (z\u0142)" },
-  { code: "INR", label: "Indian Rupee (\u20b9)" },
-  { code: "BRL", label: "Brazilian Real (R$)" },
-  { code: "KRW", label: "South Korean Won (\u20a9)" },
-  { code: "SGD", label: "Singapore Dollar (S$)" },
-  { code: "HKD", label: "Hong Kong Dollar (HK$)" },
-  { code: "ZAR", label: "South African Rand (R)" },
-  { code: "MXN", label: "Mexican Peso (MX$)" },
-  { code: "TRY", label: "Turkish Lira (\u20ba)" },
-  { code: "IDR", label: "Indonesian Rupiah (Rp)" },
-  { code: "THB", label: "Thai Baht (\u0e3f)" },
-  { code: "MYR", label: "Malaysian Ringgit (RM)" },
-  { code: "PHP", label: "Philippine Peso (\u20b1)" },
-  { code: "VND", label: "Vietnamese Dong (\u20ab)" },
-  { code: "NZD", label: "New Zealand Dollar (NZ$)" },
-  { code: "TWD", label: "New Taiwan Dollar (NT$)" },
-  { code: "AED", label: "UAE Dirham (AED)" },
-  { code: "SAR", label: "Saudi Riyal (SAR)" },
-  { code: "ILS", label: "Israeli New Shekel (\u20aa)" },
-  { code: "QAR", label: "Qatari Riyal (QAR)" },
-  { code: "CZK", label: "Czech Koruna (K\u010d)" },
-  { code: "HUF", label: "Hungarian Forint (Ft)" },
-  { code: "RON", label: "Romanian Leu (lei)" },
-  { code: "RUB", label: "Russian Ruble (\u20bd)" },
-  { code: "UAH", label: "Ukrainian Hryvnia (\u20b4)" },
-  { code: "ARS", label: "Argentine Peso (AR$)" },
-  { code: "CLP", label: "Chilean Peso (CLP$)" },
-  { code: "COP", label: "Colombian Peso (COP$)" },
-  { code: "EGP", label: "Egyptian Pound (E\u00a3)" },
-  { code: "NGN", label: "Nigerian Naira (\u20a6)" },
-  { code: "PKR", label: "Pakistani Rupee (\u20a8)" },
-  { code: "BDT", label: "Bangladeshi Taka (\u09f3)" },
+// Curated, common-first list of supported currency codes. Display names are
+// resolved per active locale via Intl.DisplayNames (so the selector is
+// translated), and the symbol uses the override map (e.g. the new Saudi Riyal
+// sign) with an Intl fallback \u2014 see currencyOptionLabel().
+const CURRENCY_CODES = [
+  "USD", "EUR", "GBP", "CHF", "JPY", "CNY", "CAD", "AUD", "SEK", "NOK", "DKK",
+  "PLN", "INR", "BRL", "KRW", "SGD", "HKD", "ZAR", "MXN", "TRY", "IDR", "THB",
+  "MYR", "PHP", "VND", "NZD", "TWD", "AED", "SAR", "ILS", "QAR", "CZK", "HUF",
+  "RON", "RUB", "UAH", "ARS", "CLP", "COP", "EGP", "NGN", "PKR", "BDT",
 ];
 
+/** Localized "Name (symbol)" label for a currency code in the given locale. */
+function currencyOptionLabel(code: string, locale: string): string {
+  let name = code;
+  try {
+    name = new Intl.DisplayNames([locale], { type: "currency" }).of(code) || code;
+  } catch {
+    /* fall back to the ISO code */
+  }
+  let symbol = currencySymbolOverride(code);
+  if (!symbol) {
+    try {
+      const parts = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: code,
+        maximumFractionDigits: 0,
+      }).formatToParts(0);
+      symbol = parts.find((p) => p.type === "currency")?.value || code;
+    } catch {
+      symbol = code;
+    }
+  }
+  return `${name} (${symbol})`;
+}
+
+type EmailMethod = "smtp_basic" | "smtp_oauth" | "graph_api";
+
 interface EmailSettings {
+  method: EmailMethod;
   smtp_host: string;
   smtp_port: number;
   smtp_user: string;
@@ -126,6 +123,14 @@ interface EmailSettings {
   smtp_from: string;
   smtp_tls: boolean;
   app_base_url: string;
+  oauth_provider: string;
+  oauth_tenant_id: string;
+  oauth_client_id: string;
+  oauth_client_secret: string;
+  graph_sender: string;
+  oauth_scope: string;
+  oauth_token_endpoint: string;
+  service_account_json: string;
   configured: boolean;
 }
 
@@ -159,7 +164,11 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 function GeneralTab() {
-  const { t } = useTranslation(["admin", "common"]);
+  const { t, i18n } = useTranslation(["admin", "common"]);
+  const currencyOptions = useMemo(
+    () => CURRENCY_CODES.map((code) => ({ code, label: currencyOptionLabel(code, i18n.language) })),
+    [i18n.language],
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -209,6 +218,11 @@ function GeneralTab() {
   const [grcEnabled, setGrcEnabled] = useState(true);
   const [savingGrc, setSavingGrc] = useState(false);
 
+  // Sponsor button toggle state (gates the avatar-menu button only)
+  const [sponsorButtonEnabled, setSponsorButtonEnabled] = useState(true);
+  const [savingSponsorButton, setSavingSponsorButton] = useState(false);
+  const [sponsorDialogOpen, setSponsorDialogOpen] = useState(false);
+
   // File uploads toggle state
   const [fileUploadsEnabled, setFileUploadsEnabled] = useState(true);
   const [savingFileUploads, setSavingFileUploads] = useState(false);
@@ -238,6 +252,7 @@ function GeneralTab() {
   const [loginHelpLink, setLoginHelpLink] = useState("");
   const [savingLoginBranding, setSavingLoginBranding] = useState(false);
 
+  const [emailMethod, setEmailMethod] = useState<EmailMethod>("smtp_basic");
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState(587);
   const [smtpUser, setSmtpUser] = useState("");
@@ -245,6 +260,14 @@ function GeneralTab() {
   const [smtpFrom, setSmtpFrom] = useState("noreply@turboea.local");
   const [smtpTls, setSmtpTls] = useState(true);
   const [appBaseUrl, setAppBaseUrl] = useState("");
+  const [oauthProvider, setOauthProvider] = useState("microsoft");
+  const [oauthTenantId, setOauthTenantId] = useState("");
+  const [oauthClientId, setOauthClientId] = useState("");
+  const [oauthClientSecret, setOauthClientSecret] = useState("");
+  const [graphSender, setGraphSender] = useState("");
+  const [oauthScope, setOauthScope] = useState("");
+  const [oauthTokenEndpoint, setOauthTokenEndpoint] = useState("");
+  const [serviceAccountJson, setServiceAccountJson] = useState("");
   const [configured, setConfigured] = useState(false);
 
   useEffect(() => {
@@ -272,8 +295,10 @@ function GeneralTab() {
         login_help_text: string;
         login_help_link: string;
       }>("/settings/login-branding"),
+      api.get<{ enabled: boolean }>("/settings/sponsor-button-enabled"),
     ])
-      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, archiveRetentionData, appTitleData, dateFormatData, grcData, fileUploadsData, loginBrandingData]) => {
+      .then(([emailData, logoData, faviconData, currencyData, bpmData, localesData, ppmData, fiscalData, archiveRetentionData, appTitleData, dateFormatData, grcData, fileUploadsData, loginBrandingData, sponsorButtonData]) => {
+        setEmailMethod(emailData.method ?? "smtp_basic");
         setSmtpHost(emailData.smtp_host);
         setSmtpPort(emailData.smtp_port);
         setSmtpUser(emailData.smtp_user);
@@ -281,6 +306,14 @@ function GeneralTab() {
         setSmtpFrom(emailData.smtp_from);
         setSmtpTls(emailData.smtp_tls);
         setAppBaseUrl(emailData.app_base_url);
+        setOauthProvider(emailData.oauth_provider ?? "microsoft");
+        setOauthTenantId(emailData.oauth_tenant_id ?? "");
+        setOauthClientId(emailData.oauth_client_id ?? "");
+        setOauthClientSecret(emailData.oauth_client_secret ?? "");
+        setGraphSender(emailData.graph_sender ?? "");
+        setOauthScope(emailData.oauth_scope ?? "");
+        setOauthTokenEndpoint(emailData.oauth_token_endpoint ?? "");
+        setServiceAccountJson(emailData.service_account_json ?? "");
         setConfigured(emailData.configured);
         setHasCustomLogo(logoData.has_custom_logo);
         setHasCustomFavicon(faviconData.has_custom_favicon);
@@ -288,6 +321,7 @@ function GeneralTab() {
         setBpmEnabled(bpmData.enabled);
         setPpmEnabled(ppmData.enabled);
         setGrcEnabled(grcData.enabled);
+        setSponsorButtonEnabled(sponsorButtonData.enabled);
         setFileUploadsEnabled(fileUploadsData.enabled);
         setFiscalYearStart(fiscalData.month);
         setArchiveRetentionDays(archiveRetentionData.days);
@@ -315,7 +349,8 @@ function GeneralTab() {
     setSaving(true);
     setError("");
     try {
-      await api.patch("/settings/email", {
+      const saved = await api.patch<EmailSettings>("/settings/email", {
+        method: emailMethod,
         smtp_host: smtpHost,
         smtp_port: smtpPort,
         smtp_user: smtpUser,
@@ -323,8 +358,21 @@ function GeneralTab() {
         smtp_from: smtpFrom,
         smtp_tls: smtpTls,
         app_base_url: appBaseUrl,
+        oauth_provider: oauthProvider,
+        oauth_tenant_id: oauthTenantId,
+        oauth_client_id: oauthClientId,
+        oauth_client_secret: oauthClientSecret,
+        graph_sender: graphSender,
+        oauth_scope: oauthScope,
+        oauth_token_endpoint: oauthTokenEndpoint,
+        service_account_json: serviceAccountJson,
       });
-      setConfigured(!!smtpHost);
+      // PATCH echoes the masked settings back, so the computed `configured`
+      // flag and re-masked secrets update without a second round-trip.
+      setConfigured(saved.configured);
+      setSmtpPassword(saved.smtp_password);
+      setOauthClientSecret(saved.oauth_client_secret ?? "");
+      setServiceAccountJson(saved.service_account_json ?? "");
       setSnack(t("settings.smtp.savedSuccess"));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common:errors.generic"));
@@ -467,6 +515,25 @@ function GeneralTab() {
       setError(e instanceof Error ? e.message : t("common:errors.generic"));
     } finally {
       setSavingGrc(false);
+    }
+  };
+
+  const handleSponsorButtonToggle = async (enabled: boolean) => {
+    setSavingSponsorButton(true);
+    setError("");
+    try {
+      await api.patch("/settings/sponsor-button-enabled", { enabled });
+      setSponsorButtonEnabled(enabled);
+      invalidateSponsorButtonEnabled(enabled);
+      setSnack(
+        enabled
+          ? t("settings.sponsorButton.enabledSuccess")
+          : t("settings.sponsorButton.disabledSuccess"),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("common:errors.generic"));
+    } finally {
+      setSavingSponsorButton(false);
     }
   };
 
@@ -968,7 +1035,7 @@ function GeneralTab() {
             onChange={(e) => setSelectedCurrency(e.target.value)}
             sx={{ minWidth: 280 }}
           >
-            {CURRENCIES.map((c) => (
+            {currencyOptions.map((c) => (
               <MenuItem key={c.code} value={c.code}>
                 {c.code} — {c.label}
               </MenuItem>
@@ -1305,15 +1372,74 @@ function GeneralTab() {
         />
       </Paper>
 
+      {/* Sponsor Button Toggle */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
+          <MaterialSymbol icon="volunteer_activism" size={22} color="#555" />
+          <Typography variant="h6" fontWeight={600}>
+            {t("settings.sponsorButton.title")}
+          </Typography>
+          <Chip
+            label={
+              sponsorButtonEnabled
+                ? t("settings.sponsorButton.enabled")
+                : t("settings.sponsorButton.disabled")
+            }
+            size="small"
+            color={sponsorButtonEnabled ? "success" : "default"}
+            sx={{ ml: 1 }}
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("settings.sponsorButton.description")}
+        </Typography>
+        <Button
+          startIcon={<MaterialSymbol icon="volunteer_activism" size={18} />}
+          onClick={() => setSponsorDialogOpen(true)}
+          sx={{
+            mb: 2,
+            background: `linear-gradient(135deg, ${brand.sponsorFrom}, ${brand.sponsorTo})`,
+            color: "#fff",
+            textTransform: "none",
+            "&:hover": {
+              background: `linear-gradient(135deg, ${brand.sponsorFrom}, ${brand.sponsorTo})`,
+              filter: "brightness(0.95)",
+            },
+          }}
+        >
+          {t("nav:userMenu.sponsorship")}
+        </Button>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t("settings.sponsorButton.companyLogoNote")}{" "}
+          <Link href="mailto:sponsorship@turbo-ea.org">sponsorship@turbo-ea.org</Link>
+        </Typography>
+        <FormControlLabel
+          sx={{ display: "flex" }}
+          control={
+            <Switch
+              checked={sponsorButtonEnabled}
+              onChange={(e) => handleSponsorButtonToggle(e.target.checked)}
+              disabled={savingSponsorButton}
+            />
+          }
+          label={
+            sponsorButtonEnabled
+              ? t("settings.sponsorButton.visible")
+              : t("settings.sponsorButton.hidden")
+          }
+        />
+      </Paper>
+      <SponsorshipDialog open={sponsorDialogOpen} onClose={() => setSponsorDialogOpen(false)} />
+
       {/* ── Email ─────────────────────────────────────────────────── */}
       <SectionHeader>{t("settings.section.email")}</SectionHeader>
 
-      {/* Email / SMTP Settings */}
+      {/* Email delivery settings (SMTP / SMTP OAuth / Microsoft Graph) */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
           <MaterialSymbol icon="mail" size={22} color="#555" />
           <Typography variant="h6" fontWeight={600}>
-            {t("settings.smtp.title")}
+            {t("settings.email.title")}
           </Typography>
           <Chip
             label={configured ? t("settings.smtp.configured") : t("settings.smtp.notConfigured")}
@@ -1323,47 +1449,192 @@ function GeneralTab() {
           />
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          {t("settings.smtp.description")}
+          {t("settings.email.description")}
         </Typography>
 
-        <Box
-          sx={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 2, mb: 2 }}
+        {/* Transport method selector */}
+        <TextField
+          select
+          label={t("settings.email.method")}
+          fullWidth
+          value={emailMethod}
+          onChange={(e) => setEmailMethod(e.target.value as EmailMethod)}
+          helperText={t("settings.email.methodHelper")}
+          sx={{ mb: 2 }}
         >
-          <TextField
-            label={t("settings.smtp.host")}
-            fullWidth
-            value={smtpHost}
-            onChange={(e) => setSmtpHost(e.target.value)}
-            placeholder="e.g. smtp.gmail.com"
-          />
-          <TextField
-            label={t("settings.smtp.port")}
-            fullWidth
-            type="number"
-            value={smtpPort}
-            onChange={(e) => setSmtpPort(Number(e.target.value))}
-          />
-        </Box>
+          <MenuItem value="smtp_basic">{t("settings.email.method.smtpBasic")}</MenuItem>
+          <MenuItem value="smtp_oauth">{t("settings.email.method.smtpOauth")}</MenuItem>
+          <MenuItem value="graph_api">{t("settings.email.method.graphApi")}</MenuItem>
+        </TextField>
 
-        <Box
-          sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}
-        >
-          <TextField
-            label={t("settings.smtp.username")}
-            fullWidth
-            value={smtpUser}
-            onChange={(e) => setSmtpUser(e.target.value)}
-            placeholder="e.g. user@gmail.com"
-          />
-          <TextField
-            label={t("settings.smtp.password")}
-            fullWidth
-            type="password"
-            value={smtpPassword}
-            onChange={(e) => setSmtpPassword(e.target.value)}
-          />
-        </Box>
+        {emailMethod === "graph_api" && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {t("settings.email.hint.graphApi")}
+          </Alert>
+        )}
+        {emailMethod === "smtp_oauth" && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {t("settings.email.hint.smtpOauth")}
+          </Alert>
+        )}
 
+        {/* SMTP connection (basic + xoauth2) */}
+        {emailMethod !== "graph_api" && (
+          <Box
+            sx={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 2, mb: 2 }}
+          >
+            <TextField
+              label={t("settings.smtp.host")}
+              fullWidth
+              value={smtpHost}
+              onChange={(e) => setSmtpHost(e.target.value)}
+              placeholder="e.g. smtp.gmail.com"
+            />
+            <TextField
+              label={t("settings.smtp.port")}
+              fullWidth
+              type="number"
+              value={smtpPort}
+              onChange={(e) => setSmtpPort(Number(e.target.value))}
+            />
+          </Box>
+        )}
+
+        {/* Basic auth credentials */}
+        {emailMethod === "smtp_basic" && (
+          <Box
+            sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}
+          >
+            <TextField
+              label={t("settings.smtp.username")}
+              fullWidth
+              value={smtpUser}
+              onChange={(e) => setSmtpUser(e.target.value)}
+              placeholder="e.g. user@gmail.com"
+            />
+            <TextField
+              label={t("settings.smtp.password")}
+              fullWidth
+              type="password"
+              value={smtpPassword}
+              onChange={(e) => setSmtpPassword(e.target.value)}
+            />
+          </Box>
+        )}
+
+        {/* OAuth provider config (graph_api + smtp_oauth) */}
+        {emailMethod !== "smtp_basic" && (
+          <>
+            <TextField
+              select
+              label={t("settings.email.oauthProvider")}
+              fullWidth
+              value={oauthProvider}
+              onChange={(e) => setOauthProvider(e.target.value)}
+              disabled={emailMethod === "graph_api"}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="microsoft">
+                {t("settings.email.provider.microsoft")}
+              </MenuItem>
+              <MenuItem value="google">{t("settings.email.provider.google")}</MenuItem>
+            </TextField>
+
+            {emailMethod === "smtp_oauth" && (
+              <TextField
+                label={t("settings.email.senderMailbox")}
+                fullWidth
+                value={smtpUser}
+                onChange={(e) => setSmtpUser(e.target.value)}
+                placeholder="mailbox@yourcompany.com"
+                helperText={t("settings.email.senderMailboxHelper")}
+                sx={{ mb: 2 }}
+              />
+            )}
+
+            {emailMethod === "graph_api" && (
+              <TextField
+                label={t("settings.email.graphSender")}
+                fullWidth
+                value={graphSender}
+                onChange={(e) => setGraphSender(e.target.value)}
+                placeholder="mailbox@yourcompany.com"
+                helperText={t("settings.email.graphSenderHelper")}
+                sx={{ mb: 2 }}
+              />
+            )}
+
+            {oauthProvider === "google" && emailMethod === "smtp_oauth" ? (
+              <TextField
+                label={t("settings.email.serviceAccountJson")}
+                fullWidth
+                multiline
+                minRows={3}
+                value={serviceAccountJson}
+                onChange={(e) => setServiceAccountJson(e.target.value)}
+                placeholder='{ "client_email": "...", "private_key": "..." }'
+                helperText={t("settings.email.serviceAccountJsonHelper")}
+                sx={{ mb: 2 }}
+              />
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 2,
+                    mb: 2,
+                  }}
+                >
+                  <TextField
+                    label={t("settings.email.tenantId")}
+                    fullWidth
+                    value={oauthTenantId}
+                    onChange={(e) => setOauthTenantId(e.target.value)}
+                    placeholder="organizations"
+                  />
+                  <TextField
+                    label={t("settings.email.clientId")}
+                    fullWidth
+                    value={oauthClientId}
+                    onChange={(e) => setOauthClientId(e.target.value)}
+                  />
+                </Box>
+                <TextField
+                  label={t("settings.email.clientSecret")}
+                  fullWidth
+                  type="password"
+                  value={oauthClientSecret}
+                  onChange={(e) => setOauthClientSecret(e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+              </>
+            )}
+
+            {/* Advanced overrides */}
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}
+            >
+              <TextField
+                label={t("settings.email.scope")}
+                fullWidth
+                value={oauthScope}
+                onChange={(e) => setOauthScope(e.target.value)}
+                placeholder={t("settings.email.scopePlaceholder")}
+                helperText={t("settings.email.scopeHelper")}
+              />
+              <TextField
+                label={t("settings.email.tokenEndpoint")}
+                fullWidth
+                value={oauthTokenEndpoint}
+                onChange={(e) => setOauthTokenEndpoint(e.target.value)}
+                helperText={t("settings.email.tokenEndpointHelper")}
+              />
+            </Box>
+          </>
+        )}
+
+        {/* From + TLS */}
         <Box
           sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}
         >
@@ -1374,16 +1645,18 @@ function GeneralTab() {
             onChange={(e) => setSmtpFrom(e.target.value)}
             placeholder="noreply@turboea.local"
           />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={smtpTls}
-                onChange={(e) => setSmtpTls(e.target.checked)}
-              />
-            }
-            label={t("settings.smtp.useTls")}
-            sx={{ ml: 1, mt: 1 }}
-          />
+          {emailMethod !== "graph_api" && (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={smtpTls}
+                  onChange={(e) => setSmtpTls(e.target.checked)}
+                />
+              }
+              label={t("settings.smtp.useTls")}
+              sx={{ ml: 1, mt: 1 }}
+            />
+          )}
         </Box>
 
         <Divider sx={{ my: 2 }} />
@@ -1410,7 +1683,7 @@ function GeneralTab() {
             }
             sx={{ textTransform: "none" }}
             onClick={handleTest}
-            disabled={saving || testing || !smtpHost}
+            disabled={saving || testing || !configured}
           >
             {testing ? t("settings.smtp.sending") : t("settings.smtp.sendTest")}
           </Button>

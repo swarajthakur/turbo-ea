@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -12,8 +12,18 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Autocomplete from "@mui/material/Autocomplete";
 import IconButton from "@mui/material/IconButton";
-import { useResolveLabel, useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useTheme } from "@mui/material/styles";
+import {
+  useResolveLabel,
+  useResolveMetaLabel,
+  useTypeLabel,
+  useSubtypeLabel,
+  useOptionLabel,
+  useFieldLabel,
+} from "@/hooks/useResolveLabel";
+import { useMetamodel } from "@/hooks/useMetamodel";
 import Tooltip from "@mui/material/Tooltip";
 import Divider from "@mui/material/Divider";
 import MaterialSymbol from "@/components/MaterialSymbol";
@@ -22,6 +32,19 @@ import type { SurveyRespondForm, SurveyField } from "@/types";
 
 type OptionLabelResolver = (key: string, translations?: Record<string, string>) => string;
 
+interface RelationRef {
+  id: string;
+  name: string;
+}
+
+/** True when a value is a list of related-card references ({id, name}). */
+function isRelationRefList(val: unknown): val is RelationRef[] {
+  return (
+    Array.isArray(val) &&
+    val.every((v) => v !== null && typeof v === "object" && "id" in (v as object))
+  );
+}
+
 /** Resolve a value to its display label using field options when available. */
 function formatValue(
   val: unknown,
@@ -29,6 +52,10 @@ function formatValue(
   t?: (key: string) => string,
   rl?: OptionLabelResolver,
 ): string {
+  if (field?.kind === "relation" || isRelationRefList(val)) {
+    if (!isRelationRefList(val) || val.length === 0) return "—";
+    return val.map((r) => r.name).join(", ");
+  }
   if (val === null || val === undefined || val === "") return "—";
   if (typeof val === "boolean") return val ? (t ? t("common:labels.yes") : "Yes") : (t ? t("common:labels.no") : "No");
 
@@ -54,11 +81,141 @@ interface FieldResponse {
   new_value: unknown;
 }
 
+/** Card-picker for a relation survey field: search cards of the related type
+ * and edit the linked set. Manages its own debounced search + options. */
+function RelationFieldEditor({
+  relatedTypeKey,
+  value,
+  onChange,
+  placeholder,
+  chipColor,
+}: {
+  relatedTypeKey?: string;
+  value: RelationRef[];
+  onChange: (refs: RelationRef[]) => void;
+  placeholder: string;
+  chipColor?: { bg: string; fg: string };
+}) {
+  const [search, setSearch] = useState("");
+  const [options, setOptions] = useState<RelationRef[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Load candidates as soon as the dropdown opens (empty query returns the
+  // first cards of the related type) and refine as the user types — users
+  // can't be expected to know linkable card names by heart.
+  useEffect(() => {
+    if (!relatedTypeKey || !open) {
+      return;
+    }
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get<{ items: RelationRef[] }>(
+          `/cards?type=${encodeURIComponent(relatedTypeKey)}&search=${encodeURIComponent(search)}&page_size=20`,
+        );
+        setOptions(res.items.map((c) => ({ id: c.id, name: c.name })));
+      } catch {
+        // ignore — empty option list
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, relatedTypeKey, open]);
+
+  const merged = useMemo(() => {
+    const ids = new Set(options.map((o) => o.id));
+    return [...options, ...value.filter((v) => !ids.has(v.id))];
+  }, [options, value]);
+
+  return (
+    <Autocomplete
+      multiple
+      filterSelectedOptions
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      loading={loading}
+      options={merged}
+      getOptionLabel={(o) => o.name}
+      isOptionEqualToValue={(opt, val) => opt.id === val.id}
+      value={value}
+      inputValue={search}
+      onInputChange={(_, val, reason) => {
+        if (reason !== "reset") setSearch(val);
+      }}
+      onChange={(_, vals) => onChange(vals)}
+      renderOption={(props, opt) => (
+        <li {...props} key={opt.id}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {chipColor && (
+              <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: chipColor.bg, flexShrink: 0 }} />
+            )}
+            <Typography variant="body2">{opt.name}</Typography>
+          </Box>
+        </li>
+      )}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          size="small"
+          placeholder={placeholder}
+          slotProps={{
+            input: {
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {loading ? <CircularProgress color="inherit" size={16} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            },
+          }}
+        />
+      )}
+      renderTags={(vals, getTagProps) =>
+        vals.map((v, i) => (
+          <Chip
+            {...getTagProps({ index: i })}
+            key={v.id}
+            label={v.name}
+            size="small"
+            sx={
+              chipColor
+                ? { bgcolor: chipColor.bg, color: chipColor.fg, "& .MuiChip-deleteIcon": { color: chipColor.fg, opacity: 0.7 } }
+                : undefined
+            }
+          />
+        ))
+      }
+    />
+  );
+}
+
 export default function SurveyRespond() {
   const { t } = useTranslation(["admin", "common"]);
   const rl = useResolveLabel();
   const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
+  const stLabel = useSubtypeLabel();
+  const optLabel = useOptionLabel();
+  const fieldLabel = useFieldLabel();
+  const theme = useTheme();
+  const { types } = useMetamodel();
   const { surveyId, cardId } = useParams<{ surveyId: string; cardId: string }>();
+
+  // For a relation field, the related cards are all of one type (relation types
+  // are unique per type pair), so colour the pills by that type's metamodel
+  // colour and resolve its label for the "between X and Y" instruction.
+  const relatedTypeColor = (key?: string): { bg: string; fg: string } => {
+    const bg = types.find((ct) => ct.key === key)?.color || theme.palette.grey[500];
+    return { bg, fg: theme.palette.getContrastText(bg) };
+  };
+  const relatedTypeLabel = (key?: string): string => {
+    const ct = types.find((c) => c.key === key);
+    return ct ? typeLabel(ct) : key || "";
+  };
   const navigate = useNavigate();
 
   const [form, setForm] = useState<SurveyRespondForm | null>(null);
@@ -144,6 +301,21 @@ export default function SurveyRespond() {
   const renderFieldInput = (field: SurveyField & { current_value: unknown }, resp: FieldResponse) => {
     if (resp.confirmed) return null; // No input needed if confirmed
 
+    if (field.kind === "relation") {
+      // Baseline = current links; respondent edits the set (add/remove).
+      const current = isRelationRefList(field.current_value) ? field.current_value : [];
+      const selected = isRelationRefList(resp.new_value) ? resp.new_value : current;
+      return (
+        <RelationFieldEditor
+          relatedTypeKey={field.related_type_key}
+          value={selected}
+          onChange={(refs) => setNewValue(field.key, refs)}
+          placeholder={t("surveys.respond.searchRelated")}
+          chipColor={relatedTypeColor(field.related_type_key)}
+        />
+      );
+    }
+
     const value = resp.new_value ?? field.current_value ?? "";
 
     if (field.type === "boolean") {
@@ -174,7 +346,7 @@ export default function SurveyRespond() {
           </MenuItem>
           {field.options.map((opt) => (
             <MenuItem key={opt.key} value={opt.key}>
-              {rl(opt.label || opt.key, opt.translations)}
+              {optLabel(opt)}
             </MenuItem>
           ))}
         </TextField>
@@ -194,7 +366,7 @@ export default function SurveyRespond() {
         >
           {field.options.map((opt) => (
             <MenuItem key={opt.key} value={opt.key}>
-              {rl(opt.label || opt.key, opt.translations)}
+              {optLabel(opt)}
             </MenuItem>
           ))}
         </TextField>
@@ -294,13 +466,22 @@ export default function SurveyRespond() {
         <MaterialSymbol icon="apps" size={22} color="#0f7eb5" />
         <Typography sx={{ fontWeight: 600, flex: 1 }}>{form.card.name}</Typography>
         <Chip
-          label={rml(form.card.type, form.card.type_translations, "label")}
+          label={
+            typeLabel(types.find((tp) => tp.key === form.card.type)) ||
+            rml(form.card.type, form.card.type_translations, "label")
+          }
           size="small"
           variant="outlined"
         />
         {form.card.subtype && (
           <Chip
-            label={rl(form.card.subtype, form.card.subtype_translations)}
+            label={
+              stLabel(
+                types
+                  .find((tp) => tp.key === form.card.type)
+                  ?.subtypes?.find((s) => s.key === form.card.subtype),
+              ) || rl(form.card.subtype, form.card.subtype_translations)
+            }
             size="small"
           />
         )}
@@ -328,26 +509,61 @@ export default function SurveyRespond() {
 
         return (
           <Card key={field.key} sx={{ mb: 2, p: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Typography sx={{ fontWeight: 600, flex: 1 }}>{rl(field.key, field.translations)}</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: field.kind === "relation" ? 0.5 : 1 }}>
+              <Typography sx={{ fontWeight: 600, flex: 1 }}>
+                {field.kind === "relation" ? field.label : fieldLabel(field)}
+              </Typography>
               <Chip
                 label={isMaintain ? t("surveys.respond.maintain") : t("surveys.respond.confirmLabel")}
                 size="small"
                 color={isMaintain ? "primary" : "default"}
                 variant="outlined"
               />
-              <Typography variant="caption" color="text.secondary">
-                {rl(field.section, field.section_translations)}
-              </Typography>
+              {field.kind !== "relation" && (
+                <Typography variant="caption" color="text.secondary">
+                  {rl(field.section, field.section_translations)}
+                </Typography>
+              )}
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            {field.kind === "relation" && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {t(
+                  isMaintain
+                    ? "surveys.respond.relationMaintainInstruction"
+                    : "surveys.respond.relationConfirmInstruction",
+                  { card: form.card.name, related: relatedTypeLabel(field.related_type_key) },
+                )}
+              </Typography>
+            )}
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1, flexWrap: "wrap" }}>
               <Typography variant="body2" color="text.secondary">
                 {t("surveys.respond.currentValue")}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {formatValue(field.current_value, field, t, rl)}
-              </Typography>
+              {field.kind === "relation" ? (
+                isRelationRefList(field.current_value) && field.current_value.length > 0 ? (
+                  field.current_value.map((r) => {
+                    const c = relatedTypeColor(field.related_type_key);
+                    return (
+                      <Chip
+                        key={r.id}
+                        label={r.name}
+                        size="small"
+                        sx={{ bgcolor: c.bg, color: c.fg }}
+                      />
+                    );
+                  })
+                ) : (
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    —
+                  </Typography>
+                )
+              ) : (
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {formatValue(field.current_value, field, t, rl)}
+                </Typography>
+              )}
             </Box>
 
             <Divider sx={{ my: 1 }} />

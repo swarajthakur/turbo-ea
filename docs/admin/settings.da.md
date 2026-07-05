@@ -4,7 +4,7 @@ Siden **Indstillinger** under **Admin → Indstillinger** (`/admin/settings`) er
 
 | Faneblad | URL | Hvad det styrer | Fuld vejledning |
 |-----|-----|------------------|------------|
-| **Generelt** | `/admin/settings?tab=general` | Udseende (logo, favicon, valuta, datoformat, aktiverede sprog, regnskabsår), SMTP-e-mail, **modulkontakter** (BPM, PPM, GRC, TurboLens) | Denne side |
+| **Generelt** | `/admin/settings?tab=general` | Udseende (logo, favicon, valuta, datoformat, aktiverede sprog, regnskabsår), e-mail-afsendelse, **modulkontakter** (BPM, PPM, GRC, TurboLens, Sponsor button) | Denne side |
 | **Autentificering** | `/admin/settings?tab=authentication` | SSO-udbydere, registrering, adgangskodepolitik | [Autentificering og SSO](sso.md) |
 | **AI** | `/admin/settings?tab=ai` | LLM-udbyder, model, websøgningsbackend, AI-forslagskontakter pr. korttype | [AI-funktioner](ai.md) |
 | **EOL** | `/admin/settings?tab=eol` | Massetilknytning af produkter til endoflife.date-poster | [End-of-Life (EOL)](eol.md) |
@@ -69,24 +69,60 @@ Når et kort arkiveres, skjules det fra oversigten, rapporter og relationer, men
 
 Udrensningen kører hver time og genindlæser denne indstilling ved hver kørsel, så ændringer træder i kraft uden at genstarte applikationen. Arkiveringsbannere og bekræftelsesdialoger afspejler automatisk den konfigurerede periode.
 
-## E-mail (SMTP)
+## E-mail
 
-Konfigurer e-maillevering til invitationsmails, undersøgelsesnotifikationer og andre systemmeddelelser.
+Turbo EA sender invitations-e-mails, undersøgelsesnotifikationer, nulstillinger af adgangskoder og andre systemmeddelelser. Vælg en **afsendelsesmetode**, der passer til din mailplatform.
+
+!!! warning "Grundlæggende SMTP-godkendelse udfases"
+    Microsoft 365 deaktiverer grundlæggende SMTP-godkendelse (ikke tilgængelig for nye lejere, fjernes for eksisterende i løbet af 2026–2027), og Google Workspace deaktiverede den i marts 2025. Brug en af OAuth-metoderne nedenfor til disse platforme i stedet for en postkasseadgangskode.
+
+### Afsendelsesmetoder
+
+| Metode | Hvornår skal den bruges |
+|--------|--------------------------|
+| **SMTP (brugernavn og adgangskode)** | Klassisk SMTP til servere, der stadig accepterer grundlæggende godkendelse. Standarden. |
+| **SMTP med OAuth 2.0 (XOAUTH2)** | SMTP godkendt med et kortvarigt OAuth-token — Microsoft 365 (kun app) eller Google Workspace (tjenestekonto). |
+| **Microsoft Graph API** | Microsoft Graph `sendMail` kun for app. Den anbefalede Microsoft 365-mulighed — ingen SMTP, ingen gemt adgangskode. |
+
+### Fælles felter
 
 | Felt | Beskrivelse |
-|-------|-------------|
-| **SMTP-vært** | Dit mailserverværtsnavn (f.eks. `smtp.gmail.com`) |
-| **SMTP-port** | Serverport (typisk 587 for TLS) |
-| **SMTP-bruger** | Autentificeringsbrugernavn |
-| **SMTP-adgangskode** | Autentificeringsadgangskode (gemmes krypteret) |
-| **Brug TLS** | Aktivér TLS-kryptering (anbefales) |
-| **Fra-adresse** | Afsenderens e-mailadresse for udgående meddelelser |
-| **App-basis-URL** | Den offentlige URL til din Turbo EA-instans (bruges i e-maillinks) |
+|------|-------------|
+| **Afsenderadresse** | Afsenderadressen for udgående meddelelser |
+| **App-basis-URL** | Den offentlige URL for din instans (bruges i links i e-mails) |
 
-Efter konfiguration skal du klikke på **Send test-e-mail** for at verificere, at indstillingerne fungerer korrekt.
+### SMTP (brugernavn og adgangskode)
+
+| Felt | Beskrivelse |
+|------|-------------|
+| **SMTP-vært** | Værtsnavnet på din mailserver (f.eks. `smtp.gmail.com`) |
+| **SMTP-port** | Serverporten (typisk 587 for TLS) |
+| **SMTP-bruger** | Brugernavnet til godkendelse |
+| **SMTP-adgangskode** | Adgangskoden til godkendelse (gemmes krypteret) |
+| **Brug TLS** | Aktivér STARTTLS-kryptering (anbefales) |
+
+### Microsoft Graph API (anbefales til Microsoft 365)
+
+1. I **Microsoft Entra ID → Appregistreringer** skal du oprette en dedikeret appregistrering.
+2. Under **API-tilladelser** tilføjer du **program**tilladelsen **Mail.Send** og giver **administratorsamtykke**.
+3. Opret en **klienthemmelighed** under **Certifikater og hemmeligheder**.
+4. I Turbo EA vælger du **Microsoft Graph API** og indtaster **Lejer-id**, **Klient-id**, **Klienthemmelighed** og **Afsenderpostkassen** (det user principal name, mailen sendes fra).
+
+Der gemmes ingen postkasseadgangskode; Turbo EA anmoder om et kortvarigt token for hver afsendelse.
+
+**Afsenderadressen** er valgfri med Graph: Lad den stå på standardværdien for at sende som afsenderpostkassen. En anden adresse kræver en **Send As**-tilladelse for den adresse på afsenderpostkassen.
+
+### SMTP med OAuth 2.0
+
+- **Microsoft 365:** indtast **Lejer-id**, **Klient-id** og **Klienthemmelighed** for en appregistrering samt **Afsenderpostkassen**. SMTP AUTH skal være aktiveret for postkassen.
+- **Google Workspace:** vælg **Google**, indsæt **tjenestekontonøglen (JSON)** med domænedækkende delegering aktiveret for afsenderpostkassen, og angiv den **Afsenderpostkasse**, der skal efterlignes.
+
+Felterne **Område** og **Token-slutpunkt** er valgfrie tilsidesættelser — lad dem stå tomme, medmindre din lejer kræver brugerdefinerede værdier.
+
+Når du har konfigureret en metode, skal du klikke på **Send test-e-mail** for at bekræfte, at den virker.
 
 !!! note
-    E-mail er valgfri. Hvis SMTP ikke er konfigureret, vil funktioner, der sender e-mails (invitationer, undersøgelsesnotifikationer), elegant springe e-maillevering over.
+    E-mail er valgfri. Hvis ingen metode er konfigureret, springer funktioner, der sender e-mails, leveringen over uden fejl.
 
 ## BPM-modul
 
@@ -116,6 +152,12 @@ Slå **Governance, Risk and Compliance**-modulet til eller fra. Når det er deak
 - Risici og compliance-fund forbliver i databasen — de underliggende `risks.*`- og `compliance.*`-tilladelser er uændrede, så dataene bevares og dukker uændret op igen, hvis modulet aktiveres på ny
 
 Se [GRC-vejledningen](../guide/grc.md) for den fulde funktionsreference.
+
+## Støt-knap
+
+Vis eller skjul **Støt**-knappen i brugermenuen (avatar). Når den er skjult, ser brugerne ikke længere Støt-knappen i deres profilmenu. Støt-knappen — og dialogen, der forklarer, hvordan man støtter Turbo EA — er altid tilgængelig fra dette indstillingspanel, så administratorer stadig kan nå den, selv når den er skjult i menuen.
+
+Hvis din virksomhed sponsorerer Turbo EA og gerne vil have sit logo vist på turbo-ea.org, så kontakt [sponsorship@turbo-ea.org](mailto:sponsorship@turbo-ea.org).
 
 ## TurboLens-indstillinger
 

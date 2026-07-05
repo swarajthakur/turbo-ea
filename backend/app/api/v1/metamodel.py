@@ -16,6 +16,7 @@ from app.models.compliance_regulation import ComplianceRegulation
 from app.models.ea_principle import EAPrinciple
 from app.models.relation import Relation
 from app.models.relation_type import RelationType
+from app.models.resource_type import ResourceType
 from app.models.stakeholder import Stakeholder
 from app.models.user import User
 from app.services.permission_service import PermissionService
@@ -484,6 +485,10 @@ async def create_type(
         translations=body.get("translations", {}),
     )
     db.add(t)
+    if t.has_successors:
+        # Auto-provide the lineage relation type so the card detail lineage
+        # section renders (issue #729).
+        await _ensure_successor_relation_type(db, t.key)
     await db.commit()
     await db.refresh(t)
     return _serialize_type(t)
@@ -555,6 +560,13 @@ async def update_type(
     for field in updatable:
         if field in body:
             setattr(t, field, body[field])
+
+    # Auto-provide the self-referential lineage relation type whenever lineage is
+    # enabled. Run unconditionally-when-true (idempotent, one indexed lookup) so it
+    # also self-heals types already stuck in the issue #729 state — flag set, no
+    # relation type — on their next save.
+    if t.has_successors:
+        await _ensure_successor_relation_type(db, t.key)
 
     await db.commit()
     await db.refresh(t)
@@ -633,6 +645,103 @@ async def delete_type(
 
 # ── Relation Types ─────────────────────────────────────────────────────
 
+# Successor relations (key ends with "Successor") are a separate, UI-isolated
+# category — see frontend RelationsSection/MetamodelGraph/MetamodelAdmin, which all
+# filter on key.endsWith("Successor"). They are exempt from the one-relation-per-pair
+# uniqueness rule so a custom self-relation can coexist with the built-in successor
+# (mirrors the seeded BusinessProcess "depends on" + "succeeds" pair).
+SUCCESSOR_KEY_SUFFIX = "Successor"
+
+# Canonical label + i18n for an auto-provisioned successor (lineage) relation type.
+# Mirrors the seeded built-in successors (e.g. ``relAppSuccessor`` in seed.py) so a
+# relation type created when an admin enables "Supports Lineage" carries the same
+# wording/translations as the built-ins. The English label is also injected into the
+# translations dict to match the seed (see ``_inject_english_translations_relation``).
+_SUCCESSOR_LABEL = "succeeds"
+_SUCCESSOR_REVERSE_LABEL = "is preceded by"
+_SUCCESSOR_TRANSLATIONS: dict = {
+    "label": {
+        "en": _SUCCESSOR_LABEL,
+        "de": "folgt auf",
+        "fr": "succède à",
+        "es": "sucede a",
+        "it": "succede a",
+        "pt": "sucede a",
+        "zh": "继承",
+        "ru": "предшествует",
+        "da": "efterfølger",
+        "ar": "يخلف",
+    },
+    "reverse_label": {
+        "en": _SUCCESSOR_REVERSE_LABEL,
+        "de": "wird abgelöst durch",
+        "fr": "est précédé par",
+        "es": "es precedido por",
+        "it": "è preceduto da",
+        "pt": "é precedido por",
+        "zh": "被继承",
+        "ru": "следует за",
+        "da": "efterfølges af",
+        "ar": "مسبوق بـ",
+    },
+}
+
+
+async def _ensure_successor_relation_type(db: AsyncSession, card_type_key: str) -> None:
+    """Provision the self-referential ``rel{Key}Successor`` relation type that the card
+    detail lineage section needs when "Supports Lineage" is enabled on a card type.
+
+    Without this, enabling ``has_successors`` only flips the boolean and the frontend
+    ``SuccessorsSection`` (which requires a non-hidden, self-referential relation type
+    whose key ends in "Successor") renders nothing — see issue #729.
+
+    Idempotent: returns early when a qualifying relation type already exists (covers the
+    seeded built-ins and any prior auto-created one), un-hides an existing hidden one
+    (re-enable case, preserving relation instances), and otherwise inserts a new one.
+    The caller is responsible for committing.
+    """
+    # Already have a usable successor relation type for this self-pair? Nothing to do.
+    existing = await db.execute(
+        select(RelationType).where(
+            RelationType.source_type_key == card_type_key,
+            RelationType.target_type_key == card_type_key,
+            RelationType.is_hidden == False,  # noqa: E712
+            RelationType.key.endswith(SUCCESSOR_KEY_SUFFIX),
+        )
+    )
+    if existing.scalar_one_or_none():
+        return
+
+    key = f"rel{card_type_key}{SUCCESSOR_KEY_SUFFIX}"
+
+    # A row with the exact key may exist but be hidden (the admin disabled then
+    # re-enabled lineage, or hid it manually) — un-hide instead of inserting, which
+    # would violate the relation_types.key UNIQUE constraint.
+    by_key = await db.execute(select(RelationType).where(RelationType.key == key))
+    found = by_key.scalar_one_or_none()
+    if found is not None:
+        if found.is_hidden:
+            found.is_hidden = False
+        return
+
+    max_order = await db.execute(select(func.max(RelationType.sort_order)))
+    next_order = (max_order.scalar() or 0) + 1
+    db.add(
+        RelationType(
+            key=key,
+            label=_SUCCESSOR_LABEL,
+            reverse_label=_SUCCESSOR_REVERSE_LABEL,
+            source_type_key=card_type_key,
+            target_type_key=card_type_key,
+            cardinality="n:m",
+            attributes_schema=[],
+            built_in=False,
+            is_hidden=False,
+            sort_order=next_order,
+            translations=_SUCCESSOR_TRANSLATIONS,
+        )
+    )
+
 
 @router.get("/relation-types")
 async def list_relation_types(
@@ -681,12 +790,13 @@ async def create_relation_type(
         if not exists.scalar_one_or_none():
             raise HTTPException(400, f"Type '{type_key}' does not exist")
 
-    # Prevent duplicate source+target pair (ignore hidden/soft-deleted)
+    # Prevent duplicate source+target pair (ignore hidden/soft-deleted + successors)
     dup = await db.execute(
         select(RelationType).where(
             RelationType.source_type_key == body["source_type_key"],
             RelationType.target_type_key == body["target_type_key"],
             RelationType.is_hidden == False,  # noqa: E712
+            ~RelationType.key.endswith(SUCCESSOR_KEY_SUFFIX),
         )
     )
     if dup.scalar_one_or_none():
@@ -761,6 +871,7 @@ async def update_relation_type(
                 RelationType.target_type_key == new_tgt,
                 RelationType.key != key,
                 RelationType.is_hidden == False,  # noqa: E712
+                ~RelationType.key.endswith(SUCCESSOR_KEY_SUFFIX),
             )
         )
         if dup.scalar_one_or_none():
@@ -884,6 +995,7 @@ async def restore_relation_type(
             RelationType.target_type_key == r.target_type_key,
             RelationType.key != key,
             RelationType.is_hidden == False,  # noqa: E712
+            ~RelationType.key.endswith(SUCCESSOR_KEY_SUFFIX),
         )
     )
     if dup.scalar_one_or_none():
@@ -1140,6 +1252,164 @@ async def delete_compliance_regulation(
         raise HTTPException(
             400,
             "Built-in regulations cannot be deleted — toggle is_enabled to disable instead.",
+        )
+    await db.delete(r)
+    await db.commit()
+
+
+# ── Resource Types (link types & file categories) ─────────────────────
+
+_RESOURCE_KINDS = ("link_type", "file_category")
+
+
+class ResourceTypeCreate(BaseModel):
+    kind: str = Field(..., min_length=1, max_length=20)
+    key: str = Field(..., min_length=1, max_length=100)
+    label: str = Field(..., min_length=1, max_length=300)
+    description: str | None = None
+    icon: str | None = Field(None, max_length=100)
+    is_enabled: bool = True
+    sort_order: int = 0
+    translations: dict[str, str] | None = None
+
+
+class ResourceTypeUpdate(BaseModel):
+    label: str | None = Field(None, min_length=1, max_length=300)
+    description: str | None = None
+    icon: str | None = Field(None, max_length=100)
+    is_enabled: bool | None = None
+    sort_order: int | None = None
+    translations: dict[str, str] | None = None
+
+
+def _serialize_resource_type(r: ResourceType) -> dict:
+    return {
+        "id": str(r.id),
+        "kind": r.kind,
+        "key": r.key,
+        "label": r.label,
+        "description": r.description,
+        "icon": r.icon,
+        "is_enabled": r.is_enabled,
+        "built_in": r.built_in,
+        "sort_order": r.sort_order,
+        "translations": r.translations or {},
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
+@router.get("/resource-types")
+async def list_resource_types(
+    kind: str | None = None,
+    enabled_only: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """List resource types (link types & file categories).
+
+    Authenticated read so the card Resources tab can fetch the lists for
+    any user. Write operations remain gated behind ``admin.metamodel``.
+    """
+    stmt = select(ResourceType)
+    if kind:
+        stmt = stmt.where(ResourceType.kind == kind)
+    if enabled_only:
+        stmt = stmt.where(ResourceType.is_enabled == True)  # noqa: E712
+    stmt = stmt.order_by(ResourceType.kind, ResourceType.sort_order, ResourceType.label)
+    result = await db.execute(stmt)
+    return [_serialize_resource_type(r) for r in result.scalars().all()]
+
+
+@router.post("/resource-types", status_code=201)
+async def create_resource_type(
+    body: ResourceTypeCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create a new resource type (admin only)."""
+    await PermissionService.require_permission(db, user, "admin.metamodel")
+    kind = body.kind.strip()
+    if kind not in _RESOURCE_KINDS:
+        raise HTTPException(400, f"kind must be one of {_RESOURCE_KINDS}")
+    key = body.key.strip().lower()
+    if not key:
+        raise HTTPException(400, "key is required")
+    existing = await db.execute(
+        select(ResourceType).where(ResourceType.kind == kind, ResourceType.key == key)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(400, f"A {kind} with key '{key}' already exists")
+    r = ResourceType(
+        id=uuid.uuid4(),
+        kind=kind,
+        key=key,
+        label=body.label.strip(),
+        description=body.description,
+        icon=(body.icon or None),
+        is_enabled=body.is_enabled,
+        built_in=False,
+        sort_order=body.sort_order,
+        translations=body.translations or {},
+    )
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return _serialize_resource_type(r)
+
+
+@router.patch("/resource-types/{resource_type_id}")
+async def update_resource_type(
+    resource_type_id: str,
+    body: ResourceTypeUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Update a resource type (admin only).
+
+    ``kind`` and ``key`` are immutable. ``built_in`` rows can be edited and
+    disabled but never deleted.
+    """
+    await PermissionService.require_permission(db, user, "admin.metamodel")
+    result = await db.execute(
+        select(ResourceType).where(ResourceType.id == uuid.UUID(resource_type_id))
+    )
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Resource type not found")
+    updates = body.model_dump(exclude_unset=True)
+    if "label" in updates and updates["label"] is not None:
+        updates["label"] = updates["label"].strip()
+    if "translations" in updates and updates["translations"] is None:
+        updates["translations"] = {}
+    for k, v in updates.items():
+        setattr(r, k, v)
+    await db.commit()
+    await db.refresh(r)
+    return _serialize_resource_type(r)
+
+
+@router.delete("/resource-types/{resource_type_id}", status_code=204)
+async def delete_resource_type(
+    resource_type_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a resource type (admin only).
+
+    Built-in rows are protected — they can be disabled but not hard-deleted.
+    """
+    await PermissionService.require_permission(db, user, "admin.metamodel")
+    result = await db.execute(
+        select(ResourceType).where(ResourceType.id == uuid.UUID(resource_type_id))
+    )
+    r = result.scalar_one_or_none()
+    if not r:
+        raise HTTPException(404, "Resource type not found")
+    if r.built_in:
+        raise HTTPException(
+            400,
+            "Built-in resource types cannot be deleted — toggle is_enabled to disable instead.",
         )
     await db.delete(r)
     await db.commit()

@@ -21,19 +21,19 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
-import Autocomplete from "@mui/material/Autocomplete";
 import Tooltip from "@mui/material/Tooltip";
 import Popover from "@mui/material/Popover";
 import { useTranslation } from "react-i18next";
 import MaterialSymbol from "@/components/MaterialSymbol";
+import CardPicker from "@/components/CardPicker";
 import { useMetamodel } from "@/hooks/useMetamodel";
-import { useResolveLabel, useResolveMetaLabel } from "@/hooks/useResolveLabel";
+import { useResolveLabel, useTypeLabel, useRelationLabel } from "@/hooks/useResolveLabel";
 import { api } from "@/api/client";
 import type { Relation, RelationType } from "@/types";
 import RelationAttributesEditor, {
   flowDirectionBadge,
   relationAttributeBadges,
-  hasRelationAttributes,
+  hasRelationSubtypes,
   type RelationAttributes,
 } from "./RelationAttributesEditor";
 
@@ -145,33 +145,16 @@ function InlineAddRow({
   onClose: () => void;
 }) {
   const { t } = useTranslation(["cards", "common"]);
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
   const { getType } = useMetamodel();
   const targetTypeKey = isSource ? rt.target_type_key : rt.source_type_key;
   const targetTypeConfig = getType(targetTypeKey);
 
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<{ id: string; name: string; type: string }[]>([]);
   const [error, setError] = useState("");
   const [createMode, setCreateMode] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
-
-  useEffect(() => {
-    if (!targetTypeKey || search.length < 1) {
-      setResults([]);
-      return;
-    }
-    const timer = setTimeout(() => {
-      api
-        .get<{ items: { id: string; name: string; type: string }[] }>(
-          `/cards?type=${targetTypeKey}&search=${encodeURIComponent(search)}&page_size=20`,
-        )
-        .then((res) => setResults(res.items.filter((item) => item.id !== fsId)))
-        .catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [targetTypeKey, search, fsId]);
 
   const handleSelect = async (card: { id: string; name: string; type: string } | null) => {
     if (!card) return;
@@ -212,8 +195,7 @@ function InlineAddRow({
     }
   };
 
-  const targetLabel =
-    rml(targetTypeConfig?.key ?? "", targetTypeConfig?.translations, "label") || targetTypeKey;
+  const targetLabel = typeLabel(targetTypeConfig) || targetTypeKey;
 
   if (createMode) {
     return (
@@ -252,35 +234,15 @@ function InlineAddRow({
     <Box sx={{ mt: 1 }}>
       {error && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError("")}>{error}</Alert>}
       <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-        <Autocomplete
+        <CardPicker
           sx={{ flex: 1 }}
-          options={results}
-          getOptionLabel={(opt) => opt.name}
-          onChange={(_, val) => handleSelect(val)}
-          inputValue={search}
-          onInputChange={(_, val) => setSearch(val)}
-          renderOption={(props, opt) => {
-            const tConf = getType(opt.type);
-            return (
-              <li {...props} key={opt.id}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {tConf && <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: tConf.color }} />}
-                  <Typography variant="body2">{opt.name}</Typography>
-                </Box>
-              </li>
-            );
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              placeholder={t("relations.search", { type: targetLabel })}
-              autoFocus
-            />
-          )}
-          noOptionsText={search ? t("common:labels.noResults") : t("relations.searchPlaceholder")}
-          filterOptions={(x) => x}
-          openOnFocus
+          types={targetTypeKey}
+          value={null}
+          onChange={handleSelect}
+          onInputChange={setSearch}
+          excludeIds={[fsId]}
+          placeholder={t("relations.search", { type: targetLabel })}
+          autoFocus
         />
         <Tooltip title={t("relations.createNew", { type: targetLabel })}>
           <IconButton size="small" onClick={() => { setCreateMode(true); setCreateName(search); }}>
@@ -316,22 +278,20 @@ function RelationGroup({
   onRelationUpdated: (updated: Relation) => void;
 }) {
   const { t } = useTranslation(["cards", "common"]);
-  const rml = useResolveMetaLabel();
   const rl = useResolveLabel();
+  const typeLabel = useTypeLabel();
+  const relLabel = useRelationLabel();
   const { getType } = useMetamodel();
   const navigate = useNavigate();
   const [inlineAddOpen, setInlineAddOpen] = useState(false);
   const [attrsAnchor, setAttrsAnchor] = useState<HTMLElement | null>(null);
   const [attrsRelation, setAttrsRelation] = useState<Relation | null>(null);
 
-  const rtHasAttributes = hasRelationAttributes(rt);
+  const rtHasSubtypes = hasRelationSubtypes(rt);
 
   const otherTypeKey = isSource ? rt.target_type_key : rt.source_type_key;
   const otherType = getType(otherTypeKey);
-  const verb = isSource
-    ? rml(rt.label || rt.key, rt.translations, "label")
-    : rml(rt.reverse_label || rt.label || rt.key, rt.translations, "reverse_label") ||
-      rml(rt.label || rt.key, rt.translations, "label");
+  const verb = isSource ? relLabel(rt) : relLabel(rt, true);
 
   const handleDelete = async (relId: string) => {
     await api.delete(`/relations/${relId}`);
@@ -371,7 +331,7 @@ function RelationGroup({
     : [];
   const unspecifiedRels = hasFlowDirection ? rels.filter((r) => !readFlow(r)) : [];
 
-  const otherTypeLabel = rml(otherType?.key ?? "", otherType?.translations, "label") || otherTypeKey;
+  const otherTypeLabel = typeLabel(otherType) || otherTypeKey;
 
   const renderRow = (r: Relation) => {
     const other = r.source_id === fsId ? r.target : r.source;
@@ -409,7 +369,7 @@ function RelationGroup({
                 }}
               />
             ))}
-            {rtHasAttributes && canManageRelations && (
+            {rtHasSubtypes && canManageRelations && (
               <Tooltip title={editTooltip}>
                 <IconButton
                   size="small"
@@ -529,7 +489,7 @@ function RelationGroup({
           {verb}
           {otherType && (
             <Typography component="span" variant="subtitle2" color="text.secondary" sx={{ ml: 0.5 }}>
-              {rml(otherType.key, otherType.translations, "label")}
+              {typeLabel(otherType)}
             </Typography>
           )}
         </Typography>
@@ -550,7 +510,7 @@ function RelationGroup({
         />
         {canManageRelations && !inlineAddOpen && (
           <Tooltip title={t("relations.addSpecific", {
-            type: rml(otherType?.key ?? "", otherType?.translations, "label") || otherTypeKey,
+            type: typeLabel(otherType) || otherTypeKey,
           })}>
             <IconButton
               size="small"
@@ -593,7 +553,7 @@ function RelationGroup({
         </>
       )}
 
-      {rtHasAttributes && attrsRelation && (
+      {rtHasSubtypes && attrsRelation && (
         <RelationAttrsPopover
           anchorEl={attrsAnchor}
           open={Boolean(attrsAnchor)}
@@ -644,7 +604,8 @@ function RelationsSection({
   initialExpanded?: boolean;
 }) {
   const { t } = useTranslation(["cards", "common"]);
-  const rml = useResolveMetaLabel();
+  const typeLabel = useTypeLabel();
+  const relLabel = useRelationLabel();
   const [relations, setRelations] = useState<Relation[]>([]);
   const { types: allTypes, relationTypes, getType } = useMetamodel();
   const visibleTypeKeys = useMemo(() => new Set(allTypes.map((t) => t.key)), [allTypes]);
@@ -653,7 +614,6 @@ function RelationsSection({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addRelType, setAddRelType] = useState("");
   const [targetSearch, setTargetSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<{ id: string; name: string; type: string }[]>([]);
   const [selectedTarget, setSelectedTarget] = useState<{ id: string; name: string; type: string } | null>(null);
   const [addError, setAddError] = useState("");
 
@@ -728,22 +688,6 @@ function RelationsSection({
     ? dialogIsSource ? selectedRT.target_type_key : selectedRT.source_type_key
     : "";
   const dialogTargetConfig = getType(dialogTargetTypeKey);
-
-  useEffect(() => {
-    if (!dialogTargetTypeKey || targetSearch.length < 1) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(() => {
-      api
-        .get<{ items: { id: string; name: string; type: string }[] }>(
-          `/cards?type=${dialogTargetTypeKey}&search=${encodeURIComponent(targetSearch)}&page_size=20`,
-        )
-        .then((res) => setSearchResults(res.items.filter((item) => item.id !== fsId)))
-        .catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [dialogTargetTypeKey, targetSearch, fsId]);
 
   const handleAddRelation = async () => {
     if (!selectedRT || !selectedTarget) return;
@@ -886,10 +830,7 @@ function RelationsSection({
             >
               {hiddenRTs.map((rt) => {
                 const rtIsSource = rt.source_type_key === cardTypeKey;
-                const verb = rtIsSource
-                  ? rml(rt.label || rt.key, rt.translations, "label")
-                  : rml(rt.reverse_label || rt.label || rt.key, rt.translations, "reverse_label") ||
-                    rml(rt.label || rt.key, rt.translations, "label");
+                const verb = rtIsSource ? relLabel(rt) : relLabel(rt, true);
                 const otherKey = rtIsSource ? rt.target_type_key : rt.source_type_key;
                 const other = getType(otherKey);
                 return (
@@ -900,7 +841,7 @@ function RelationsSection({
                       {other && (
                         <>
                           <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: other.color }} />
-                          <Typography variant="body2">{rml(other.key, other.translations, "label")}</Typography>
+                          <Typography variant="body2">{typeLabel(other)}</Typography>
                         </>
                       )}
                       <Chip size="small" label={rt.cardinality} variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
@@ -912,37 +853,16 @@ function RelationsSection({
           </FormControl>
           {addRelType && !createOpen && (
             <>
-              <Autocomplete
-                options={searchResults}
-                getOptionLabel={(opt) => opt.name}
+              <CardPicker
+                types={dialogTargetTypeKey}
                 value={selectedTarget}
-                onChange={(_, val) => setSelectedTarget(val)}
-                inputValue={targetSearch}
-                onInputChange={(_, val) => setTargetSearch(val)}
-                renderOption={(props, opt) => {
-                  const tConf = getType(opt.type);
-                  return (
-                    <li {...props} key={opt.id}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        {tConf && <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: tConf.color }} />}
-                        <Typography variant="body2">{opt.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{opt.type}</Typography>
-                      </Box>
-                    </li>
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    label={t("relations.search", {
-                      type: rml(dialogTargetConfig?.key ?? "", dialogTargetConfig?.translations, "label") || dialogTargetTypeKey,
-                    })}
-                    placeholder={t("relations.searchPlaceholder")}
-                  />
-                )}
-                noOptionsText={targetSearch ? t("common:labels.noResults") : t("relations.searchPlaceholder")}
-                filterOptions={(x) => x}
+                onChange={setSelectedTarget}
+                onInputChange={setTargetSearch}
+                excludeIds={[fsId]}
+                fullWidth
+                label={t("relations.search", {
+                  type: typeLabel(dialogTargetConfig) || dialogTargetTypeKey,
+                })}
               />
               <Button
                 size="small"
@@ -951,10 +871,10 @@ function RelationsSection({
                 onClick={() => { setCreateOpen(true); setCreateName(targetSearch); }}
               >
                 {t("relations.createNew", {
-                  type: rml(dialogTargetConfig?.key ?? "", dialogTargetConfig?.translations, "label") || dialogTargetTypeKey,
+                  type: typeLabel(dialogTargetConfig) || dialogTargetTypeKey,
                 })}
               </Button>
-              {selectedRT && hasRelationAttributes(selectedRT) && (
+              {selectedRT && hasRelationSubtypes(selectedRT) && (
                 <Box sx={{ mt: 2, p: 1.5, border: "1px dashed", borderColor: "divider", borderRadius: 1 }}>
                   <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 1 }}>
                     {t("relations.optionalDetails")}
@@ -973,7 +893,7 @@ function RelationsSection({
             <Box sx={{ mt: 1, p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
                 {t("relations.createNew", {
-                  type: rml(dialogTargetConfig?.key ?? "", dialogTargetConfig?.translations, "label") || dialogTargetTypeKey,
+                  type: typeLabel(dialogTargetConfig) || dialogTargetTypeKey,
                 })}
               </Typography>
               <TextField

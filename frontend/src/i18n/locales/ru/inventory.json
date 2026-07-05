@@ -50,6 +50,7 @@
   "filter.any": "Любой",
   "filter.minValue": "Мин. значение",
   "filter.contains": "Содержит...",
+  "filter.emptyValue": "(пусто)",
   "filter.showArchivedOnly": "Показать только архивные",
   "filter.clearAll": "Очистить все ({{count}})",
   "massEdit.title": "Массовое редактирование",
@@ -144,7 +145,6 @@
   "relation.noRelationsYet": "Связей пока нет",
   "relation.addRelation": "Добавить связь",
   "relation.searchType": "Поиск {{type}}...",
-  "relation.typeToSearch": "Введите для поиска...",
   "relation.createNew": "Создать новый {{type}}",
   "relation.createAndAdd": "Создать и добавить",
   "relation.unknown": "Неизвестно",
@@ -224,5 +224,10 @@
   "import.errors.relationTypeRequired": "Поле relation_type обязательно",
   "import.errors.unknownRelationType": "Неизвестный тип связи: {{type}}",
   "import.warnings.formatVersionMismatch": "Версия формата книги {{version}} отличается от текущей. Некоторые поля могут не восстановиться корректно.",
-  "import.warnings.unknownRelationType": "Неизвестный тип связи «{{type}}» — столбец проигнорирован"
+  "import.warnings.unknownRelationType": "Неизвестный тип связи «{{type}}» — столбец проигнорирован",
+  "export.allFields": "Экспортировать все поля",
+  "export.allFieldsHint": "Полный набор данных, пригоден для повторного импорта",
+  "export.currentView": "Экспортировать текущий вид",
+  "export.currentViewHint": "Отражает таблицу на экране — не подходит для повторного импорта",
+  "export.viewSheetName": "Вид"
 }

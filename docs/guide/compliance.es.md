@@ -36,6 +36,10 @@ Haz clic en **+ Nuevo hallazgo** en la barra de herramientas de Cumplimiento par
 
 `compliance.manage` es requerido para crear, editar, retirar o bulk-actionar hallazgos. `compliance.view` basta para leer el registro y triagear desde la pestaña Cumplimiento a nivel de tarjeta.
 
+### Editar un hallazgo
+
+Abra un hallazgo — desde la cuadrícula de Cumplimiento o desde la pestaña **Cumplimiento** de una tarjeta — y haga clic en **Editar** en el panel para cambiar, después de su creación, su **estado** de cumplimiento (por ejemplo Conforme → Parcial), severidad, requisito, brecha, evidencia, remediación, artículo o tarjeta vinculada. Editar el contenido no altera la decisión del ciclo de vida del hallazgo; use para ello la línea de tiempo del ciclo de vida. Requiere `compliance.manage`.
+
 ## Ejecutar un escaneo IA
 
 !!! info "IA requerida para escaneos, no para hallazgos manuales"
@@ -101,7 +105,7 @@ La pestaña Cumplimiento también muestra un **KPI global de cumplimiento** en l
 
 ## Cumplimiento en una sola ficha
 
-![Detalle de la ficha — pestaña Cumplimiento](../assets/img/es/56_card_compliance_tab.png)
+![Detalle de la ficha — pestaña Cumplimiento](../assets/img/es/56_ficha_cumplimiento_tab.png)
 
 Las fichas dentro del alcance de cualquier hallazgo también muestran una pestaña **Cumplimiento** en su página de detalle (gobernada por `compliance.view`). Lista cada hallazgo actualmente vinculado a la ficha con las mismas acciones Reconocer / Aceptar / **Crear riesgo** / **Abrir riesgo** que la vista GRC — de modo que un Application Owner pueda clasificar sus propios hallazgos sin salir de la ficha. La misma regla de ocultamiento automático se aplica a la pestaña **Riesgos** en el detalle de la ficha: ambas pestañas solo aparecen cuando la ficha realmente tiene elementos vinculados, de modo que las fichas sin actividad GRC no arrastran pestañas vacías.
 

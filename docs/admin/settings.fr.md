@@ -4,7 +4,7 @@ La page **Paramètres** sous **Admin → Paramètres** (`/admin/settings`) est l
 
 | Onglet | URL | Ce qu'il contrôle | Guide complet |
 |--------|-----|-------------------|---------------|
-| **Général** | `/admin/settings?tab=general` | Apparence (logo, favicon, devise, format de date, langues activées, année fiscale), e-mail SMTP, **bascules de modules** (BPM, PPM, GRC, TurboLens) | Cette page |
+| **Général** | `/admin/settings?tab=general` | Apparence (logo, favicon, devise, format de date, langues activées, année fiscale), envoi d'e-mails, **bascules de modules** (BPM, PPM, GRC, TurboLens, Sponsor button) | Cette page |
 | **Authentification** | `/admin/settings?tab=authentication` | Fournisseurs SSO, inscription, politique de mot de passe | [Authentification & SSO](sso.md) |
 | **IA** | `/admin/settings?tab=ai` | Fournisseur LLM, modèle, backend de recherche web, bascules de suggestion IA par type de fiche | [Capacités IA](ai.md) |
 | **EOL** | `/admin/settings?tab=eol` | Liaison en masse des produits aux entrées endoflife.date | [Fin de vie (EOL)](eol.md) |
@@ -69,24 +69,60 @@ Lorsqu'une fiche est archivée, elle est masquée de l'inventaire, des rapports 
 
 La purge s'exécute toutes les heures et relit ce paramètre à chaque passage, de sorte que les modifications prennent effet sans redémarrer l'application. Les bannières d'archivage et les boîtes de dialogue de confirmation reflètent automatiquement la durée configurée.
 
-## E-mail (SMTP)
+## E-mail
 
-Configurez la livraison d'e-mails pour les e-mails d'invitation, les notifications d'enquête et autres messages système.
+Turbo EA envoie des e-mails d'invitation, des notifications d'enquête, des réinitialisations de mot de passe et d'autres messages système. Choisissez une **méthode d'envoi** adaptée à votre plateforme de messagerie.
+
+!!! warning "L'authentification SMTP de base est en cours de retrait"
+    Microsoft 365 désactive l'authentification SMTP de base (indisponible pour les nouveaux locataires, supprimée pour les existants au cours de 2026–2027) et Google Workspace l'a désactivée en mars 2025. Pour ces plateformes, utilisez l'une des méthodes OAuth ci-dessous au lieu d'un mot de passe de boîte aux lettres.
+
+### Méthodes d'envoi
+
+| Méthode | Quand l'utiliser |
+|---------|------------------|
+| **SMTP (nom d'utilisateur et mot de passe)** | SMTP classique pour les serveurs qui acceptent encore l'authentification de base. Par défaut. |
+| **SMTP avec OAuth 2.0 (XOAUTH2)** | SMTP authentifié avec un jeton OAuth de courte durée — Microsoft 365 (application seule) ou Google Workspace (compte de service). |
+| **API Microsoft Graph** | `sendMail` de Microsoft Graph en application seule. L'option recommandée pour Microsoft 365 — pas de SMTP, pas de mot de passe stocké. |
+
+### Champs communs
+
+| Champ | Description |
+|-------|-------------|
+| **Adresse d'expéditeur** | L'adresse d'expéditeur des messages sortants |
+| **URL de base de l'application** | L'URL publique de votre instance (utilisée dans les liens des e-mails) |
+
+### SMTP (nom d'utilisateur et mot de passe)
 
 | Champ | Description |
 |-------|-------------|
 | **Hôte SMTP** | Le nom d'hôte de votre serveur de messagerie (par ex. `smtp.gmail.com`) |
-| **Port SMTP** | Port du serveur (généralement 587 pour TLS) |
-| **Utilisateur SMTP** | Nom d'utilisateur d'authentification |
-| **Mot de passe SMTP** | Mot de passe d'authentification (stocké chiffré) |
-| **Utiliser TLS** | Activer le chiffrement TLS (recommandé) |
-| **Adresse d'expédition** | L'adresse e-mail de l'expéditeur pour les messages sortants |
-| **URL de base de l'application** | L'URL publique de votre instance Turbo EA (utilisée dans les liens des e-mails) |
+| **Port SMTP** | Le port du serveur (généralement 587 pour TLS) |
+| **Utilisateur SMTP** | Le nom d'utilisateur d'authentification |
+| **Mot de passe SMTP** | Le mot de passe d'authentification (stocké chiffré) |
+| **Utiliser TLS** | Activer le chiffrement STARTTLS (recommandé) |
 
-Après la configuration, cliquez sur **Envoyer un e-mail de test** pour vérifier que les paramètres fonctionnent correctement.
+### API Microsoft Graph (recommandée pour Microsoft 365)
+
+1. Dans **Microsoft Entra ID → Inscriptions d'applications**, créez une inscription d'application dédiée.
+2. Sous **Autorisations d'API**, ajoutez l'autorisation **d'application** **Mail.Send** et accordez le **consentement de l'administrateur**.
+3. Créez un **secret client** sous **Certificats et secrets**.
+4. Dans Turbo EA, choisissez **API Microsoft Graph** et saisissez l'**ID de locataire**, l'**ID client**, le **secret client** et la **boîte aux lettres d'expéditeur** (le nom principal d'utilisateur depuis lequel le courrier est envoyé).
+
+Aucun mot de passe de boîte aux lettres n'est stocké ; Turbo EA demande un jeton de courte durée pour chaque envoi.
+
+L'**adresse d'expéditeur** est facultative avec Graph : laissez-la à la valeur par défaut pour envoyer en tant que boîte aux lettres d'expéditeur. Définir une adresse différente nécessite une autorisation **Send As** pour cette adresse sur la boîte aux lettres d'expéditeur.
+
+### SMTP avec OAuth 2.0
+
+- **Microsoft 365 :** saisissez l'**ID de locataire**, l'**ID client** et le **secret client** d'une inscription d'application, ainsi que la **boîte aux lettres d'expéditeur**. SMTP AUTH doit être activé pour la boîte aux lettres.
+- **Google Workspace :** choisissez **Google**, collez la **clé de compte de service (JSON)** avec la délégation à l'échelle du domaine activée pour la boîte aux lettres d'expéditeur, et définissez la **boîte aux lettres d'expéditeur** à usurper.
+
+Les champs **Portée** et **Point de terminaison du jeton** sont des remplacements facultatifs — laissez-les vides sauf si votre locataire exige des valeurs personnalisées.
+
+Après avoir configuré une méthode, cliquez sur **Envoyer un e-mail de test** pour vérifier son bon fonctionnement.
 
 !!! note
-    L'e-mail est optionnel. Si le SMTP n'est pas configuré, les fonctionnalités qui envoient des e-mails (invitations, notifications d'enquête) passeront gracieusement la livraison par e-mail.
+    L'e-mail est facultatif. Si aucune méthode n'est configurée, les fonctionnalités qui envoient des e-mails ignorent simplement l'envoi.
 
 ## Module BPM
 
@@ -116,6 +152,12 @@ Activez ou désactivez le module **Gouvernance, Risque et Conformité** (GRC). L
 - Les risques et les constats de conformité restent dans la base de données — les permissions sous-jacentes `risks.*` et `compliance.*` sont inchangées, de sorte que les données sont préservées et réapparaissent telles quelles si le module est réactivé
 
 Voir le [guide GRC](../guide/grc.md) pour la référence complète des fonctionnalités.
+
+## Bouton Soutenir
+
+Affichez ou masquez le bouton **Soutenir** dans le menu utilisateur (avatar). Lorsqu'il est masqué, les utilisateurs ne voient plus le bouton Soutenir dans leur menu de profil. Le bouton Soutenir — et la boîte de dialogue expliquant comment soutenir Turbo EA — reste toujours disponible depuis ce panneau de paramètres, de sorte que les administrateurs peuvent toujours y accéder même lorsqu'il est masqué du menu.
+
+Si votre entreprise sponsorise Turbo EA et souhaite que son logo soit mis en avant sur turbo-ea.org, contactez-nous à [sponsorship@turbo-ea.org](mailto:sponsorship@turbo-ea.org).
 
 ## Paramètres TurboLens
 

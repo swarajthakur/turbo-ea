@@ -4,7 +4,7 @@ Die **Einstellungen**-Seite unter **Admin → Einstellungen** (`/admin/settings`
 
 | Reiter | URL | Was er steuert | Vollständige Anleitung |
 |--------|-----|----------------|------------------------|
-| **Allgemein** | `/admin/settings?tab=general` | Erscheinungsbild (Logo, Favicon, Währung, Datumsformat, aktivierte Sprachen, Geschäftsjahr), SMTP-E-Mail, **Modul-Schalter** (BPM, PPM, GRC, TurboLens) | Diese Seite |
+| **Allgemein** | `/admin/settings?tab=general` | Erscheinungsbild (Logo, Favicon, Währung, Datumsformat, aktivierte Sprachen, Geschäftsjahr), E-Mail-Versand, **Modul-Schalter** (BPM, PPM, GRC, TurboLens, Sponsor button) | Diese Seite |
 | **Authentifizierung** | `/admin/settings?tab=authentication` | SSO-Provider, Registrierung, Passwortrichtlinie | [Authentifizierung & SSO](sso.md) |
 | **KI** | `/admin/settings?tab=ai` | LLM-Provider, Modell, Websuch-Backend, Pro-Kartentyp-KI-Suggestionsschalter | [KI-Funktionen](ai.md) |
 | **EOL** | `/admin/settings?tab=eol` | Massen-Verknüpfung von Produkten zu endoflife.date-Einträgen | [End-of-Life (EOL)](eol.md) |
@@ -69,24 +69,60 @@ Wenn eine Karte archiviert wird, ist sie im Inventar, in Berichten und in Bezieh
 
 Die Bereinigung läuft stündlich und liest diese Einstellung bei jedem Durchlauf neu, sodass Änderungen ohne Neustart der Anwendung wirksam werden. Archiv-Banner und Bestätigungsdialoge zeigen die konfigurierte Dauer automatisch an.
 
-## E-Mail (SMTP)
+## E-Mail
 
-Konfigurieren Sie die E-Mail-Zustellung für Einladungs-E-Mails, Umfragebenachrichtigungen und andere Systemnachrichten.
+Turbo EA versendet Einladungs-E-Mails, Umfrage-Benachrichtigungen, Passwort-Zurücksetzungen und andere Systemnachrichten. Wählen Sie eine **Versandmethode**, die zu Ihrer Mail-Plattform passt.
+
+!!! warning "Basis-SMTP-Authentifizierung wird abgeschafft"
+    Microsoft 365 deaktiviert die Basis-SMTP-Authentifizierung (für neue Mandanten nicht verfügbar, für bestehende über 2026–2027 entfernt), und Google Workspace hat sie im März 2025 deaktiviert. Verwenden Sie für diese Plattformen eine der untenstehenden OAuth-Methoden anstelle eines Postfachpassworts.
+
+### Versandmethoden
+
+| Methode | Wann verwenden |
+|---------|----------------|
+| **SMTP (Benutzername & Passwort)** | Klassisches SMTP für Server, die weiterhin Basisauthentifizierung akzeptieren. Der Standard. |
+| **SMTP mit OAuth 2.0 (XOAUTH2)** | SMTP, authentifiziert mit einem kurzlebigen OAuth-Token — Microsoft 365 (App-only) oder Google Workspace (Dienstkonto). |
+| **Microsoft Graph API** | App-only Microsoft Graph `sendMail`. Die empfohlene Microsoft-365-Option — kein SMTP, kein gespeichertes Passwort. |
+
+### Gemeinsame Felder
 
 | Feld | Beschreibung |
-|------|-------------|
-| **SMTP-Host** | Hostname Ihres Mailservers (z.B. `smtp.gmail.com`) |
-| **SMTP-Port** | Server-Port (typischerweise 587 für TLS) |
-| **SMTP-Benutzer** | Benutzername für die Authentifizierung |
-| **SMTP-Passwort** | Passwort für die Authentifizierung (verschlüsselt gespeichert) |
-| **TLS verwenden** | TLS-Verschlüsselung aktivieren (empfohlen) |
-| **Absenderadresse** | Die Absender-E-Mail-Adresse für ausgehende Nachrichten |
-| **App-Basis-URL** | Die öffentliche URL Ihrer Turbo EA-Instanz (wird in E-Mail-Links verwendet) |
+|------|--------------|
+| **Absenderadresse** | Die Absenderadresse für ausgehende Nachrichten |
+| **App-Basis-URL** | Die öffentliche URL Ihrer Instanz (für Links in E-Mails) |
 
-Nach der Konfiguration klicken Sie auf **Test-E-Mail senden**, um zu überprüfen, ob die Einstellungen korrekt funktionieren.
+### SMTP (Benutzername & Passwort)
+
+| Feld | Beschreibung |
+|------|--------------|
+| **SMTP-Host** | Hostname Ihres Mailservers (z. B. `smtp.gmail.com`) |
+| **SMTP-Port** | Server-Port (üblicherweise 587 für TLS) |
+| **SMTP-Benutzer** | Authentifizierungs-Benutzername |
+| **SMTP-Passwort** | Authentifizierungspasswort (verschlüsselt gespeichert) |
+| **TLS verwenden** | STARTTLS-Verschlüsselung aktivieren (empfohlen) |
+
+### Microsoft Graph API (empfohlen für Microsoft 365)
+
+1. Erstellen Sie unter **Microsoft Entra ID → App-Registrierungen** eine dedizierte App-Registrierung.
+2. Fügen Sie unter **API-Berechtigungen** die **Anwendungsberechtigung** **Mail.Send** hinzu und erteilen Sie die **Administratoreinwilligung**.
+3. Erstellen Sie unter **Zertifikate & Geheimnisse** ein **Client-Geheimnis**.
+4. Wählen Sie in Turbo EA **Microsoft Graph API** und geben Sie **Mandanten-ID**, **Client-ID**, **Client-Geheimnis** und das **Absenderpostfach** (den User Principal Name, von dem gesendet wird) ein.
+
+Es wird kein Postfachpasswort gespeichert; Turbo EA fordert für jeden Versand ein kurzlebiges Token an.
+
+Die **Absenderadresse** ist bei Graph optional: Belassen Sie sie auf dem Standardwert, um als Absenderpostfach zu senden. Eine abweichende Adresse erfordert eine **Send-As-Berechtigung** für diese Adresse auf dem Absenderpostfach.
+
+### SMTP mit OAuth 2.0
+
+- **Microsoft 365:** Geben Sie **Mandanten-ID**, **Client-ID** und **Client-Geheimnis** einer App-Registrierung sowie das **Absenderpostfach** ein. SMTP AUTH muss für das Postfach aktiviert sein.
+- **Google Workspace:** Wählen Sie **Google**, fügen Sie den **Dienstkontoschlüssel (JSON)** mit aktivierter domänenweiter Delegierung für das Absenderpostfach ein und legen Sie das zu imitierende **Absenderpostfach** fest.
+
+Die Felder **Bereich** und **Token-Endpunkt** sind optionale Überschreibungen — lassen Sie sie leer, sofern Ihr Mandant keine benutzerdefinierten Werte erfordert.
+
+Klicken Sie nach der Konfiguration auf **Test-E-Mail senden**, um die Funktion zu überprüfen.
 
 !!! note
-    E-Mail ist optional. Wenn SMTP nicht konfiguriert ist, überspringen Funktionen, die E-Mails senden (Einladungen, Umfragebenachrichtigungen), den E-Mail-Versand ohne Fehlermeldung.
+    E-Mail ist optional. Wenn keine Methode konfiguriert ist, überspringen Funktionen, die E-Mails senden, die Zustellung ohne Fehler.
 
 ## BPM-Modul
 
@@ -116,6 +152,12 @@ Schalten Sie das **Governance, Risk and Compliance**-Modul (GRC) ein oder aus. W
 - Risiken und Compliance-Findings verbleiben in der Datenbank — die zugrunde liegenden Berechtigungen `risks.*` und `compliance.*` bleiben unverändert, sodass die Daten erhalten bleiben und unverändert wieder erscheinen, wenn das Modul erneut aktiviert wird
 
 Siehe den [GRC-Leitfaden](../guide/grc.md) für die vollständige Funktionsübersicht.
+
+## Sponsor-Schaltfläche
+
+Blenden Sie die **Sponsor**-Schaltfläche im Benutzermenü (Avatar) ein oder aus. Wenn sie ausgeblendet ist, sehen Benutzer die Sponsor-Schaltfläche nicht mehr in ihrem Profilmenü. Die Sponsor-Schaltfläche — und der Dialog, der erklärt, wie man Turbo EA unterstützt — bleibt in diesem Einstellungsbereich immer verfügbar, sodass Administratoren sie auch dann erreichen, wenn sie im Menü ausgeblendet ist.
+
+Wenn Ihr Unternehmen Turbo EA sponsert und sein Logo auf turbo-ea.org präsentieren möchte, wenden Sie sich an [sponsorship@turbo-ea.org](mailto:sponsorship@turbo-ea.org).
 
 ## TurboLens-Einstellungen
 
