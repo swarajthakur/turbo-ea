@@ -64,6 +64,11 @@ esac
 
 DB_POOL_SIZE="${DB_POOL_SIZE:-5}"
 DB_MAX_OVERFLOW="${DB_MAX_OVERFLOW:-2}"
+# Secret Manager secret names. The DB password one is configurable because it
+# is often created out of band, under whatever name the operator chose.
+DB_PASSWORD_SECRET="${DB_PASSWORD_SECRET:-turbo-ea-db-password}"
+SECRET_KEY_SECRET="${SECRET_KEY_SECRET:-turbo-ea-secret-key}"
+
 SA_NAME="${SA_NAME:-turbo-ea-run}"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 CLOUDSQL_INSTANCE="${PROJECT}:${REGION}:${SQL_INSTANCE}"
@@ -127,7 +132,7 @@ bootstrap() {
 
   # Checked up front so the DB password can be loaded into Secret Manager out
   # of band — the operator never has to hand it to this script at all.
-  gcloud secrets describe turbo-ea-db-password --project="$PROJECT" >/dev/null 2>&1 \
+  gcloud secrets describe "$DB_PASSWORD_SECRET" --project="$PROJECT" >/dev/null 2>&1 \
     && secret_exists=true
 
   if [ "$DB_MODE" = cloudsql ]; then
@@ -153,17 +158,17 @@ bootstrap() {
 
   log "Creating secrets"
   if [ "$secret_exists" = false ]; then
-    printf '%s' "$pw" | gcloud secrets create turbo-ea-db-password \
+    printf '%s' "$pw" | gcloud secrets create "$DB_PASSWORD_SECRET" \
       --project="$PROJECT" --data-file=- --replication-policy=automatic
     [ "$DB_MODE" = cloudsql ] && gcloud sql users create "$POSTGRES_USER" \
       --instance="$SQL_INSTANCE" --project="$PROJECT" --password="$pw"
   else
     echo "  (db password secret already exists — leaving it alone)"
-    echo "  to rotate: printf '%s' NEW | gcloud secrets versions add turbo-ea-db-password --data-file=-"
+    echo "  to rotate: printf '%s' NEW | gcloud secrets versions add $DB_PASSWORD_SECRET --data-file=-"
   fi
 
-  if ! gcloud secrets describe turbo-ea-secret-key --project="$PROJECT" >/dev/null 2>&1; then
-    printf '%s' "$key" | gcloud secrets create turbo-ea-secret-key \
+  if ! gcloud secrets describe "$SECRET_KEY_SECRET" --project="$PROJECT" >/dev/null 2>&1; then
+    printf '%s' "$key" | gcloud secrets create "$SECRET_KEY_SECRET" \
       --project="$PROJECT" --data-file=- --replication-policy=automatic
   fi
 
@@ -257,7 +262,7 @@ deploy() {
 
   gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
     --container=backend \
-    --set-secrets=POSTGRES_PASSWORD=turbo-ea-db-password:latest,SECRET_KEY=turbo-ea-secret-key:latest \
+    --set-secrets="POSTGRES_PASSWORD=${DB_PASSWORD_SECRET}:latest,SECRET_KEY=${SECRET_KEY_SECRET}:latest" \
     --quiet
 
   if [ "$first_deploy" = true ]; then
