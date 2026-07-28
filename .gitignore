@@ -87,3 +87,4 @@ archive/
 
 #Local Claude
 .claude/
+.compose.cloudrun.rendered.yaml

@@ -20,6 +20,16 @@ PROJECT="${PROJECT:?set PROJECT}"
 REGION="${REGION:-us-central1}"
 SERVICE="${SERVICE:-turbo-ea}"
 
+# Public access is opt-in. Turbo EA has its own login, but leaving the service
+# IAM-gated keeps the login page off the open internet; reach it with
+#   gcloud run services proxy "$SERVICE" --region "$REGION"
+# after granting yourself roles/run.invoker.
+ALLOW_UNAUTH="${ALLOW_UNAUTH:-false}"
+case "$ALLOW_UNAUTH" in
+  true|1|yes) AUTH_FLAG=--allow-unauthenticated ;;
+  *)          AUTH_FLAG=--no-allow-unauthenticated ;;
+esac
+
 SQL_INSTANCE="${SQL_INSTANCE:-turbo-ea-db}"
 POSTGRES_DB="${POSTGRES_DB:-turboea}"
 POSTGRES_USER="${POSTGRES_USER:-turboea}"
@@ -106,7 +116,7 @@ deploy() {
   render
   log "gcloud run compose up (${SERVICE} in ${REGION})"
   gcloud run compose up .compose.cloudrun.rendered.yaml \
-    --project="$PROJECT" --region="$REGION" --allow-unauthenticated
+    --project="$PROJECT" --region="$REGION" "$AUTH_FLAG"
 
   log "Applying Cloud Run settings compose cannot express"
   gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
@@ -131,7 +141,7 @@ deploy() {
     log "Assigned URL is ${TURBO_EA_PUBLIC_URL} — redeploying with it baked in"
     render
     gcloud run compose up .compose.cloudrun.rendered.yaml \
-      --project="$PROJECT" --region="$REGION" --allow-unauthenticated
+      --project="$PROJECT" --region="$REGION" "$AUTH_FLAG"
   fi
 
   log "Done: $(service_url)"
