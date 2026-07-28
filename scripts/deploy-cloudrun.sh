@@ -85,7 +85,40 @@ declare -A MEM=(  [nginx]=256Mi [frontend]=256Mi [backend]=1Gi [mcp-server]=256M
 MIN_INSTANCES="${MIN_INSTANCES:-0}"
 CPU_ALLOCATION="${CPU_ALLOCATION:---cpu-throttling}"
 
+IMAGE_REPO="${IMAGE_REPO:-${REGION}-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/turbo-ea}"
+IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || echo latest)}"
+
 log() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
+
+# ---------------------------------------------------------------------------
+build() {
+  log "Building the four stages with explicit --target (cloudbuild.yaml)"
+  gcloud builds submit --project="$PROJECT" --region="$REGION" \
+    --config=cloudbuild.yaml \
+    --substitutions="_REPO=${IMAGE_REPO},_TAG=${IMAGE_TAG}" .
+}
+
+# Resolve each tag to a digest. Deploying by digest rather than by tag means the
+# revision cannot silently pick up a different image later, and it makes a
+# mismatch (wrong stage, stale build) visible here rather than at startup.
+resolve_images() {
+  local svc digest
+  for svc in backend frontend mcp-server nginx; do
+    digest=$(gcloud artifacts docker images describe \
+      "${IMAGE_REPO}/${svc}:${IMAGE_TAG}" --project="$PROJECT" \
+      --format='value(image_summary.digest)' 2>/dev/null || true)
+    if [ -z "$digest" ]; then
+      echo "No image for ${IMAGE_REPO}/${svc}:${IMAGE_TAG} — run '$0 build' first" >&2
+      exit 1
+    fi
+    case "$svc" in
+      backend)    IMAGE_BACKEND="${IMAGE_REPO}/backend@${digest}" ;;
+      frontend)   IMAGE_FRONTEND="${IMAGE_REPO}/frontend@${digest}" ;;
+      mcp-server) IMAGE_MCP="${IMAGE_REPO}/mcp-server@${digest}" ;;
+      nginx)      IMAGE_NGINX="${IMAGE_REPO}/nginx@${digest}" ;;
+    esac
+  done
+}
 
 # ---------------------------------------------------------------------------
 bootstrap() {
@@ -145,12 +178,15 @@ render() {
   # Substitute placeholders ourselves rather than relying on gcloud doing
   # compose-style ${VAR} interpolation — if it did not, the literal "${...}"
   # would land in the container env and fail silently at runtime.
+  resolve_images
   export TURBO_EA_PUBLIC_URL POSTGRES_DB POSTGRES_USER CLOUDSQL_INSTANCE \
          POSTGRES_HOST POSTGRES_PORT POSTGRES_SSL \
-         DB_POOL_SIZE DB_MAX_OVERFLOW DB_DISABLE_PREPARED_CACHE
+         DB_POOL_SIZE DB_MAX_OVERFLOW DB_DISABLE_PREPARED_CACHE \
+         IMAGE_BACKEND IMAGE_FRONTEND IMAGE_MCP IMAGE_NGINX
   envsubst '${TURBO_EA_PUBLIC_URL} ${POSTGRES_DB} ${POSTGRES_USER} ${CLOUDSQL_INSTANCE}
             ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_SSL}
-            ${DB_POOL_SIZE} ${DB_MAX_OVERFLOW} ${DB_DISABLE_PREPARED_CACHE}' \
+            ${DB_POOL_SIZE} ${DB_MAX_OVERFLOW} ${DB_DISABLE_PREPARED_CACHE}
+            ${IMAGE_BACKEND} ${IMAGE_FRONTEND} ${IMAGE_MCP} ${IMAGE_NGINX}' \
     < compose.cloudrun.yaml > .compose.cloudrun.rendered.yaml
 
   if [ "$DB_MODE" = neon ]; then
@@ -179,6 +215,8 @@ service_url() {
 }
 
 deploy() {
+  [ "${SKIP_BUILD:-false}" = true ] || build
+
   # Pass 1 exists only to learn the assigned *.run.app URL, which nginx (server
   # name, X-Forwarded-Proto), the backend (CORS) and the MCP server (OAuth
   # discovery documents) all need baked into their env.
@@ -193,7 +231,7 @@ deploy() {
   render
   log "gcloud run compose up (${SERVICE} in ${REGION})"
   gcloud run compose up .compose.cloudrun.rendered.yaml \
-    --project="$PROJECT" --region="$REGION" "$AUTH_FLAG"
+    --project="$PROJECT" --region="$REGION" "$AUTH_FLAG" --no-build
 
   log "Applying Cloud Run settings compose cannot express"
   gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
@@ -227,7 +265,8 @@ deploy() {
 
 case "${1:-deploy}" in
   bootstrap) bootstrap ;;
+  build)     build ;;
   deploy)    deploy ;;
   render)    TURBO_EA_PUBLIC_URL="$(service_url)"; render; cat .compose.cloudrun.rendered.yaml ;;
-  *) echo "usage: $0 [bootstrap|deploy|render]" >&2; exit 2 ;;
+  *) echo "usage: $0 [bootstrap|build|deploy|render]" >&2; exit 2 ;;
 esac

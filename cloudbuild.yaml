@@ -1,0 +1,52 @@
+# Build each Dockerfile stage into its own image, with an explicit --target.
+#
+# This exists because `gcloud run compose up` silently ignores `build.target`
+# in compose.cloudrun.yaml: every image it produces is the LAST stage of the
+# Dockerfile (mcp-server), so the backend and frontend containers came up
+# running the MCP server. Same root cause as a plain `docker build` with no
+# --target, which is what broke the Cloud Run GitHub trigger originally.
+#
+# scripts/deploy-cloudrun.sh runs this, then deploys with --no-build against
+# the resulting digests.
+#
+# The four targets share no intermediate stages with each other, so they build
+# in parallel (waitFor: ['-']).
+
+substitutions:
+  _REPO: europe-west2-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/turbo-ea
+  _TAG: latest
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 3600s
+
+steps:
+  - id: backend
+    name: gcr.io/cloud-builders/docker
+    waitFor: ['-']
+    args: ['build', '--target', 'backend', '-t', '${_REPO}/backend:${_TAG}', '.']
+
+  # frontend-cloudrun, not frontend: identical image with the listen port moved
+  # to 8081 so it does not collide with the edge nginx on 8080.
+  - id: frontend
+    name: gcr.io/cloud-builders/docker
+    waitFor: ['-']
+    args: ['build', '--target', 'frontend-cloudrun', '-t', '${_REPO}/frontend:${_TAG}', '.']
+
+  - id: mcp-server
+    name: gcr.io/cloud-builders/docker
+    waitFor: ['-']
+    args: ['build', '--target', 'mcp-server', '-t', '${_REPO}/mcp-server:${_TAG}', '.']
+
+  - id: nginx
+    name: gcr.io/cloud-builders/docker
+    waitFor: ['-']
+    args: ['build', '--target', 'nginx', '-t', '${_REPO}/nginx:${_TAG}', '.']
+
+images:
+  - '${_REPO}/backend:${_TAG}'
+  - '${_REPO}/frontend:${_TAG}'
+  - '${_REPO}/mcp-server:${_TAG}'
+  - '${_REPO}/nginx:${_TAG}'

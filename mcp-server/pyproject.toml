@@ -9,7 +9,7 @@ description = "MCP server for Turbo EA — AI tool access to EA data plus artifa
 license = "FSL-1.1-MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=1.9.0",
+    "mcp>=1.9.0,<2",
     "httpx>=0.28.0",
     "pyjwt>=2.9.0",
     "starlette>=0.45.0",

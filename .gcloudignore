@@ -1,0 +1,13 @@
+# Keep `gcloud builds submit` uploads small. Mirrors .dockerignore — without
+# this, gcloud falls back to .gitignore and ships docs/ and marketing-site/.
+.git
+.env
+docs/
+marketing-site/
+frontend/node_modules
+frontend/dist
+backend/__pycache__
+backend/venv
+mcp-server/__pycache__
+mcp-server/venv
+.compose.cloudrun.rendered.yaml

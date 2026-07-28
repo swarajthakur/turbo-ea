@@ -17,6 +17,11 @@
 # `ollama` is dropped too — it wants a GPU and a multi-GB model volume. Leave
 # AI_PROVIDER_URL pointing at a hosted model, or leave it empty to disable AI.
 #
+# Images are referenced by digest, never built from here: `gcloud run compose up`
+# silently ignores `build.target`, so every image it builds is the Dockerfile's
+# last stage. cloudbuild.yaml builds the stages with explicit --target and
+# scripts/deploy-cloudrun.sh substitutes the resulting digests below.
+#
 # Placeholders (${...}) are substituted by scripts/deploy-cloudrun.sh.
 
 name: turbo-ea
@@ -24,9 +29,7 @@ name: turbo-ea
 services:
   # ---- ingress ------------------------------------------------------------
   nginx:
-    build:
-      context: .
-      target: nginx
+    image: ${IMAGE_NGINX}
     x-google-cloudrun:
       ingress-container: true
     ports:
@@ -45,17 +48,13 @@ services:
 
   # ---- static SPA + drawio ------------------------------------------------
   frontend:
-    build:
-      context: .
-      target: frontend-cloudrun            # identical to `frontend`, on 8081
+    image: ${IMAGE_FRONTEND}
     expose:
       - "8081"
 
   # ---- API ----------------------------------------------------------------
   backend:
-    build:
-      context: .
-      target: backend
+    image: ${IMAGE_BACKEND}
     expose:
       - "8000"
     environment:
@@ -85,9 +84,7 @@ services:
 
   # ---- MCP ----------------------------------------------------------------
   mcp-server:
-    build:
-      context: .
-      target: mcp-server
+    image: ${IMAGE_MCP}
     expose:
       - "8001"
     environment:
