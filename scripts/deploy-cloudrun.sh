@@ -222,6 +222,41 @@ PY
   fi
 }
 
+# The revision `compose up` creates is EXPECTED to fail. Compose has no way to
+# reference Secret Manager, so the backend starts without SECRET_KEY and
+# POSTGRES_PASSWORD and exits during app startup. apply_settings() below creates
+# the revision that actually runs — that is the one that has to succeed.
+compose_up() {
+  render
+  log "gcloud run compose up (${SERVICE} in ${REGION})"
+  gcloud run compose up .compose.cloudrun.rendered.yaml \
+    --project="$PROJECT" --region="$REGION" "$AUTH_FLAG" --no-build \
+    || log "compose up produced no running revision (expected: secrets are not attached yet)"
+}
+
+# Everything compose cannot express, in ONE update so it is ONE revision.
+# Flags after --container apply to that container, so per-container resources
+# and the backend's secrets go in the same call. Splitting these up would cost
+# a failed revision — and several minutes of startup-probe timeout — each.
+apply_settings() {
+  log "Applying secrets, service account and resource limits"
+  [ "$DB_MODE" = neon ] && { unset 'CPU[cloudsql-proxy]' 'MEM[cloudsql-proxy]'; }
+
+  local args=(--service-account="$SA_EMAIL"
+              --min-instances="$MIN_INSTANCES" --max-instances=2
+              "$CPU_ALLOCATION" --timeout=3600)
+  local c
+  for c in "${!CPU[@]}"; do
+    args+=(--container="$c" --cpu="${CPU[$c]}" --memory="${MEM[$c]}")
+    if [ "$c" = backend ]; then
+      args+=(--set-secrets="POSTGRES_PASSWORD=${DB_PASSWORD_SECRET}:latest,SECRET_KEY=${SECRET_KEY_SECRET}:latest")
+    fi
+  done
+
+  gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
+    "${args[@]}" --quiet
+}
+
 service_url() {
   gcloud run services describe "$SERVICE" --project="$PROJECT" --region="$REGION" \
     --format='value(status.url)' 2>/dev/null || true
@@ -241,39 +276,20 @@ deploy() {
     log "First deploy — the public URL is not known yet, deploying twice"
   fi
 
-  render
-  log "gcloud run compose up (${SERVICE} in ${REGION})"
-  gcloud run compose up .compose.cloudrun.rendered.yaml \
-    --project="$PROJECT" --region="$REGION" "$AUTH_FLAG" --no-build
-
-  log "Applying Cloud Run settings compose cannot express"
-  gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
-    --service-account="$SA_EMAIL" \
-    --min-instances="$MIN_INSTANCES" --max-instances=2 \
-    "$CPU_ALLOCATION" \
-    --timeout=3600 \
-    --quiet
-
-  [ "$DB_MODE" = neon ] && { unset 'CPU[cloudsql-proxy]' 'MEM[cloudsql-proxy]'; }
-  for c in "${!CPU[@]}"; do
-    gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
-      --container="$c" --cpu="${CPU[$c]}" --memory="${MEM[$c]}" --quiet
-  done
-
-  gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
-    --container=backend \
-    --set-secrets="POSTGRES_PASSWORD=${DB_PASSWORD_SECRET}:latest,SECRET_KEY=${SECRET_KEY_SECRET}:latest" \
-    --quiet
+  compose_up
+  apply_settings
 
   if [ "$first_deploy" = true ]; then
     TURBO_EA_PUBLIC_URL="$(service_url)"
     log "Assigned URL is ${TURBO_EA_PUBLIC_URL} — redeploying with it baked in"
-    render
-    gcloud run compose up .compose.cloudrun.rendered.yaml \
-      --project="$PROJECT" --region="$REGION" "$AUTH_FLAG"
+    compose_up
+    apply_settings          # compose up rewrites the whole service spec
   fi
 
-  log "Done: $(service_url)"
+  local ready
+  ready=$(gcloud run services describe "$SERVICE" --project="$PROJECT" \
+    --region="$REGION" --format='value(status.latestReadyRevisionName)')
+  log "Done: $(service_url)  (serving revision: ${ready:-NONE})"
 }
 
 case "${1:-deploy}" in
