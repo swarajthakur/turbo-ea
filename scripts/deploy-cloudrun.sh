@@ -122,8 +122,13 @@ resolve_images() {
 
 # ---------------------------------------------------------------------------
 bootstrap() {
-  local pw key
+  local pw="" key secret_exists=false
   key="$(openssl rand -hex 32)"
+
+  # Checked up front so the DB password can be loaded into Secret Manager out
+  # of band — the operator never has to hand it to this script at all.
+  gcloud secrets describe turbo-ea-db-password --project="$PROJECT" >/dev/null 2>&1 \
+    && secret_exists=true
 
   if [ "$DB_MODE" = cloudsql ]; then
     log "Creating Cloud SQL instance ${SQL_INSTANCE} (this takes several minutes)"
@@ -137,14 +142,17 @@ bootstrap() {
 
     pw="$(openssl rand -base64 32 | tr -d '\n/+=' | cut -c1-32)"
   else
-    # Nothing to create — the database already exists at the provider. We only
-    # need its password in Secret Manager so the backend container can read it.
-    pw="${NEON_PASSWORD:?set NEON_PASSWORD to the provider password for $POSTGRES_USER}"
+    # Nothing to create — the database already exists at the provider. All we
+    # need is its password in Secret Manager. If it is already there (loaded
+    # directly, so it never passes through this script or a shell history),
+    # NEON_PASSWORD is not required.
     log "DB_MODE=neon — no Cloud SQL resources will be created"
+    [ "$secret_exists" = true ] \
+      || pw="${NEON_PASSWORD:?turbo-ea-db-password does not exist yet: either create it directly, or set NEON_PASSWORD}"
   fi
 
   log "Creating secrets"
-  if ! gcloud secrets describe turbo-ea-db-password --project="$PROJECT" >/dev/null 2>&1; then
+  if [ "$secret_exists" = false ]; then
     printf '%s' "$pw" | gcloud secrets create turbo-ea-db-password \
       --project="$PROJECT" --data-file=- --replication-policy=automatic
     [ "$DB_MODE" = cloudsql ] && gcloud sql users create "$POSTGRES_USER" \
