@@ -99,6 +99,24 @@ afterwards by the script with `gcloud run services update`. **If you ever run
 `gcloud run compose up` by hand, re-run the script afterwards** or those settings are
 lost.
 
+Three things about that tool, all learned the hard way:
+
+- **It ignores `build.target`.** Every image it builds is the Dockerfile's *last*
+  stage, so the backend and frontend containers both came up running the MCP
+  server. That is why images are built by `cloudbuild.yaml` with an explicit
+  `--target` and referenced here by digest, and why the deploy passes
+  `--no-build`. Do not put `build:` stanzas back into `compose.cloudrun.yaml`.
+- **`--dry-run` does not stop it deploying** once `--build` is also set. It built
+  the images and then went on to create a revision.
+- **The revision it creates is expected to fail.** Compose cannot reference
+  Secret Manager, so the backend starts with no `SECRET_KEY` or
+  `POSTGRES_PASSWORD` and exits. `apply_settings()` creates the revision that
+  actually runs. The script treats that first failure as normal.
+
+When running `gcloud run services update` by hand, put every service-level and
+global flag (including `--quiet`) *before* the first `--container`: gcloud scopes
+everything after `--container` to that container.
+
 Validate without deploying:
 
 ```bash
@@ -116,10 +134,12 @@ gcloud run compose up .compose.cloudrun.rendered.yaml --dry-run --region=$REGION
 - **Workspace import is capped well below 512m.** The nginx config allows 512m on
   `/api/v1/admin/workspace/import`, but Cloud Run caps request bodies at 32 MiB.
   Large workspace imports have to go another way.
-- **Cost.** `--min-instances=1 --no-cpu-throttling` means one always-on 4 vCPU / 4 GiB
-  instance plus the Cloud SQL instance. Dropping to `--min-instances=0` is much
-  cheaper but makes every cold start pay for five container starts and a migration
-  run.
+- **Cost.** The default is `--min-instances=0` with CPU throttling, so you pay per
+  request. The cost is a slow first request after idle: four container starts plus
+  an `alembic upgrade` run. `MIN_INSTANCES=1` trades money for latency.
+- **CPU and memory are coupled.** Cloud Run caps per-container memory against its
+  CPU share (0.08 vCPU -> 512Mi, 0.5 -> 1Gi, 1 -> 4Gi, 2 -> 8Gi). The backend's
+  1Gi therefore needs at least 0.5 CPU; 0.4 is rejected outright.
 - **AI features are off.** Set `AI_PROVIDER_URL` / `AI_MODEL` on the `backend`
   container to point at a hosted model. Cloud Run does support GPUs if you genuinely
   want Ollama back, but the model cache would sit on a FUSE-mounted bucket.

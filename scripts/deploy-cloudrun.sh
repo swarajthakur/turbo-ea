@@ -73,15 +73,20 @@ SA_NAME="${SA_NAME:-turbo-ea-run}"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 CLOUDSQL_INSTANCE="${PROJECT}:${REGION}:${SQL_INSTANCE}"
 
-# Per-container limits. Cloud Run bills the SUM of these as the instance size,
-# so keep the total on a valid instance shape — this adds up to 1 vCPU / 2Gi.
-# Only the backend does real work; nginx and the static frontend are close to
-# idle, and the proxy is a single Go binary.
+# Per-container limits. Cloud Run bills the SUM as the instance size, and caps
+# memory per container against its CPU share:
 #
-# UNVERIFIED: the exact per-container CPU split has not been applied against a
-# live service yet. If Cloud Run rejects the fractional values, give every
-# container 1 and let the instance be 5 vCPU, or drop mcp-server if unused.
-declare -A CPU=(  [nginx]=0.2  [frontend]=0.15 [backend]=0.4 [mcp-server]=0.15 [cloudsql-proxy]=0.1 )
+#   0.08 vCPU -> up to 512Mi     1 vCPU -> up to 4Gi
+#   0.5  vCPU -> up to 1Gi       2 vCPU -> up to 8Gi
+#
+# So the backend's 1Gi requires at least 0.5 CPU — 0.4 is rejected outright
+# ("For 0.4 CPU, memory must be between 128Mi and 512Mi inclusive"). Only the
+# backend does real work; nginx and the static frontend are close to idle, and
+# the proxy is a single Go binary.
+#
+# These add up to exactly 1 vCPU in neon mode. cloudsql mode adds the proxy on
+# top, so it lands at 1.1 and Cloud Run rounds the instance up to 2 vCPU.
+declare -A CPU=(  [nginx]=0.2  [frontend]=0.15 [backend]=0.5 [mcp-server]=0.15 [cloudsql-proxy]=0.1 )
 declare -A MEM=(  [nginx]=256Mi [frontend]=256Mi [backend]=1Gi [mcp-server]=256Mi [cloudsql-proxy]=256Mi )
 
 # Scale to zero by default: you pay per request rather than continuously. The
@@ -242,7 +247,11 @@ apply_settings() {
   log "Applying secrets, service account and resource limits"
   [ "$DB_MODE" = neon ] && { unset 'CPU[cloudsql-proxy]' 'MEM[cloudsql-proxy]'; }
 
-  local args=(--service-account="$SA_EMAIL"
+  # Every service-level and global flag must come BEFORE the first --container:
+  # gcloud scopes everything after --container to that container, and rejects
+  # e.g. a trailing --quiet as an unrecognised container flag.
+  local args=(--quiet
+              --service-account="$SA_EMAIL"
               --min-instances="$MIN_INSTANCES" --max-instances=2
               "$CPU_ALLOCATION" --timeout=3600)
   local c
@@ -254,7 +263,7 @@ apply_settings() {
   done
 
   gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
-    "${args[@]}" --quiet
+    "${args[@]}"
 }
 
 service_url() {
