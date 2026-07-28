@@ -36,6 +36,43 @@ Three of those are not preferences, they are requirements:
    Cloud Storage buckets over FUSE — no POSIX locking, no reliable `fsync`. Postgres
    cannot run on that. It has to be Cloud SQL.
 
+## Choosing where Postgres lives
+
+`DB_MODE=cloudsql` (default) creates a Cloud SQL instance and reaches it through
+the proxy sidecar. `DB_MODE=neon` points the backend at any external Postgres and
+strips the sidecar out of the rendered compose file — nothing Cloud SQL is created.
+
+Neon's free tier is the cheapest way to prove the deployment works end to end:
+
+```bash
+# 1. Create a Neon project. Pick a region near europe-west2 (London/Frankfurt) —
+#    every ORM query pays the round trip, and this app is chatty.
+# 2. Use the DIRECT connection string, not the "-pooler" one.
+export DB_MODE=neon
+export NEON_HOST=ep-xxxx-yyyy.eu-west-2.aws.neon.tech
+export NEON_PASSWORD='...'          # from the Neon dashboard
+export POSTGRES_USER=neondb_owner   # Neon's default; POSTGRES_DB=neondb
+export POSTGRES_DB=neondb
+
+scripts/deploy-cloudrun.sh bootstrap   # only creates secrets + the service account
+scripts/deploy-cloudrun.sh
+```
+
+Known limits of that path, all of which argue for moving to Cloud SQL before real
+data lands:
+
+- **0.5 GB ceiling, and attachments count against it.**
+  `backend/app/models/file_attachment.py` stores uploaded files in Postgres as
+  `LargeBinary`, capped at 10 MB each. That is roughly 50 max-size attachments.
+- **Latency.** Neon is reached over the public internet rather than a sidecar on
+  localhost.
+- **Pooled endpoints need `DB_DISABLE_PREPARED_CACHE=true`.** Transaction-mode
+  poolers reuse server connections, which breaks asyncpg's server-side prepared
+  statements. The direct endpoint avoids this entirely, which is why it is the
+  default advice above.
+
+Moving to Cloud SQL later is a `pg_dump`/`pg_restore` and dropping `DB_MODE`.
+
 ## Deploy
 
 ```bash

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 _DEFAULT_SECRET_KEYS = ("change-me-in-production", "dev-secret-key-change-in-production")
 
@@ -42,6 +43,28 @@ class Settings:
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "turboea")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "turboea")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "turboea")
+
+    # TLS mode handed to asyncpg ("require", "prefer", "verify-full", ...).
+    # Empty keeps asyncpg's own default, which is what the bundled Postgres
+    # container expects. Managed providers reached over the public internet
+    # (Neon, Supabase) need "require".
+    POSTGRES_SSL: str = os.getenv("POSTGRES_SSL", "")
+
+    # Connection pool. The defaults suit a long-lived container sitting next to
+    # its database. The pool is per process, so a scaled-out or serverless
+    # deployment multiplies it — lower these when the database counts
+    # connections against a quota.
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+
+    # Transaction-mode poolers (pgbouncer, and so Neon's and Supabase's
+    # "pooled" endpoints) reuse server connections across clients, which breaks
+    # server-side prepared statements — asyncpg then fails with "prepared
+    # statement _asyncpg_... already exists". Set this when pointing at a
+    # pooled endpoint; leave it off for a direct connection.
+    DB_DISABLE_PREPARED_CACHE: bool = os.getenv(
+        "DB_DISABLE_PREPARED_CACHE", ""
+    ).lower() in ("1", "true", "yes")
 
     # Audit-log (mutation_batches) retention. The hourly purge loop
     # deletes batches whose ``created_at`` is older than this; events
@@ -124,8 +147,13 @@ class Settings:
 
     @property
     def database_url(self) -> str:
+        # Percent-encode the credentials: managed providers hand out generated
+        # passwords containing "@", "/" and ":", which silently corrupt the URL
+        # otherwise (the part after "@" is parsed as the host).
+        user = quote_plus(self.POSTGRES_USER)
+        password = quote_plus(self.POSTGRES_PASSWORD)
         return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql+asyncpg://{user}:{password}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

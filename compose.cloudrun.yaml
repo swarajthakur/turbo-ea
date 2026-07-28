@@ -59,10 +59,19 @@ services:
     expose:
       - "8000"
     environment:
-      POSTGRES_HOST: 127.0.0.1             # the cloudsql-proxy sidecar
-      POSTGRES_PORT: "5432"
+      # DB_MODE=cloudsql -> 127.0.0.1, the proxy sidecar below.
+      # DB_MODE=neon     -> the provider hostname; the sidecar is stripped out
+      #                     of the rendered file and POSTGRES_SSL is set.
+      POSTGRES_HOST: "${POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_SSL: "${POSTGRES_SSL}"
+      # A Cloud Run instance is one process with its own pool, and instances
+      # scale out — keep this small against a connection-metered database.
+      DB_POOL_SIZE: "${DB_POOL_SIZE}"
+      DB_MAX_OVERFLOW: "${DB_MAX_OVERFLOW}"
+      DB_DISABLE_PREPARED_CACHE: "${DB_DISABLE_PREPARED_CACHE}"
       # POSTGRES_PASSWORD and SECRET_KEY are injected from Secret Manager by
       # scripts/deploy-cloudrun.sh — deliberately not in this file.
       ENVIRONMENT: production
