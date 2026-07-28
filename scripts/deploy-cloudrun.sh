@@ -30,6 +30,7 @@ case "$ALLOW_UNAUTH" in
   *)          AUTH_FLAG=--no-allow-unauthenticated ;;
 esac
 
+SQL_TIER="${SQL_TIER:-db-f1-micro}"
 SQL_INSTANCE="${SQL_INSTANCE:-turbo-ea-db}"
 POSTGRES_DB="${POSTGRES_DB:-turboea}"
 POSTGRES_USER="${POSTGRES_USER:-turboea}"
@@ -37,10 +38,22 @@ SA_NAME="${SA_NAME:-turbo-ea-run}"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 CLOUDSQL_INSTANCE="${PROJECT}:${REGION}:${SQL_INSTANCE}"
 
-# Per-container limits. Cloud Run bills the sum, so this is a 4 vCPU / 4Gi
-# instance. The backend is the only container that needs real headroom.
-declare -A CPU=(  [nginx]=1 [frontend]=1 [backend]=2 [mcp-server]=1 [cloudsql-proxy]=1 )
-declare -A MEM=(  [nginx]=512Mi [frontend]=512Mi [backend]=2Gi [mcp-server]=512Mi [cloudsql-proxy]=512Mi )
+# Per-container limits. Cloud Run bills the SUM of these as the instance size,
+# so keep the total on a valid instance shape — this adds up to 1 vCPU / 2Gi.
+# Only the backend does real work; nginx and the static frontend are close to
+# idle, and the proxy is a single Go binary.
+#
+# UNVERIFIED: the exact per-container CPU split has not been applied against a
+# live service yet. If Cloud Run rejects the fractional values, give every
+# container 1 and let the instance be 5 vCPU, or drop mcp-server if unused.
+declare -A CPU=(  [nginx]=0.2  [frontend]=0.15 [backend]=0.4 [mcp-server]=0.15 [cloudsql-proxy]=0.1 )
+declare -A MEM=(  [nginx]=256Mi [frontend]=256Mi [backend]=1Gi [mcp-server]=256Mi [cloudsql-proxy]=256Mi )
+
+# Scale to zero by default: you pay per request rather than continuously. The
+# cost is a slow first request after idle — four container starts plus an
+# alembic migration run. Set MIN_INSTANCES=1 to trade money for latency.
+MIN_INSTANCES="${MIN_INSTANCES:-0}"
+CPU_ALLOCATION="${CPU_ALLOCATION:---cpu-throttling}"
 
 log() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 
@@ -49,7 +62,7 @@ bootstrap() {
   log "Creating Cloud SQL instance ${SQL_INSTANCE} (this takes several minutes)"
   gcloud sql instances create "$SQL_INSTANCE" \
     --project="$PROJECT" --region="$REGION" \
-    --database-version=POSTGRES_16 --tier=db-g1-small \
+    --database-version=POSTGRES_16 --tier="${SQL_TIER:-db-f1-micro}" \
     --storage-auto-increase 2>/dev/null || echo "  (already exists)"
 
   gcloud sql databases create "$POSTGRES_DB" --instance="$SQL_INSTANCE" \
@@ -121,8 +134,8 @@ deploy() {
   log "Applying Cloud Run settings compose cannot express"
   gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" \
     --service-account="$SA_EMAIL" \
-    --min-instances=1 --max-instances=4 \
-    --no-cpu-throttling \
+    --min-instances="$MIN_INSTANCES" --max-instances=2 \
+    "$CPU_ALLOCATION" \
     --timeout=3600 \
     --quiet
 
