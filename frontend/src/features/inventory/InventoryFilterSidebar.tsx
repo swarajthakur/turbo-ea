@@ -30,6 +30,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Autocomplete from "@mui/material/Autocomplete";
 import MaterialSymbol from "@/components/MaterialSymbol";
+import ColumnFreezeToggle from "@/components/grid/ColumnFreezeToggle";
 import { useTypeLabel, useSubtypeLabel, useFieldLabel, useOptionLabel } from "@/hooks/useResolveLabel";
 import { api } from "@/api/client";
 import { readableTextColor } from "@/lib/color";
@@ -90,6 +91,9 @@ interface Props {
   onResetColumns?: () => void;
   // Current grid column layout (order/width/pinning), captured by InventoryPage.
   // Saved into a view's `column_state`; applied back via `onApplyColumnState`.
+  /** Grid colIds frozen to the leading edge; the pin on each row toggles one. */
+  frozenColumns: Set<string>;
+  onToggleFrozen: (colId: string) => void;
   columnState?: ColumnLayoutItem[];
   onApplyColumnState?: (state: ColumnLayoutItem[] | null) => void;
   // The grid's current AG Grid column-filter model (a layer separate from these
@@ -138,10 +142,15 @@ export const EMPTY_VALUE = "__empty__";
 export const tagEmptyToken = (groupId: string) => `${EMPTY_VALUE}:${groupId}`;
 
 /**
- * Flatten a card's tags to a plain searchable string (tag names joined).
- * Used as the AG Grid `filterValueGetter` for the Tags column: the cell value
- * is a `TagRef[]`, and AG Grid's default text filter would otherwise stringify
- * it to "[object Object]" and never match a typed tag name (issue #728).
+ * Flatten a card's tags to a plain string (tag names joined) — the text the
+ * Tags column's chips spell out.
+ *
+ * Used twice on that column, for the same underlying reason: as its
+ * `filterValueGetter`, because the cell value is a `TagRef[]` and AG Grid's
+ * default text filter would stringify it to "[object Object]" and never match
+ * a typed tag name (issue #728); and as its `valueFormatter`, because
+ * "Export current view" would otherwise write that same "[object Object]" into
+ * the workbook (issue #887).
  */
 export function tagsToFilterText(tags?: { name: string }[]): string {
   return (tags || []).map((t) => t.name).join(", ");
@@ -229,6 +238,8 @@ export default function InventoryFilterSidebar({
   onSelectedColumnsChange,
   defaultColumns,
   onResetColumns,
+  frozenColumns,
+  onToggleFrozen,
   columnState,
   onApplyColumnState,
   columnFilterModel,
@@ -1368,6 +1379,8 @@ export default function InventoryFilterSidebar({
               relevantRelTypes={relevantRelTypes}
               stakeholderRoles={stakeholderRoles}
               onResetColumns={onResetColumns}
+              frozenColumns={frozenColumns}
+              onToggleFrozen={onToggleFrozen}
               columnsChanged={columnsChanged}
               t={t}
             />
@@ -1878,6 +1891,8 @@ function ColumnsTab({
   stakeholderRoles,
   onResetColumns,
   columnsChanged,
+  frozenColumns,
+  onToggleFrozen,
   t,
 }: {
   types: CardType[];
@@ -1888,6 +1903,8 @@ function ColumnsTab({
   stakeholderRoles: StakeholderRoleOption[];
   onResetColumns?: () => void;
   columnsChanged?: boolean;
+  frozenColumns: Set<string>;
+  onToggleFrozen: (colId: string) => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   const typeLabel = useTypeLabel();
@@ -1903,6 +1920,20 @@ function ColumnsTab({
 
   const toggleSection = (key: string) =>
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Every column row carries a freeze pin. It is a *sibling* of the row
+  // button, not a child: locked rows render the button `disabled`, which
+  // would swallow the click, and a locked column (Type, Name) is exactly the
+  // one worth freezing.
+  const withPin = (colKey: string, row: React.ReactNode) => (
+    <Box key={colKey} sx={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>{row}</Box>
+      <ColumnFreezeToggle
+        frozen={frozenColumns.has(colKey)}
+        onToggle={() => onToggleFrozen(colKey)}
+      />
+    </Box>
+  );
 
   const toggleColumn = (key: string) => {
     if (LOCKED_COLUMN_KEYS.has(key)) return;
@@ -2156,16 +2187,15 @@ function ColumnsTab({
                     />
                   </ListItemButton>
                 );
-                return locked ? (
-                  <Tooltip
-                    key={c.key}
-                    title={t("columns.alwaysVisible")}
-                    placement="right"
-                  >
-                    <span>{row}</span>
-                  </Tooltip>
-                ) : (
-                  row
+                return withPin(
+                  c.key,
+                  locked ? (
+                    <Tooltip title={t("columns.alwaysVisible")} placement="right">
+                      <span>{row}</span>
+                    </Tooltip>
+                  ) : (
+                    row
+                  ),
                 );
               })}
             </List>
@@ -2206,9 +2236,9 @@ function ColumnsTab({
                   }
                 />
               </ListItemButton>
-              {filteredMeta.map((m) => (
+              {filteredMeta.map((m) => withPin(
+                m.key,
                 <ListItemButton
-                  key={m.key}
                   sx={{ py: 0.25, px: 0.5, borderRadius: 1 }}
                   onClick={() => toggleColumn(m.key)}
                 >
@@ -2225,7 +2255,7 @@ function ColumnsTab({
                       </Typography>
                     }
                   />
-                </ListItemButton>
+                </ListItemButton>,
               ))}
             </List>
           </Collapse>
@@ -2265,9 +2295,9 @@ function ColumnsTab({
                   }
                 />
               </ListItemButton>
-              {filteredAttrs.map((f) => (
+              {filteredAttrs.map((f) => withPin(
+                `attr_${f.key}`,
                 <ListItemButton
-                  key={f.key}
                   sx={{ py: 0.25, px: 0.5, borderRadius: 1 }}
                   onClick={() => toggleColumn(`attr_${f.key}`)}
                 >
@@ -2281,7 +2311,7 @@ function ColumnsTab({
                       </Typography>
                     }
                   />
-                </ListItemButton>
+                </ListItemButton>,
               ))}
             </List>
           </Collapse>
@@ -2331,9 +2361,9 @@ function ColumnsTab({
                   : otherKey;
                 const colKey = `rel_${otherKey}`;
 
-                return (
+                return withPin(
+                  colKey,
                   <ListItemButton
-                    key={colKey}
                     sx={{ py: 0.25, px: 0.5, borderRadius: 1 }}
                     onClick={() => toggleColumn(colKey)}
                   >
@@ -2352,7 +2382,7 @@ function ColumnsTab({
                         </Typography>
                       }
                     />
-                  </ListItemButton>
+                  </ListItemButton>,
                 );
               })}
             </List>
@@ -2395,9 +2425,9 @@ function ColumnsTab({
               </ListItemButton>
               {filteredStakeholderRoles.map((role) => {
                 const colKey = `stakeholder_${role.key}`;
-                return (
+                return withPin(
+                  colKey,
                   <ListItemButton
-                    key={colKey}
                     sx={{ py: 0.25, px: 0.5, borderRadius: 1 }}
                     onClick={() => toggleColumn(colKey)}
                   >
@@ -2414,7 +2444,7 @@ function ColumnsTab({
                         </Typography>
                       }
                     />
-                  </ListItemButton>
+                  </ListItemButton>,
                 );
               })}
             </List>

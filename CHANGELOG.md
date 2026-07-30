@@ -5,6 +5,45 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.36.0] - 2026-07-29
+
+### Added
+- **Any column can now be frozen in place while you scroll sideways.** Hover a column header and click the pin: the column moves to the leading edge and stays there, so a wide table no longer leaves you guessing which row you are reading ([#890](https://github.com/vincentmakes/turbo-ea/discussions/890)). Click the pin again to release it, or use the pin that now sits beside every column in the **Columns** tab of the filter panel. The row-selection checkboxes stay at the far left of the table, ahead of whatever you freeze. Frozen columns are remembered per table in your browser, and on the Inventory grid they also travel with a saved view, like column order and width already do. The control is on every data table in Turbo EA: Inventory, Risk Register, Decisions, Compliance findings, Users, Resources and the Audit log.
+
+### Changed
+- **The Card column on Compliance findings and the Name column on Users can now be unfrozen.** Both were permanently pinned; they stay frozen by default and are now releasable like any other column.
+
+## [2.35.0] - 2026-07-29
+
+### Added
+- **A manual calculation run now says which cards failed, and why.** Running a calculation from the list used to report only «Processed 22 cards: 1 succeeded, 21 failed», leaving the failures to be found by testing the formula against every card by hand. The result banner now offers **View details**: a breakdown per calculation of how many cards computed and how many failed, and under each one the distinct errors with the number of cards they were raised on and links to those cards. Identical errors are grouped, since one wrong formula is one fix rather than twenty-one; up to ten cards are listed per error with the remainder shown as a count. **Copy report** puts the whole breakdown on the clipboard.
+
+### Fixed
+- **The status of a calculation was decided by whichever card happened to be processed last.** A bulk run that failed on twenty-one cards and succeeded on the twenty-second cleared the error and left a green **OK** chip in the calculations list. The chip now reflects the run as a whole: the most common failure when any card failed, and OK only when every card computed.
+
+## [2.34.0] - 2026-07-29
+
+### Added
+- **Calculations can read PPM budget and cost data.** A new `ppm` root exposes an Initiative's capex, opex and total figures for budget, planned and actual spend, both as overall totals and broken down per fiscal year (`ppm.byYear`, a list so the existing `FILTER` and `PLUCK` functions work on it). Cost lines are assigned to a fiscal year using the Fiscal Year Start setting, with a year named after the calendar year it ends in. Related Initiatives expose the same data, so a card can sum the capex of every initiative linked to it. Editing a PPM budget or cost line now re-runs the initiative's calculations, so derived fields no longer wait for the card to be saved by hand.
+- **A calculation can treat blank numbers as zero.** An opt-in switch per calculation, off by default: empty numeric fields then evaluate as `0` in arithmetic and in `<`/`>` comparisons, while `==`, `!=` and `is None` keep their normal meaning. Intended for cost roll-ups where some inputs are simply not filled in yet.
+
+### Fixed
+- **A formula that referenced a field that does not exist used to fail on every card with a bare «Evaluation error».** Saving such a formula is now refused outright, with a message naming the key and suggesting the nearest real one — the most common cause being the field's *label* used where its *key* was needed.
+- **Formula errors now say what went wrong.** Undefined names and functions are named, an empty field used in arithmetic is identified by key with a pointer to `COALESCE`, and reading `parent` on a root card suggests the `IF(parent, …)` guard. The Test dialog no longer replaces all of this with «Calculation failed».
+- **Reading a related card's field without the `attributes.` prefix now warns.** `SUM(PLUCK(relations.relInitiativeToApp, "CAPEX"))` matches nothing and quietly returns 0 forever; no error is possible on that path, so the calculations list and the formula editor now flag it and suggest the correct key.
+- **Formulas are re-evaluated once per card instead of once per calculation.** Relations, children, the parent and the hierarchy level were rebuilt for every calculation on a card, so a type with six calculations issued six copies of the same queries on every save and on every bulk recalculation.
+- **The Calculations documentation described a formula language that does not exist.** It referenced card fields as bare `fieldKey` instead of `data.fieldKey`, an array variable `related_{type_key}` that the engine never provided (the real one is `relations.<relationTypeKey>`), `lifecycle_endOfLife` instead of `data.lifecycle.endOfLife`, and `PLUCK` examples missing the `attributes.` prefix needed to reach a related card's own fields — so a formula copied from the page either errored or silently returned `0`. The page now documents the real context variables, explains the shape of a related-card entry, covers `LN`, and adds sections on guarding empty values with `COALESCE`, on what Validate and Test each actually run against, on when calculations are re-evaluated, and on reading PPM budget and cost totals from an Initiative card.
+
+### Security
+- **Listing calculations required only a login, not a permission.** Any authenticated user could read every formula and its last error; both now require `admin.metamodel`, in line with the rest of the metamodel configuration. The `calculated-fields` endpoint that non-admin pages depend on stays open.
+
+## [2.33.2] - 2026-07-29
+
+### Fixed
+- **«Export current view» wrote internal values instead of what the grid shows.** Parent carried a long record identifier — or nothing at all for a card with no parent — and card type, subtype, lifecycle, approval status, tags and any dropdown or multiple-choice field came out as the codes Turbo EA stores rather than the names on screen. Data quality exported a raw number instead of a percentage. Every column now exports its displayed text, in your language. «Export all fields» was never affected and is unchanged.
+- **Grid Edit dropdowns listed internal codes.** Picking a subtype or a single-choice field offered values like `business_app`; they now read as the names shown everywhere else.
+- **A card whose only lifecycle date is in the future counted as having no lifecycle.** It showed a «Plan» badge in the grid but the Lifecycle filter listed it as empty, and it sorted and exported as blank. The badge, the filter, the column and the export now agree.
+
 ## [2.33.1] - 2026-07-28
 
 ### Fixed

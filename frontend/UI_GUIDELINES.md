@@ -203,6 +203,33 @@ Always include `startIcon={<MaterialSymbol icon="…" size={iconSize.sm} />}` ra
 
 For MUI tables, table headers use `bgcolor: "action.hover"` for subtle distinction.
 
+**Every AG Grid gets column freeze.** Users must be able to pin a column to the
+leading edge so it stays readable while scrolling sideways. AG Grid Community
+renders pinned columns but ships no UI to pin one, so the affordance lives in
+`useColumnFreeze` (`src/components/grid/useColumnFreeze.ts`) and is wired into
+each grid in three lines:
+
+```tsx
+const columnFreeze = useColumnFreeze(gridRef, { frozen, onFrozenChange });
+const defaultColDef = useMemo(() => ({ …, headerComponentParams: columnFreeze.headerComponentParams }), [columnFreeze.headerComponentParams]);
+<Box ref={columnFreeze.containerRef} sx={{ …, ...columnFreeze.sx }}>
+  <AgGridReact … selectionColumnDef={columnFreeze.selectionColumnDef} />   // grids with row selection
+```
+
+`selectionColumnDef` pins the checkbox column. Without it a frozen column renders to the *left* of the checkboxes — AG Grid draws the entire pinned region ahead of everything unpinned, and the selection column's `lockPosition: "left"` only orders it within its own region.
+
+The hook feeds the *stock* header component a template with two extra pins
+(freeze on hover, unfreeze while frozen) — never hand-roll a `headerComponent`
+for this, as that loses sorting, the sort indicator, and the filter button.
+Persist the frozen colIds as **their own pref** and stamp them on with
+`applyFrozen()` — on every grid, including one that also stores a full
+`getColumnState()` snapshot. A snapshot is the wrong owner: its restore stops
+re-applying once the user drags or resizes a column, so a freeze made after
+that is saved and never restored. Strip `pinned` from the restored snapshot so
+the two can't fight. A frozen column is a per-user preference and must survive
+a reload like column visibility and width do. The same `frozenColumns` / `toggleFrozen` feed the
+per-row pin in the page's Columns tab (§3.11).
+
 ### 3.7 Status Representation
 
 Always render status through one of these:
@@ -370,12 +397,13 @@ Take colours from `theme/tokens.ts` (`STATUS_COLORS`, `SEVERITY_COLORS`, `LAYER_
 - An italic **Select all** row with an `indeterminate` checkbox.
 - A selected-count caption and a **Reset** button with a `restart_alt` icon.
 - Locked columns render checked + `disabled`, wrapped in a `<Tooltip placement="right">` explaining why, with `"&.Mui-disabled": { opacity: 0.7 }` so they stay readable.
+- **A freeze pin on every row** — `<ColumnFreezeToggle frozen onToggle/>` (`src/components/grid/ColumnFreezeToggle.tsx`), fed by the page's `columnFreeze.frozenColumns` / `toggleFrozen` (§3.6). It is the discoverable twin of the pin on the column header, and it must be a **sibling** of the `ListItemButton` inside a `Box sx={{ display: "flex" }}` — never a child, because a locked row disables its button and would swallow the pin's click, and a locked column is exactly the one worth freezing. Rows built with the shared `FilterCheckboxList` get it by passing `frozen` / `onToggleFrozen` on the item.
 
 **Filter/column state is persisted** under a `turboea.<page>.prefs` localStorage key through a defensive loader that validates every field and falls back to defaults — a malformed or stale entry must never break the page.
 
 ✅ Do
 - Give each new section a glyph and a count, even when the section holds a single control.
-- Keep the sidebar fully controlled: it receives `filters` / `visibleColumns` and their setters, plus pre-built option lists. It fetches nothing itself.
+- Keep the sidebar fully controlled: it receives `filters` / `visibleColumns` / `frozenColumns` and their setters, plus pre-built option lists. It fetches nothing itself.
 
 ❌ Don't
 - Don't ship a section header without an icon, or an option row that is just a checkbox and text.
