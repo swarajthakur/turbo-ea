@@ -102,6 +102,19 @@ log() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 
 # ---------------------------------------------------------------------------
 build() {
+  # Artifact Registry repos are per-region and IMAGE_REPO is derived from
+  # $REGION, so moving the service to another region means pushing into a repo
+  # that does not exist there yet. cloud-run-source-deploy is normally created
+  # implicitly by `gcloud run deploy --source`; nothing creates it for us.
+  local ar_repo="${IMAGE_REPO#*/}"; ar_repo="${ar_repo#*/}"; ar_repo="${ar_repo%%/*}"
+  if ! gcloud artifacts repositories describe "$ar_repo" \
+        --project="$PROJECT" --location="$REGION" >/dev/null 2>&1; then
+    log "Creating Artifact Registry repo ${ar_repo} in ${REGION}"
+    gcloud artifacts repositories create "$ar_repo" \
+      --project="$PROJECT" --location="$REGION" --repository-format=docker \
+      --description="Turbo EA container images" --quiet
+  fi
+
   log "Building the four stages with explicit --target (cloudbuild.yaml)"
   gcloud builds submit --project="$PROJECT" --region="$REGION" \
     --config=cloudbuild.yaml \
